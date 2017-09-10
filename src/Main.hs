@@ -1,9 +1,21 @@
 module Main where
 
-import Control.Exception (catch)
+import Control.Exception (catch, IOException)
+import Crypto.Hash (Context, Digest, HashAlgorithm, SHA1, hash, hashFinalize, hashInit, hashUpdate, hashFinalize)
+import Data.ByteArray (convert)
+import qualified Data.ByteString.Char8 as B8
+import Data.Monoid ((<>))
+import Data.Functor.Identity (Identity)
+import Data.Text (Text, pack, unpack)
+import Data.Text.Encoding (decodeUtf8, encodeUtf8)
+import qualified Data.Text.IO as TIO
+import Data.Time.Format (defaultTimeLocale, formatTime)
+import qualified Database.SQLite.Simple as D
 import Foundation
-import Prelude (mapM_, print, readFile)
-import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesPathExist, getCurrentDirectory, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
+import Foundation.Collection (zipWith)
+--import qualified GHC.Base
+import Prelude (concat, mapM, mapM_, print, readFile)
+import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
 import System.FilePath.Posix (FilePath, (</>), takeDirectory, takeBaseName)
@@ -22,9 +34,10 @@ main = do
   app_tmp_dir_exists <- doesDirectoryExist app_tmp_dir
   create_app_tmp_dir app_tmp_dir app_tmp_dir_exists
 
-  cwd <- getCurrentDirectory
-  all_files <- listDirectory cwd
-  dirstate_filepath <- writeTempFile app_tmp_dir "dirst" (intercalate "\n" all_files)
+  let path_to_db = app_data_dir </> "hroamer.db"
+  create_db_and_tables path_to_db
+
+  dirstate_filepath <- process_cwd app_tmp_dir path_to_db
   let user_dirstate_filepath = (takeDirectory dirstate_filepath) </>
                                  ("user-" <> takeBaseName dirstate_filepath)
   copyFile dirstate_filepath user_dirstate_filepath
@@ -40,7 +53,8 @@ main = do
   waitForProcess editor_process
 
   -- Compare for difference between the files
-  (_, _, _, cmp_process) <- createProcess (proc "cmp" ["--silent", dirstate_filepath, user_dirstate_filepath])
+  (_, _, _, cmp_process) <- createProcess
+    (proc "cmp" ["--silent", dirstate_filepath, user_dirstate_filepath])
   cmp_exit_code <- waitForProcess cmp_process
   case cmp_exit_code of
     ExitSuccess -> return ()
@@ -53,6 +67,31 @@ main = do
     exc_handler :: IOException -> IO ()
     exc_handler = const $ return ()
 
+
+create_db_and_tables :: FilePath -> IO ()
+create_db_and_tables path_to_db = D.withConnection path_to_db
+  (\conn -> D.execute_ conn "CREATE TABLE IF NOT EXISTS files(path_to_file TEXT, hash TEXT, CONSTRAINT files__path_to_file UNIQUE(path_to_file) ON CONFLICT ROLLBACK, CONSTRAINT files__hash UNIQUE(hash) ON CONFLICT ROLLBACK);")
+
+
+process_cwd :: FilePath -> FilePath -> IO FilePath
+process_cwd app_tmp_dir path_to_db = do
+  cwd <- getCurrentDirectory
+  all_files <- listDirectory cwd
+  hashes <- mapM compute_hash all_files
+  let x = zipWith (\x y -> x <> " | " <> y) (fmap pack all_files) hashes :: [Text]
+  mapM_ TIO.putStrLn x
+  dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
+    (toList $ intercalate "\n" x)
+  return dirstate_filepath
+  where
+    compute_hash :: FilePath -> IO Text
+    compute_hash path_to_file = do
+      mod_time <- getModificationTime path_to_file
+      let mod_time_string = formatTime
+                              defaultTimeLocale "%Y-%m-%d %H:%M:%S" mod_time
+      let digest = hash . encodeUtf8 $
+                     (pack path_to_file <> pack mod_time_string) :: Digest SHA1
+      return . decodeUtf8 . B8.pack . toList . show $ digest
 
 create_app_tmp_dir :: FilePath -> Bool -> IO ()
 create_app_tmp_dir app_tmp_dir False = do
