@@ -20,9 +20,15 @@ executable hroamer
   default-extensions:  NoImplicitPrelude
                      , OverloadedStrings
   build-depends:       base >= 4.7 && < 5
+                     , bytestring
+                     , cryptonite
                      , directory
                      , filepath
                      , foundation
+                     , memory
                      , process
+                     , sqlite-simple
                      , temporary
+                     , text
+                     , time
                      , unix
