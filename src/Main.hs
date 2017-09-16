@@ -102,6 +102,15 @@ appendSlashToDir dirname filename = do
     then return $ addTrailingPathSeparator filename
     else return filename
 
+computeHash :: FilePath -> IO [Char]
+computeHash path_to_file = do
+  mod_time <- getModificationTime path_to_file
+  let mod_time_string = formatTime
+                          defaultTimeLocale "%Y-%m-%d %H:%M:%S" mod_time
+  let digest = hash . encodeUtf8 $
+                 (pack path_to_file <> pack mod_time_string) :: Digest SHA1
+  return . toList $ show digest
+
 processCwd :: FilePath -> FilePath -> IO FilePath
 processCwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
@@ -148,15 +157,6 @@ processCwd app_tmp_dir path_to_db = do
       D.withConnection path_to_db (\conn ->
         D.query conn "SELECT filename, hash FROM files WHERE dir = ?;" [dirname] :: IO [([Char], [Char])]
       )
-
-    computeHash :: FilePath -> IO [Char]
-    computeHash path_to_file = do
-      mod_time <- getModificationTime path_to_file
-      let mod_time_string = formatTime
-                              defaultTimeLocale "%Y-%m-%d %H:%M:%S" mod_time
-      let digest = hash . encodeUtf8 $
-                     (pack path_to_file <> pack mod_time_string) :: Digest SHA1
-      return . toList $ show digest
 
 createAppTmpDir :: FilePath -> Bool -> IO ()
 createAppTmpDir app_tmp_dir False = do
