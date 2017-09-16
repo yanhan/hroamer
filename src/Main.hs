@@ -128,18 +128,18 @@ process_cwd app_tmp_dir path_to_db = do
 
     deleteNonExistentFileFromDb :: FilePath -> D.Connection -> [Char] -> IO ()
     deleteNonExistentFileFromDb cwd conn filename =
-      D.execute conn "DELETE FROM files WHERE dir = ? AND filename = ?"
+      D.execute conn "DELETE FROM files WHERE dir = ? AND filename = ?;"
       [cwd, filename]
 
     addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], [Char]) -> IO ()
     addFileDetailsToDb cwd conn (filename, file_hash) =
       D.execute conn
-        "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?)"
+        "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?);"
         [cwd, filename, file_hash]
 
     selectFromDbAllFilesInDir path_to_db dirname =
       D.withConnection path_to_db (\conn ->
-        D.query conn "SELECT filename, hash FROM files WHERE dir = ?" [dirname] :: IO [([Char], [Char])]
+        D.query conn "SELECT filename, hash FROM files WHERE dir = ?;" [dirname] :: IO [([Char], [Char])]
       )
 
     appendSlashToDirs :: FilePath -> FilePath -> IO FilePath
