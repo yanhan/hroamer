@@ -86,9 +86,10 @@ process_cwd app_tmp_dir path_to_db = do
         (\x y -> case (x, y) of
                    ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
         (zip (fmap toList all_files) hashes :: [([Char], [Char])])
-  let x = fmap (\(fn, h) -> pack fn <> " | " <> pack h) files_and_hashes_sorted
+  let lines_to_write_to_file = fmap (\(fn, h) -> pack fn <> " | " <> pack h)
+                                 files_and_hashes_sorted
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
-    (toList $ intercalate "\n" x)
+    (toList $ intercalate "\n" lines_to_write_to_file)
   return dirstate_filepath
   where
     append_slash_to_dirs :: FilePath -> FilePath -> IO FilePath
