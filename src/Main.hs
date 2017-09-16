@@ -12,7 +12,7 @@ import qualified Data.Text.IO as TIO
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import qualified Database.SQLite.Simple as D
 import Foundation
-import Foundation.Collection (zipWith)
+import Foundation.Collection (zip, zipWith)
 --import qualified GHC.Base
 import Prelude (concat, mapM, mapM_, print, readFile)
 import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
@@ -84,20 +84,24 @@ process_cwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
   all_files <- listDirectory cwd
   hashes <- mapM compute_hash all_files
-  let x = zipWith (\x y -> x <> " | " <> y) (fmap pack all_files) hashes :: [Text]
+  let files_and_hashes_sorted = sortBy
+        (\x y -> case (x, y) of
+                   ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
+        (zip (fmap toList all_files) hashes :: [([Char], [Char])])
+  let x = fmap (\(fn, h) -> pack fn <> " | " <> pack h) files_and_hashes_sorted
   mapM_ TIO.putStrLn x
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
     (toList $ intercalate "\n" x)
   return dirstate_filepath
   where
-    compute_hash :: FilePath -> IO Text
+    compute_hash :: FilePath -> IO [Char]
     compute_hash path_to_file = do
       mod_time <- getModificationTime path_to_file
       let mod_time_string = formatTime
                               defaultTimeLocale "%Y-%m-%d %H:%M:%S" mod_time
       let digest = hash . encodeUtf8 $
                      (pack path_to_file <> pack mod_time_string) :: Digest SHA1
-      return . decodeUtf8 . B8.pack . toList . show $ digest
+      return . toList $ show digest
 
 create_app_tmp_dir :: FilePath -> Bool -> IO ()
 create_app_tmp_dir app_tmp_dir False = do
