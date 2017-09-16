@@ -87,7 +87,6 @@ process_cwd app_tmp_dir path_to_db = do
                    ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
         (zip (fmap toList all_files) hashes :: [([Char], [Char])])
   let x = fmap (\(fn, h) -> pack fn <> " | " <> pack h) files_and_hashes_sorted
-  mapM_ TIO.putStrLn x
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
     (toList $ intercalate "\n" x)
   return dirstate_filepath
