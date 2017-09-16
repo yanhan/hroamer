@@ -112,6 +112,9 @@ computeHash path_to_file = do
                  (pack path_to_file <> pack mod_time_string) :: Digest SHA1
   return . toList $ show digest
 
+constructTextFileHeader :: FilePath -> [Char]
+constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
+
 processCwd :: FilePath -> FilePath -> FilePath -> IO FilePath
 processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- join $ fmap (mapM (appendSlashToDir cwd)) $ listDirectory cwd
@@ -142,7 +145,7 @@ processCwd cwd app_tmp_dir path_to_db = do
   let lines_to_write_to_file = fmap (\(fn, h) -> pack fn <> " | " <> pack h)
                                  files_and_hashes_sorted
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
-    ("\" pwd: " <> (toList cwd) <> "\n" <>
+    (constructTextFileHeader cwd <>
       (toList $ intercalate "\n" lines_to_write_to_file))
   return dirstate_filepath
   where
