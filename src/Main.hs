@@ -12,8 +12,8 @@ import qualified Data.Text.IO as TIO
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import qualified Database.SQLite.Simple as D
 import Foundation
-import Foundation.Collection (zip, zipWith)
-import Prelude (concat, mapM, mapM_, print, readFile)
+import Foundation.Collection (mapM, mapM_, zip, zipWith)
+import Prelude (concat, print, readFile)
 import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
