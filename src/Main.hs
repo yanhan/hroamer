@@ -1,6 +1,7 @@
 module Main where
 
 import Control.Exception (catch, IOException)
+import Control.Monad (join)
 import Crypto.Hash (Context, Digest, HashAlgorithm, SHA1, hash, hashFinalize, hashInit, hashUpdate, hashFinalize)
 import qualified Data.ByteString.Char8 as B8
 import Data.Monoid ((<>))
@@ -16,7 +17,7 @@ import Prelude (concat, mapM, mapM_, print, readFile)
 import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
-import System.FilePath.Posix (FilePath, (</>), takeDirectory, takeBaseName)
+import System.FilePath.Posix (FilePath, (</>), addTrailingPathSeparator, takeDirectory, takeBaseName)
 import System.IO.Temp (writeTempFile)
 import System.Posix.Signals (Handler(Catch), addSignal, emptySignalSet, installHandler, keyboardSignal, siginfoSignal, softwareStop, softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
@@ -80,7 +81,7 @@ create_db_and_tables path_to_db = do
 process_cwd :: FilePath -> FilePath -> IO FilePath
 process_cwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
-  all_files <- listDirectory cwd
+  all_files <- join $ fmap (mapM (append_slash_to_dirs cwd)) $ listDirectory cwd
   hashes <- mapM compute_hash all_files
   let files_and_hashes_sorted = sortBy
         (\x y -> case (x, y) of
@@ -92,6 +93,13 @@ process_cwd app_tmp_dir path_to_db = do
     (toList $ intercalate "\n" x)
   return dirstate_filepath
   where
+    append_slash_to_dirs :: FilePath -> FilePath -> IO FilePath
+    append_slash_to_dirs dirname filename = do
+      isdir <- doesDirectoryExist $ dirname </> filename
+      if isdir
+        then return $ addTrailingPathSeparator filename
+        else return filename
+
     compute_hash :: FilePath -> IO [Char]
     compute_hash path_to_file = do
       mod_time <- getModificationTime path_to_file
