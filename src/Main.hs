@@ -30,14 +30,14 @@ main = do
   home_dir <- getHomeDirectory
   app_data_dir <- getXdgDirectory XdgData "hroamer"
   app_data_dir_exists <- doesDirectoryExist app_data_dir
-  create_app_data_dir app_data_dir app_data_dir_exists
+  createAppDataDir app_data_dir app_data_dir_exists
 
   let app_tmp_dir = app_data_dir </> "tmp"
   app_tmp_dir_exists <- doesDirectoryExist app_tmp_dir
-  create_app_tmp_dir app_tmp_dir app_tmp_dir_exists
+  createAppTmpDir app_tmp_dir app_tmp_dir_exists
 
   let path_to_db = app_data_dir </> "hroamer.db"
-  create_db_and_tables path_to_db
+  createDbAndTables path_to_db
 
   dirstate_filepath <- process_cwd app_tmp_dir path_to_db
   let user_dirstate_filepath = (takeDirectory dirstate_filepath) </>
@@ -46,8 +46,8 @@ main = do
 
   let signals_to_handle = [keyboardSignal, softwareStop, softwareTermination]
   let handler = Catch $
-                  removeFile dirstate_filepath `catch` exc_handler >>
-                    removeFile user_dirstate_filepath `catch` exc_handler
+                  removeFile dirstate_filepath `catch` excHandler >>
+                    removeFile user_dirstate_filepath `catch` excHandler
   mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
 
   -- Launch vim to let user edit
@@ -63,15 +63,15 @@ main = do
     _ -> putStrLn "Changed!"
 
   -- cleanup
-  removeFile dirstate_filepath `catch` exc_handler
-  removeFile user_dirstate_filepath `catch` exc_handler
+  removeFile dirstate_filepath `catch` excHandler
+  removeFile user_dirstate_filepath `catch` excHandler
   where
-    exc_handler :: IOException -> IO ()
-    exc_handler = const $ return ()
+    excHandler :: IOException -> IO ()
+    excHandler = const $ return ()
 
 
-create_db_and_tables :: FilePath -> IO ()
-create_db_and_tables path_to_db = do
+createDbAndTables :: FilePath -> IO ()
+createDbAndTables path_to_db = do
   db_exists <- doesFileExist path_to_db
   if not db_exists
     then D.withConnection path_to_db (\conn -> do
@@ -87,23 +87,23 @@ instance FromRow SelectCount where
 process_cwd :: FilePath -> FilePath -> IO FilePath
 process_cwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
-  all_files <- join $ fmap (mapM (append_slash_to_dirs cwd)) $ listDirectory cwd
-  all_files_in_db <- select_from_db_all_files_in_dir path_to_db cwd
+  all_files <- join $ fmap (mapM (appendSlashToDirs cwd)) $ listDirectory cwd
+  all_files_in_db <- selectFromDbAllFilesInDir path_to_db cwd
   mapM_ (\(x,y) -> TIO.putStrLn . pack $ x <> " *** " <> y) all_files_in_db
-  hashes <- mapM compute_hash all_files
+  hashes <- mapM computeHash all_files
   let files_and_hashes_sorted = sortBy
         (\x y -> case (x, y) of
                    ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
         (zip (fmap toList all_files) hashes :: [([Char], [Char])])
   let lines_to_write_to_file = fmap (\(fn, h) -> pack fn <> " | " <> pack h)
                                  files_and_hashes_sorted
-  mapM_ (add_file_details_to_db cwd) files_and_hashes_sorted
+  mapM_ (addFileDetailsToDb cwd) files_and_hashes_sorted
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
     (toList $ intercalate "\n" lines_to_write_to_file)
   return dirstate_filepath
   where
-    add_file_details_to_db :: FilePath -> ([Char], [Char]) -> IO ()
-    add_file_details_to_db cwd (filename, file_hash) =
+    addFileDetailsToDb :: FilePath -> ([Char], [Char]) -> IO ()
+    addFileDetailsToDb cwd (filename, file_hash) =
       D.withConnection path_to_db (\conn -> do
         r <- D.query conn "SELECT COUNT(1) FROM files WHERE dir = ? AND filename = ?"
                [cwd, filename] :: IO [SelectCount]
@@ -115,20 +115,20 @@ process_cwd app_tmp_dir path_to_db = do
           _ -> error "Query string \"SELECT COUNT(1) FROM files WHERE dir = ? AND filename = ?\" has no results. Not supposed to happen!"
       )
 
-    select_from_db_all_files_in_dir path_to_db dirname =
+    selectFromDbAllFilesInDir path_to_db dirname =
       D.withConnection path_to_db (\conn ->
         D.query conn "SELECT filename, hash FROM files WHERE dir = ?" [dirname] :: IO [([Char], [Char])]
       )
 
-    append_slash_to_dirs :: FilePath -> FilePath -> IO FilePath
-    append_slash_to_dirs dirname filename = do
+    appendSlashToDirs :: FilePath -> FilePath -> IO FilePath
+    appendSlashToDirs dirname filename = do
       isdir <- doesDirectoryExist $ dirname </> filename
       if isdir
         then return $ addTrailingPathSeparator filename
         else return filename
 
-    compute_hash :: FilePath -> IO [Char]
-    compute_hash path_to_file = do
+    computeHash :: FilePath -> IO [Char]
+    computeHash path_to_file = do
       mod_time <- getModificationTime path_to_file
       let mod_time_string = formatTime
                               defaultTimeLocale "%Y-%m-%d %H:%M:%S" mod_time
@@ -136,19 +136,19 @@ process_cwd app_tmp_dir path_to_db = do
                      (pack path_to_file <> pack mod_time_string) :: Digest SHA1
       return . toList $ show digest
 
-create_app_tmp_dir :: FilePath -> Bool -> IO ()
-create_app_tmp_dir app_tmp_dir False = do
+createAppTmpDir :: FilePath -> Bool -> IO ()
+createAppTmpDir app_tmp_dir False = do
   path_exists <- doesPathExist app_tmp_dir
   if path_exists
      then removeFile app_tmp_dir
      else return ()
   createDirectory app_tmp_dir
 
-create_app_tmp_dir app_tmp_dir True = return ()
+createAppTmpDir app_tmp_dir True = return ()
 
 
-create_app_data_dir :: FilePath -> Bool -> IO ()
-create_app_data_dir app_data_dir False = do
+createAppDataDir :: FilePath -> Bool -> IO ()
+createAppDataDir app_data_dir False = do
   path_exists <- doesPathExist app_data_dir
   if path_exists
      then do
@@ -156,4 +156,4 @@ create_app_data_dir app_data_dir False = do
        exitWith $ ExitFailure 1
      else createDirectory app_data_dir
 
-create_app_data_dir app_data_dir True = return ()
+createAppDataDir app_data_dir True = return ()
