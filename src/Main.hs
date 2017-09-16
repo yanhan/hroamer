@@ -12,7 +12,6 @@ import Data.Time.Format (defaultTimeLocale, formatTime)
 import qualified Database.SQLite.Simple as D
 import Foundation
 import Foundation.Collection (zip, zipWith)
---import qualified GHC.Base
 import Prelude (concat, mapM, mapM_, print, readFile)
 import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
 import System.Environment (lookupEnv)
