@@ -95,6 +95,13 @@ addFileDetailsToDb cwd conn (filename, file_hash) =
     "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?);"
     [cwd, filename, file_hash]
 
+appendSlashToDirs :: FilePath -> FilePath -> IO FilePath
+appendSlashToDirs dirname filename = do
+  isdir <- doesDirectoryExist $ dirname </> filename
+  if isdir
+    then return $ addTrailingPathSeparator filename
+    else return filename
+
 processCwd :: FilePath -> FilePath -> IO FilePath
 processCwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
@@ -141,13 +148,6 @@ processCwd app_tmp_dir path_to_db = do
       D.withConnection path_to_db (\conn ->
         D.query conn "SELECT filename, hash FROM files WHERE dir = ?;" [dirname] :: IO [([Char], [Char])]
       )
-
-    appendSlashToDirs :: FilePath -> FilePath -> IO FilePath
-    appendSlashToDirs dirname filename = do
-      isdir <- doesDirectoryExist $ dirname </> filename
-      if isdir
-        then return $ addTrailingPathSeparator filename
-        else return filename
 
     computeHash :: FilePath -> IO [Char]
     computeHash path_to_file = do
