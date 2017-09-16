@@ -2,7 +2,6 @@ module Main where
 
 import Control.Exception (catch, IOException)
 import Crypto.Hash (Context, Digest, HashAlgorithm, SHA1, hash, hashFinalize, hashInit, hashUpdate, hashFinalize)
-import Data.ByteArray (convert)
 import qualified Data.ByteString.Char8 as B8
 import Data.Monoid ((<>))
 import Data.Functor.Identity (Identity)
