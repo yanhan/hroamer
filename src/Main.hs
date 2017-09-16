@@ -55,7 +55,7 @@ main = do
   mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
 
   -- Launch vim to let user edit
-  (_, _, _, editor_process) <- createProcess (proc "vim" [dirstate_filepath])
+  (_, _, _, editor_process) <- createProcess (proc "vim" [user_dirstate_filepath])
   waitForProcess editor_process
 
   -- Compare for difference between the files
