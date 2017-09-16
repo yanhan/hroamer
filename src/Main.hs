@@ -6,8 +6,12 @@ import Control.Exception (catch, IOException)
 import Control.Monad (join)
 import Crypto.Hash (Context, Digest, HashAlgorithm, SHA1, hash, hashFinalize, hashInit, hashUpdate, hashFinalize)
 import qualified Data.ByteString.Char8 as B8
+import Data.Map (Map)
+import qualified Data.Map as M
 import Data.Monoid ((<>))
 import Data.Functor.Identity (Identity)
+import Data.Set (Set)
+import qualified Data.Set as S
 import Data.Text (Text, pack, unpack)
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import qualified Data.Text.IO as TIO
@@ -80,40 +84,58 @@ createDbAndTables path_to_db = do
     )
     else return ()
 
-newtype SelectCount = SelectCount Int deriving (Show, FromField)
-instance FromRow SelectCount where
-  fromRow = SelectCount <$> field
-
 process_cwd :: FilePath -> FilePath -> IO FilePath
 process_cwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
-  all_files <- join $ fmap (mapM (appendSlashToDirs cwd)) $ listDirectory cwd
-  all_files_in_db <- selectFromDbAllFilesInDir path_to_db cwd
-  mapM_ (\(x,y) -> TIO.putStrLn . pack $ x <> " *** " <> y) all_files_in_db
-  hashes <- mapM computeHash all_files
+  files__on_system <- join $ fmap (mapM (appendSlashToDirs cwd)) $ listDirectory cwd
+  files_and_hashes__in_db <- selectFromDbAllFilesInDir path_to_db cwd
+  let file_to_hash__in_db = M.fromList files_and_hashes__in_db
+  let files__in_db = fmap fst files_and_hashes__in_db
+  let (files_on_both, files_only_on_system, files_only_in_db) =
+        separateFilesIntoCategories files__on_system files__in_db
+  let l_files_only_on_system = S.toList files_only_on_system
+  hash__only_on_system <- mapM computeHash l_files_only_on_system
+  let file_to_hash__only_on_system = zip l_files_only_on_system
+                                        hash__only_on_system
+  -- DB operations
+  D.withConnection path_to_db (\conn -> do
+      D.execute_ conn "BEGIN TRANSACTION;"
+      mapM_ (addFileDetailsToDb cwd conn) file_to_hash__only_on_system
+      mapM_ (deleteNonExistentFileFromDb cwd conn) (S.toList files_only_in_db)
+      D.execute_ conn "COMMIT;"
+    )
+
+  let file_to_hash__accurate = M.unionWith (\_ y -> y)
+        (M.filterWithKey (\k _ -> k `S.notMember` files_only_in_db) file_to_hash__in_db)
+        (M.fromList file_to_hash__only_on_system)
   let files_and_hashes_sorted = sortBy
         (\x y -> case (x, y) of
                    ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
-        (zip (fmap toList all_files) hashes :: [([Char], [Char])])
+        (M.toList file_to_hash__accurate)
   let lines_to_write_to_file = fmap (\(fn, h) -> pack fn <> " | " <> pack h)
                                  files_and_hashes_sorted
-  mapM_ (addFileDetailsToDb cwd) files_and_hashes_sorted
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
     (toList $ intercalate "\n" lines_to_write_to_file)
   return dirstate_filepath
   where
-    addFileDetailsToDb :: FilePath -> ([Char], [Char]) -> IO ()
-    addFileDetailsToDb cwd (filename, file_hash) =
-      D.withConnection path_to_db (\conn -> do
-        r <- D.query conn "SELECT COUNT(1) FROM files WHERE dir = ? AND filename = ?"
-               [cwd, filename] :: IO [SelectCount]
-        case r of
-          (SelectCount cnt:xs) ->
-            if cnt > 0
-              then return ()
-              else D.execute conn "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?)" [cwd, filename, file_hash]
-          _ -> error "Query string \"SELECT COUNT(1) FROM files WHERE dir = ? AND filename = ?\" has no results. Not supposed to happen!"
-      )
+    separateFilesIntoCategories :: [FilePath] -> [[Char]] -> (Set [Char], Set [Char], Set [Char])
+    separateFilesIntoCategories files_on_system files_in_db =
+      let set_system = S.fromList $ fmap toList files_on_system
+          set_db = S.fromList files_in_db
+       in (set_system `S.intersection` set_db,
+           set_system `S.difference` set_db,
+           set_db `S.difference` set_system)
+
+    deleteNonExistentFileFromDb :: FilePath -> D.Connection -> [Char] -> IO ()
+    deleteNonExistentFileFromDb cwd conn filename =
+      D.execute conn "DELETE FROM files WHERE dir = ? AND filename = ?"
+      [cwd, filename]
+
+    addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], [Char]) -> IO ()
+    addFileDetailsToDb cwd conn (filename, file_hash) =
+      D.execute conn
+        "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?)"
+        [cwd, filename, file_hash]
 
     selectFromDbAllFilesInDir path_to_db dirname =
       D.withConnection path_to_db (\conn ->

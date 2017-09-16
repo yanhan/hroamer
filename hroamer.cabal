@@ -21,6 +21,7 @@ executable hroamer
                      , OverloadedStrings
   build-depends:       base >= 4.7 && < 5
                      , bytestring
+                     , containers
                      , cryptonite
                      , directory
                      , filepath
