@@ -84,6 +84,11 @@ createDbAndTables path_to_db = do
     )
     else return ()
 
+deleteFileFromDb :: FilePath -> D.Connection -> [Char] -> IO ()
+deleteFileFromDb cwd conn filename =
+  D.execute conn "DELETE FROM files WHERE dir = ? AND filename = ?;"
+  [cwd, filename]
+
 process_cwd :: FilePath -> FilePath -> IO FilePath
 process_cwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
@@ -101,7 +106,7 @@ process_cwd app_tmp_dir path_to_db = do
   D.withConnection path_to_db (\conn -> do
       D.execute_ conn "BEGIN TRANSACTION;"
       mapM_ (addFileDetailsToDb cwd conn) file_to_hash__only_on_system
-      mapM_ (deleteNonExistentFileFromDb cwd conn) (S.toList files_only_in_db)
+      mapM_ (deleteFileFromDb cwd conn) (S.toList files_only_in_db)
       D.execute_ conn "COMMIT;"
     )
 
@@ -125,11 +130,6 @@ process_cwd app_tmp_dir path_to_db = do
        in (set_system `S.intersection` set_db,
            set_system `S.difference` set_db,
            set_db `S.difference` set_system)
-
-    deleteNonExistentFileFromDb :: FilePath -> D.Connection -> [Char] -> IO ()
-    deleteNonExistentFileFromDb cwd conn filename =
-      D.execute conn "DELETE FROM files WHERE dir = ? AND filename = ?;"
-      [cwd, filename]
 
     addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], [Char]) -> IO ()
     addFileDetailsToDb cwd conn (filename, file_hash) =
