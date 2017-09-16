@@ -43,7 +43,8 @@ main = do
   let path_to_db = app_data_dir </> "hroamer.db"
   createDbAndTables path_to_db
 
-  dirstate_filepath <- processCwd app_tmp_dir path_to_db
+  cwd <- getCurrentDirectory
+  dirstate_filepath <- processCwd cwd app_tmp_dir path_to_db
   let user_dirstate_filepath = (takeDirectory dirstate_filepath) </>
                                  ("user-" <> takeBaseName dirstate_filepath)
   copyFile dirstate_filepath user_dirstate_filepath
@@ -111,9 +112,8 @@ computeHash path_to_file = do
                  (pack path_to_file <> pack mod_time_string) :: Digest SHA1
   return . toList $ show digest
 
-processCwd :: FilePath -> FilePath -> IO FilePath
-processCwd app_tmp_dir path_to_db = do
-  cwd <- getCurrentDirectory
+processCwd :: FilePath -> FilePath -> FilePath -> IO FilePath
+processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- join $ fmap (mapM (appendSlashToDir cwd)) $ listDirectory cwd
   files_and_hashes__in_db <- selectFromDbAllFilesInDir path_to_db cwd
   let file_to_hash__in_db = M.fromList files_and_hashes__in_db
