@@ -88,6 +88,8 @@ process_cwd :: FilePath -> FilePath -> IO FilePath
 process_cwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
   all_files <- join $ fmap (mapM (append_slash_to_dirs cwd)) $ listDirectory cwd
+  all_files_in_db <- select_from_db_all_files_in_dir path_to_db cwd
+  mapM_ (\(x,y) -> TIO.putStrLn . pack $ x <> " *** " <> y) all_files_in_db
   hashes <- mapM compute_hash all_files
   let files_and_hashes_sorted = sortBy
         (\x y -> case (x, y) of
@@ -111,6 +113,11 @@ process_cwd app_tmp_dir path_to_db = do
               then return ()
               else D.execute conn "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?)" [cwd, filename, file_hash]
           _ -> error "Query string \"SELECT COUNT(1) FROM files WHERE dir = ? AND filename = ?\" has no results. Not supposed to happen!"
+      )
+
+    select_from_db_all_files_in_dir path_to_db dirname =
+      D.withConnection path_to_db (\conn ->
+        D.query conn "SELECT filename, hash FROM files WHERE dir = ?" [dirname] :: IO [([Char], [Char])]
       )
 
     append_slash_to_dirs :: FilePath -> FilePath -> IO FilePath
