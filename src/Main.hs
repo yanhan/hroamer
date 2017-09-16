@@ -43,7 +43,7 @@ main = do
   let path_to_db = app_data_dir </> "hroamer.db"
   createDbAndTables path_to_db
 
-  dirstate_filepath <- process_cwd app_tmp_dir path_to_db
+  dirstate_filepath <- processCwd app_tmp_dir path_to_db
   let user_dirstate_filepath = (takeDirectory dirstate_filepath) </>
                                  ("user-" <> takeBaseName dirstate_filepath)
   copyFile dirstate_filepath user_dirstate_filepath
@@ -89,8 +89,8 @@ deleteFileFromDb cwd conn filename =
   D.execute conn "DELETE FROM files WHERE dir = ? AND filename = ?;"
   [cwd, filename]
 
-process_cwd :: FilePath -> FilePath -> IO FilePath
-process_cwd app_tmp_dir path_to_db = do
+processCwd :: FilePath -> FilePath -> IO FilePath
+processCwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
   files__on_system <- join $ fmap (mapM (appendSlashToDirs cwd)) $ listDirectory cwd
   files_and_hashes__in_db <- selectFromDbAllFilesInDir path_to_db cwd
