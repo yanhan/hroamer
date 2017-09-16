@@ -72,7 +72,7 @@ create_db_and_tables :: FilePath -> IO ()
 create_db_and_tables path_to_db = do
   db_exists <- doesFileExist path_to_db
   if not db_exists
-     then D.withConnection path_to_db (\conn -> do
+    then D.withConnection path_to_db (\conn -> do
       D.execute_ conn "CREATE TABLE IF NOT EXISTS files(dir TEXT, filename TEXT, hash TEXT, CONSTRAINT files__idx_dir_filename UNIQUE(dir, filename) ON CONFLICT ROLLBACK, CONSTRAINT files__hash UNIQUE(hash) ON CONFLICT ROLLBACK);"
       D.execute_ conn "CREATE INDEX files__idx_dir ON files(dir);"
     )
