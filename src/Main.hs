@@ -15,7 +15,7 @@ import Foundation
 import Foundation.Collection (zipWith)
 --import qualified GHC.Base
 import Prelude (concat, mapM, mapM_, print, readFile)
-import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
+import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
 import System.FilePath.Posix (FilePath, (</>), takeDirectory, takeBaseName)
@@ -69,8 +69,13 @@ main = do
 
 
 create_db_and_tables :: FilePath -> IO ()
-create_db_and_tables path_to_db = D.withConnection path_to_db
-  (\conn -> D.execute_ conn "CREATE TABLE IF NOT EXISTS files(path_to_file TEXT, hash TEXT, CONSTRAINT files__path_to_file UNIQUE(path_to_file) ON CONFLICT ROLLBACK, CONSTRAINT files__hash UNIQUE(hash) ON CONFLICT ROLLBACK);")
+create_db_and_tables path_to_db = do
+  db_exists <- doesFileExist path_to_db
+  if not db_exists
+    then D.withConnection path_to_db (\conn ->
+      D.execute_ conn "CREATE TABLE IF NOT EXISTS files(path_to_file TEXT, hash TEXT, CONSTRAINT files__path_to_file UNIQUE(path_to_file) ON CONFLICT ROLLBACK, CONSTRAINT files__hash UNIQUE(hash) ON CONFLICT ROLLBACK);"
+    )
+    else return ()
 
 
 process_cwd :: FilePath -> FilePath -> IO FilePath
