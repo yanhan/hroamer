@@ -13,7 +13,7 @@ import Data.Time.Format (defaultTimeLocale, formatTime)
 import qualified Database.SQLite.Simple as D
 import Foundation
 import Foundation.Collection (mapM, mapM_, zip, zipWith)
-import Prelude (print, readFile)
+import Prelude (print)
 import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
