@@ -89,6 +89,12 @@ deleteFileFromDb cwd conn filename =
   D.execute conn "DELETE FROM files WHERE dir = ? AND filename = ?;"
   [cwd, filename]
 
+addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], [Char]) -> IO ()
+addFileDetailsToDb cwd conn (filename, file_hash) =
+  D.execute conn
+    "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?);"
+    [cwd, filename, file_hash]
+
 processCwd :: FilePath -> FilePath -> IO FilePath
 processCwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
@@ -130,12 +136,6 @@ processCwd app_tmp_dir path_to_db = do
        in (set_system `S.intersection` set_db,
            set_system `S.difference` set_db,
            set_db `S.difference` set_system)
-
-    addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], [Char]) -> IO ()
-    addFileDetailsToDb cwd conn (filename, file_hash) =
-      D.execute conn
-        "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?);"
-        [cwd, filename, file_hash]
 
     selectFromDbAllFilesInDir path_to_db dirname =
       D.withConnection path_to_db (\conn ->
