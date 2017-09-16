@@ -142,7 +142,8 @@ processCwd cwd app_tmp_dir path_to_db = do
   let lines_to_write_to_file = fmap (\(fn, h) -> pack fn <> " | " <> pack h)
                                  files_and_hashes_sorted
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
-    (toList $ intercalate "\n" lines_to_write_to_file)
+    ("\" pwd: " <> (toList cwd) <> "\n" <>
+      (toList $ intercalate "\n" lines_to_write_to_file))
   return dirstate_filepath
   where
     separateFilesIntoCategories :: [FilePath] -> [[Char]] -> (Set [Char], Set [Char], Set [Char])
