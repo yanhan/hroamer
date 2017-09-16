@@ -25,7 +25,6 @@ executable hroamer
                      , directory
                      , filepath
                      , foundation
-                     , memory
                      , process
                      , sqlite-simple
                      , temporary
