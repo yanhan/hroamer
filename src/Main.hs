@@ -95,8 +95,8 @@ addFileDetailsToDb cwd conn (filename, file_hash) =
     "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?);"
     [cwd, filename, file_hash]
 
-appendSlashToDirs :: FilePath -> FilePath -> IO FilePath
-appendSlashToDirs dirname filename = do
+appendSlashToDir :: FilePath -> FilePath -> IO FilePath
+appendSlashToDir dirname filename = do
   isdir <- doesDirectoryExist $ dirname </> filename
   if isdir
     then return $ addTrailingPathSeparator filename
@@ -105,7 +105,7 @@ appendSlashToDirs dirname filename = do
 processCwd :: FilePath -> FilePath -> IO FilePath
 processCwd app_tmp_dir path_to_db = do
   cwd <- getCurrentDirectory
-  files__on_system <- join $ fmap (mapM (appendSlashToDirs cwd)) $ listDirectory cwd
+  files__on_system <- join $ fmap (mapM (appendSlashToDir cwd)) $ listDirectory cwd
   files_and_hashes__in_db <- selectFromDbAllFilesInDir path_to_db cwd
   let file_to_hash__in_db = M.fromList files_and_hashes__in_db
   let files__in_db = fmap fst files_and_hashes__in_db
