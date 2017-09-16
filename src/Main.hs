@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Main where
 
 import Control.Exception (catch, IOException)
@@ -11,6 +13,8 @@ import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import qualified Data.Text.IO as TIO
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import qualified Database.SQLite.Simple as D
+import Database.SQLite.Simple.FromField (FromField)
+import Database.SQLite.Simple.FromRow (FromRow, field)
 import Foundation
 import Foundation.Collection (mapM, mapM_, zip, zipWith)
 import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
@@ -76,6 +80,9 @@ create_db_and_tables path_to_db = do
     )
     else return ()
 
+newtype SelectCount = SelectCount Int deriving (Show, FromField)
+instance FromRow SelectCount where
+  fromRow = SelectCount <$> field
 
 process_cwd :: FilePath -> FilePath -> IO FilePath
 process_cwd app_tmp_dir path_to_db = do
@@ -88,10 +95,24 @@ process_cwd app_tmp_dir path_to_db = do
         (zip (fmap toList all_files) hashes :: [([Char], [Char])])
   let lines_to_write_to_file = fmap (\(fn, h) -> pack fn <> " | " <> pack h)
                                  files_and_hashes_sorted
+  mapM_ (add_file_details_to_db cwd) files_and_hashes_sorted
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
     (toList $ intercalate "\n" lines_to_write_to_file)
   return dirstate_filepath
   where
+    add_file_details_to_db :: FilePath -> ([Char], [Char]) -> IO ()
+    add_file_details_to_db cwd (filename, file_hash) =
+      D.withConnection path_to_db (\conn -> do
+        r <- D.query conn "SELECT COUNT(1) FROM files WHERE dir = ? AND filename = ?"
+               [cwd, filename] :: IO [SelectCount]
+        case r of
+          (SelectCount cnt:xs) ->
+            if cnt > 0
+              then return ()
+              else D.execute conn "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?)" [cwd, filename, file_hash]
+          _ -> error "Query string \"SELECT COUNT(1) FROM files WHERE dir = ? AND filename = ?\" has no results. Not supposed to happen!"
+      )
+
     append_slash_to_dirs :: FilePath -> FilePath -> IO FilePath
     append_slash_to_dirs dirname filename = do
       isdir <- doesDirectoryExist $ dirname </> filename
