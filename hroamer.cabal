@@ -21,12 +21,17 @@ executable hroamer
                      , OverloadedStrings
   build-depends:       base >= 4.7 && < 5
                      , bytestring
+                     , conduit
+                     , conduit-combinators
+                     , conduit-extra
                      , containers
                      , cryptonite
                      , directory
                      , filepath
                      , foundation
+                     , parsec
                      , process
+                     , resourcet
                      , sqlite-simple
                      , temporary
                      , text

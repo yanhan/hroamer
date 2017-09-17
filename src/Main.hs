@@ -2,32 +2,47 @@
 
 module Main where
 
+import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
+import Control.Applicative ((<*), (*>))
 import Control.Exception (catch, IOException)
-import Control.Monad (join)
+import Control.Monad (forM_, join)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Resource (ResourceT)
 import Crypto.Hash (Context, Digest, HashAlgorithm, SHA1, hash, hashFinalize, hashInit, hashUpdate, hashFinalize)
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Char
+import Data.Conduit ((.|), ConduitM, await, runConduitRes, yield)
+import Data.Conduit.Binary (sourceFile)
+import qualified Data.Conduit.List as CL
+import Data.Either (either)
+import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Monoid ((<>))
 import Data.Functor.Identity (Identity)
 import Data.Set (Set)
 import qualified Data.Set as S
+import qualified Data.Text as T
 import Data.Text (Text, pack, unpack)
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import qualified Data.Text.IO as TIO
 import Data.Time.Format (defaultTimeLocale, formatTime)
+import Data.Void (Void)
 import qualified Database.SQLite.Simple as D
 import Database.SQLite.Simple.FromField (FromField)
 import Database.SQLite.Simple.FromRow (FromRow, field)
-import Foundation
+import Database.SQLite.Simple.ToRow (ToRow, toRow)
+import Foundation hiding ((<|>))
 import Foundation.Collection (mapM, mapM_, zip, zipWith)
-import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeFile)
+import Prelude (print)
+import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeDirectoryRecursive, removeFile)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
 import System.FilePath.Posix (FilePath, (</>), addTrailingPathSeparator, takeDirectory, takeBaseName)
 import System.IO.Temp (writeTempFile)
 import System.Posix.Signals (Handler(Catch), addSignal, emptySignalSet, installHandler, keyboardSignal, siginfoSignal, softwareStop, softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
+import Text.Parsec ((<|>), ParsecT, anyChar, char, count, eof, hexDigit, lookAhead, manyTill, runParserT, string, try)
 
 main :: IO ()
 main = do
@@ -65,7 +80,11 @@ main = do
   cmp_exit_code <- waitForProcess cmp_process
   case cmp_exit_code of
     ExitSuccess -> return ()
-    _ -> putStrLn "Changed!"
+    _ -> do
+      file_op_list <- generateFileOps cwd path_to_db user_dirstate_filepath
+      D.withConnection path_to_db (\conn -> do
+          forM_ file_op_list (doFileOp conn)
+        )
 
   -- cleanup
   removeFile dirstate_filepath `catch` excHandler
@@ -161,6 +180,125 @@ processCwd cwd app_tmp_dir path_to_db = do
       D.withConnection path_to_db (\conn ->
         D.query conn "SELECT filename, hash FROM files WHERE dir = ?;" [dirname] :: IO [([Char], [Char])]
       )
+
+parseUserDirStateFile :: ParsecT Text () Identity (Maybe (Text, Text))
+parseUserDirStateFile = try commentLine <|> normalLine
+  where
+    commentLine = do
+      char '"'
+      manyTill anyChar eof
+      return Nothing
+
+    normalLine = do
+      l <- manyTill anyChar (try . lookAhead $ (sepBarParser *> sha1Parser) <* eof)
+      sepBarParser
+      s <- sha1Parser
+      return $ Just $ (pack l, pack s)
+
+    sepBarParser = string " | "
+    sha1Parser = count 40 hexDigit
+
+data FilesTableRow = FilesTableRow Text Text Text deriving (Show)
+
+instance FromRow FilesTableRow where
+  fromRow = FilesTableRow <$> field <*> field <*> field
+
+instance ToRow FilesTableRow where
+  toRow (FilesTableRow dir filename file_hash) = toRow (dir, filename, file_hash)
+
+data FileOp = CopyOp { srcFile :: Text
+                     , destFile :: Text
+                     , fileHash :: Text
+                     , currentDir :: Text }
+
+-- Assume both src and dest are in the same directory
+doFileOp :: D.Connection -> FileOp -> IO ()
+doFileOp dbconn (CopyOp src_filename dest_filename filehash cwd) = do
+  let cwd_filepath = toList cwd
+  let src_filepath = cwd_filepath </> (toList src_filename)
+  let dest_filepath = cwd_filepath </> (toList dest_filename)
+  src_is_dir <- doesDirectoryExist $ src_filepath
+  dest_is_dir <- doesDirectoryExist $ dest_filepath
+  if dest_is_dir
+     then do
+       -- Remove the destination directory
+       removeDirectoryRecursive dest_filepath
+       TIO.putStrLn $ "rm -rf " <> (pack dest_filepath)
+       if src_is_dir
+          then do
+            TIO.putStrLn $
+              "cp -R " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+            (_, _, _, ph) <- createProcess (proc "cp" ["-R", src_filepath, dest_filepath])
+            file_op_exit_code <- waitForProcess ph
+            case file_op_exit_code of
+              ExitSuccess -> do
+                TIO.putStrLn $
+                  "cp -R " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+
+              _ -> return()
+          else do
+            TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+            (_, _, _, ph) <- createProcess (proc "cp" [src_filepath, dest_filepath])
+            file_op_exit_code <- waitForProcess ph
+            case file_op_exit_code of
+              ExitSuccess -> do
+                TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+
+              _ -> return ()
+     else do
+       -- Destination is not a directory. And there may be nothing there.
+       dest_exists <- doesFileExist dest_filepath
+       if dest_exists
+          then do
+            (removeFile dest_filepath >>
+              (TIO.putStrLn $ "rm " <> (pack dest_filepath))) `catch`
+                 (const $ return () :: IOException -> IO ())
+          else return ()
+       if src_is_dir
+          then do
+            (_, _, _, ph) <- createProcess (proc "cp" ["-R", src_filepath, dest_filepath])
+            file_op_exit_code <- waitForProcess ph
+            case file_op_exit_code of
+              ExitSuccess -> do
+                TIO.putStrLn $ "cp -R " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+                dest_hash <- computeHash dest_filepath
+                if dest_exists
+                   then return ()
+                   else addFileDetailsToDb cwd_filepath dbconn (toList dest_filename, dest_hash)
+              _ -> return ()
+          else do
+            copyFile src_filepath dest_filepath
+            TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+            dest_hash <- computeHash dest_filepath
+            if dest_exists
+               then return ()
+               else addFileDetailsToDb cwd_filepath dbconn (toList dest_filename, dest_hash)
+
+generateFileOps :: FilePath -> FilePath -> FilePath -> IO [FileOp]
+generateFileOps cwd path_to_db user_dirstate_filepath =
+  D.withConnection path_to_db (\conn ->
+    runConduitRes $ sourceFile user_dirstate_filepath .| decodeUtf8C .|
+      peekForeverE (parseLineConduit conn) .| sinkList
+  )
+  where
+    parseLineConduit conn = lineC (do
+        mx <- await
+        case mx of
+          Just x ->
+            let parse_result = runIdentity $ runParserT parseUserDirStateFile () "" x
+            in either (const (return ())) (getFileOp conn) parse_result
+          Nothing -> return ()
+      )
+    getFileOp dbconn (Just (filename, file_hash)) = do
+      r <- liftIO $ D.query dbconn
+        "SELECT dir, filename, hash FROM files WHERE hash = ?" [file_hash]
+      case r of
+        (FilesTableRow dir_in_table fname_in_table hash_in_table : _) ->
+          if dir_in_table == pack cwd && fname_in_table == filename
+             then return ()
+             else yield $ CopyOp fname_in_table filename hash_in_table (pack cwd)
+        [] -> return ()
+    getFileOp _ Nothing = return ()
 
 createAppTmpDir :: FilePath -> Bool -> IO ()
 createAppTmpDir app_tmp_dir False = do
