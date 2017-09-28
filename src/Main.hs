@@ -110,10 +110,23 @@ deleteFileFromDb cwd conn filename =
   [cwd, filename]
 
 addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], [Char]) -> IO ()
-addFileDetailsToDb cwd conn (filename, file_hash) =
+addFileDetailsToDb dir conn (filename, file_hash) =
   D.execute conn
     "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?);"
-    [cwd, filename, file_hash]
+    [dir, filename, file_hash]
+
+instance FromRow Int where
+  fromRow = field
+
+addFileDetailsToDbIfNotFound :: D.Connection -> FilePath -> FilePath -> IO ()
+addFileDetailsToDbIfNotFound conn dir filename = do
+  [nr_rows] <- D.query conn "SELECT COUNT(1) FROM files WHERE dir = ? AND filename = ?"
+                 [dir, filename] :: IO [Int]
+  if nr_rows == 0
+     then do
+       filehash <- computeHash $ dir </> filename
+       addFileDetailsToDb dir conn (filename, filehash)
+     else return ()
 
 appendSlashToDir :: FilePath -> FilePath -> IO FilePath
 appendSlashToDir dirname filename = do
@@ -198,7 +211,7 @@ parseUserDirStateFile = try commentLine <|> normalLine
     sepBarParser = string " | "
     sha1Parser = count 40 hexDigit
 
-data FilesTableRow = FilesTableRow Text Text Text deriving (Show)
+data FilesTableRow = FilesTableRow FilePath FilePath Text deriving (Show)
 
 instance FromRow FilesTableRow where
   fromRow = FilesTableRow <$> field <*> field <*> field
@@ -206,73 +219,76 @@ instance FromRow FilesTableRow where
 instance ToRow FilesTableRow where
   toRow (FilesTableRow dir filename file_hash) = toRow (dir, filename, file_hash)
 
-data FileOp = CopyOp { srcFile :: Text
-                     , destFile :: Text
-                     , fileHash :: Text
-                     , currentDir :: Text }
+data FileOp = CopyOp { srcDir :: FilePath
+                     , srcFilename :: FilePath
+                     , destDir :: FilePath
+                     , destFilename :: FilePath
+                     , fileHash :: Text }
 
 -- Assume both src and dest are in the same directory
 doFileOp :: D.Connection -> FileOp -> IO ()
-doFileOp dbconn (CopyOp src_filename dest_filename filehash cwd) = do
-  let cwd_filepath = toList cwd
-  let src_filepath = cwd_filepath </> (toList src_filename)
-  let dest_filepath = cwd_filepath </> (toList dest_filename)
-  src_is_dir <- doesDirectoryExist $ src_filepath
-  dest_is_dir <- doesDirectoryExist $ dest_filepath
+doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = do
+  let path_to_src = src_dir </> src_filename
+  let path_to_dest = dest_dir </> dest_filename
+  src_is_dir <- doesDirectoryExist path_to_src
+  dest_is_dir <- doesDirectoryExist path_to_dest
   if dest_is_dir
      then do
        -- Remove the destination directory
-       removeDirectoryRecursive dest_filepath
-       TIO.putStrLn $ "rm -rf " <> (pack dest_filepath)
+       removeDirectoryRecursive path_to_dest
+       TIO.putStrLn $ "rm -rf " <> (pack path_to_dest)
        if src_is_dir
           then do
             TIO.putStrLn $
-              "cp -R " <> (pack src_filepath) <> " " <> (pack dest_filepath)
-            (_, _, _, ph) <- createProcess (proc "cp" ["-R", src_filepath, dest_filepath])
+              "cp -R " <> (pack path_to_src) <> " " <> (pack path_to_dest)
+            (_, _, _, ph) <- createProcess (proc "cp" ["-R", path_to_src, path_to_dest])
             file_op_exit_code <- waitForProcess ph
             case file_op_exit_code of
               ExitSuccess -> do
                 TIO.putStrLn $
-                  "cp -R " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+                  "cp -R " <> (pack path_to_src) <> " " <> (pack path_to_dest)
+                addFileDetailsToDbIfNotFound dbconn dest_dir dest_filename
 
               _ -> return()
           else do
-            TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
-            (_, _, _, ph) <- createProcess (proc "cp" [src_filepath, dest_filepath])
+            TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
+            (_, _, _, ph) <- createProcess (proc "cp" [path_to_src, path_to_dest])
             file_op_exit_code <- waitForProcess ph
             case file_op_exit_code of
               ExitSuccess -> do
-                TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+                TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
+                addFileDetailsToDbIfNotFound dbconn dest_dir dest_filename
 
               _ -> return ()
      else do
        -- Destination is not a directory. And there may be nothing there.
-       dest_exists <- doesFileExist dest_filepath
+       dest_exists <- doesFileExist path_to_dest
        if dest_exists
           then do
-            (removeFile dest_filepath >>
-              (TIO.putStrLn $ "rm " <> (pack dest_filepath))) `catch`
-                 (const $ return () :: IOException -> IO ())
+            (removeFile path_to_dest >>
+              (TIO.putStrLn $ "rm " <> (pack path_to_dest)) >>
+              addFileDetailsToDbIfNotFound dbconn dest_dir dest_filename
+              ) `catch` (const $ return () :: IOException -> IO ())
           else return ()
        if src_is_dir
           then do
-            (_, _, _, ph) <- createProcess (proc "cp" ["-R", src_filepath, dest_filepath])
+            (_, _, _, ph) <- createProcess (proc "cp" ["-R", path_to_src, path_to_dest])
             file_op_exit_code <- waitForProcess ph
             case file_op_exit_code of
               ExitSuccess -> do
-                TIO.putStrLn $ "cp -R " <> (pack src_filepath) <> " " <> (pack dest_filepath)
-                dest_hash <- computeHash dest_filepath
+                TIO.putStrLn $ "cp -R " <> (pack path_to_src) <> " " <> (pack path_to_dest)
+                dest_hash <- computeHash path_to_dest
                 if dest_exists
                    then return ()
-                   else addFileDetailsToDb cwd_filepath dbconn (toList dest_filename, dest_hash)
+                   else addFileDetailsToDb dest_dir dbconn (dest_filename, dest_hash)
               _ -> return ()
           else do
-            copyFile src_filepath dest_filepath
-            TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
-            dest_hash <- computeHash dest_filepath
+            copyFile path_to_src path_to_dest
+            TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
+            dest_hash <- computeHash path_to_dest
             if dest_exists
                then return ()
-               else addFileDetailsToDb cwd_filepath dbconn (toList dest_filename, dest_hash)
+               else addFileDetailsToDb dest_dir dbconn (dest_filename, dest_hash)
 
 generateFileOps :: FilePath -> FilePath -> FilePath -> IO [FileOp]
 generateFileOps cwd path_to_db user_dirstate_filepath =
@@ -289,14 +305,17 @@ generateFileOps cwd path_to_db user_dirstate_filepath =
             in either (const (return ())) (getFileOp conn) parse_result
           Nothing -> return ()
       )
-    getFileOp dbconn (Just (filename, file_hash)) = do
+    getFileOp :: D.Connection -> Maybe (Text, Text) -> ConduitM Text FileOp (ResourceT IO) ()
+    getFileOp dbconn (Just (filename_text, file_hash)) = do
+      let filename = toList filename_text
       r <- liftIO $ D.query dbconn
         "SELECT dir, filename, hash FROM files WHERE hash = ?" [file_hash]
       case r of
         (FilesTableRow dir_in_table fname_in_table hash_in_table : _) ->
-          if dir_in_table == pack cwd && fname_in_table == filename
+          if dir_in_table == cwd && fname_in_table == filename
              then return ()
-             else yield $ CopyOp fname_in_table filename hash_in_table (pack cwd)
+             else yield $
+               CopyOp dir_in_table fname_in_table cwd filename hash_in_table
         [] -> return ()
     getFileOp _ Nothing = return ()
 
