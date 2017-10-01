@@ -257,8 +257,8 @@ doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = 
 
               _ -> return()
           else do
-            TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
             copyFile path_to_src path_to_dest
+            TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
 
      else do
        -- Destination is not a directory. And there may be nothing there.
