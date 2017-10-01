@@ -57,7 +57,12 @@ main = do
   let app_tmp_dir = app_data_dir </> "tmp"
   success_creating_app_tmp_dir <- createDirNoForce app_tmp_dir
 
-  if not success_creating_app_data_dir || not success_creating_app_tmp_dir
+  -- Directory for storing files 'deleted' using hroamer
+  let path_to_trash_copy_dir = app_data_dir </> "trash-copy"
+  success_creating_trash_copy_dir <- createDirNoForce path_to_trash_copy_dir
+
+  if not success_creating_app_data_dir || not success_creating_app_tmp_dir ||
+      not success_creating_trash_copy_dir
      then do
        TIO.putStrLn "Exiting."
        exitWith $ ExitFailure 1
