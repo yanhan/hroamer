@@ -28,6 +28,7 @@ import Data.Text (Text, pack, unpack)
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import qualified Data.Text.IO as TIO
 import Data.Time.Format (defaultTimeLocale, formatTime)
+import qualified Data.Tuple
 import qualified Data.UUID.V4 as UUID4
 import qualified Data.UUID as UUID
 import Data.Void (Void)
@@ -38,7 +39,7 @@ import Database.SQLite.Simple.ToRow (ToRow, toRow)
 import Foundation hiding ((<|>))
 import Foundation.Collection (mapM, mapM_, zip, zipWith)
 import Prelude (print)
-import System.Directory (XdgDirectory(XdgData), canonicalizePath, copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeDirectoryRecursive, removeFile)
+import System.Directory (XdgDirectory(XdgData), canonicalizePath, copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeDirectoryRecursive, removeFile, renameDirectory, renameFile)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
 import System.FilePath.Posix (FilePath, (</>), addTrailingPathSeparator, dropTrailingPathSeparator, isAbsolute, isValid, takeDirectory, takeBaseName)
@@ -47,6 +48,13 @@ import System.Posix.Signals (Handler(Catch), addSignal, emptySignalSet, installH
 import System.Process (createProcess, proc, waitForProcess)
 import Text.Parsec ((<|>), ParsecT, anyChar, char, count, eof, hexDigit, lookAhead, manyTill, runParserT, string, try)
 import Text.Parsec.Char (alphaNum)
+
+
+-- A file, broken down into its directory and filename
+data FileRepr = FileRepr FilePath FilePath -- dir  file
+  deriving (Eq, Show)
+
+filerepr_to_filepath (FileRepr dir fname) = dir </> fname
 
 main :: IO ()
 main = do
@@ -137,8 +145,11 @@ main = do
 
           if S.null abs_paths && S.null files_not_in_cwd && S.null invalid_paths
              then do
-               file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_uuid
-               forM_ file_op_list doFileOp
+               file_op_list <- generateFileOps path_to_trashcopy_dir cwd path_to_db
+                 list_of_filename_and_uuid initial_fname_to_uuid
+               D.withConnection path_to_db (\dbconn ->
+                   forM_ file_op_list (doFileOp cwd dbconn)
+                 )
              else return ()
 
         else do
@@ -304,63 +315,51 @@ instance FromRow FilesTableRow where
 instance ToRow FilesTableRow where
   toRow (FilesTableRow dir filename file_uuid) = toRow (dir, filename, file_uuid)
 
-data FileOp = CopyOp { srcDir :: FilePath
-                     , srcFilename :: FilePath
-                     , destDir :: FilePath
-                     , destFilename :: FilePath
-                     , fileUUID :: Text }
-            | NoFileOp
+data FileOp = CopyOp { srcFileRepr :: FileRepr
+                     , destFileRepr :: FileRepr
+                     , srcIsDir :: Bool }
+  | TrashCopyOp FileRepr FileRepr Text Bool -- src  dest  uuid  src_is_directory
+  | NoFileOp
+  deriving (Eq, Show)
 
 -- Assume both src and dest are in the same directory
-doFileOp :: FileOp -> IO ()
+doFileOp :: FilePath -> D.Connection -> FileOp -> IO ()
 
 -- Do nothing
-doFileOp NoFileOp = return ()
+doFileOp _ _ NoFileOp = return ()
 
-doFileOp (CopyOp src_dir src_filename dest_dir dest_filename file_uuid) = do
-  let path_to_src = src_dir </> src_filename
-  let path_to_dest = dropTrailingPathSeparator $ dest_dir </> dest_filename
-  src_is_dir <- doesDirectoryExist path_to_src
-  dest_is_dir <- doesDirectoryExist path_to_dest
-  if dest_is_dir
+doFileOp cwd dbconn (TrashCopyOp src_filerepr dest_filerepr uuid src_is_dir) = do
+  let (FileRepr dest_dir dest_filename) = dest_filerepr
+  let src_filepath = filerepr_to_filepath src_filerepr
+  let dest_filepath = filerepr_to_filepath dest_filerepr
+  createDirectory dest_dir
+  if src_is_dir
+     then renameDirectory src_filepath dest_filepath
+     else renameFile src_filepath dest_filepath
+  TIO.putStrLn $ "trash-copy " <> (pack src_filepath)
+  D.execute dbconn "UPDATE files SET dir=?, filename=? WHERE uuid=?;"
+    (FilesTableRow dest_dir dest_filename uuid)
+
+doFileOp cwd _ (CopyOp src_filerepr dest_filerepr src_is_dir) = do
+  let (FileRepr dest_dir dest_filename) = dest_filerepr
+  let src_filepath = filerepr_to_filepath src_filerepr
+  let dest_filepath = filerepr_to_filepath dest_filerepr
+  if src_is_dir
      then do
-       -- Remove the destination directory
-       removeDirectoryRecursive path_to_dest
-       TIO.putStrLn $ "rm -rf " <> (pack path_to_dest)
-       if src_is_dir
-          then do
-            (_, _, _, ph) <- createProcess (proc "cp" ["-R", path_to_src, path_to_dest])
-            file_op_exit_code <- waitForProcess ph
-            case file_op_exit_code of
-              ExitSuccess -> do
-                TIO.putStrLn $
-                  "cp -R " <> (pack path_to_src) <> " " <> (pack path_to_dest)
-
-              _ -> return()
-          else do
-            copyFile path_to_src path_to_dest
-            TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
-
-     else do
-       -- Destination is not a directory. And there may be nothing there.
-       dest_exists <- doesFileExist path_to_dest
-       if dest_exists
-          then do
-            (removeFile path_to_dest >>
-              (TIO.putStrLn $ "rm " <> (pack path_to_dest))) `catch`
-              (const $ return () :: IOException -> IO ())
-          else return ()
-       if src_is_dir
-          then do
-            (_, _, _, ph) <- createProcess (proc "cp" ["-R", path_to_src, path_to_dest])
-            file_op_exit_code <- waitForProcess ph
-            case file_op_exit_code of
-              ExitSuccess -> do
-                TIO.putStrLn $ "cp -R " <> (pack path_to_src) <> " " <> (pack path_to_dest)
-              _ -> return ()
-          else do
-            copyFile path_to_src path_to_dest
-            TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
+       (_, _, _ , ph) <- createProcess
+         (proc "cp" ["-R", src_filepath, dest_filepath])
+       exitcode <- waitForProcess ph
+       case exitcode of
+         ExitSuccess ->
+           TIO.putStrLn $ "cp -R " <> (pack src_filepath) <> " " <>
+             (pack dest_filepath)
+         _ ->
+           TIO.putStrLn $
+             "Failed to copy " <> (pack src_filepath) <> " to " <>
+             (pack dest_filepath)
+      else do
+        copyFile src_filepath dest_filepath
+        TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
 
 
 getFilenameAndUUIDInUserDirStateFile:: FilePath -> IO [(FilePath, Text)]
@@ -385,23 +384,83 @@ getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
     onlyYieldJust j@(Just _) = yield j
     onlyYieldJust _ = return ()
 
-generateFileOps :: FilePath -> FilePath -> [(FilePath, Text)] -> IO [FileOp]
-generateFileOps cwd path_to_db list_of_filename_and_uuid =
-  D.withConnection path_to_db (\conn ->
-    mapM (getFileOp conn) list_of_filename_and_uuid
-  )
+
+dirToTrashCopyTo :: FilePath -> Text -> FilePath
+dirToTrashCopyTo path_to_trashcopy_dir uuid =
+  path_to_trashcopy_dir </> (toList uuid)
+
+
+generateFileOps :: FilePath -> FilePath -> FilePath -> [(FilePath, Text)] -> Map FilePath Text -> IO [FileOp]
+generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid initial_filename_to_uuid = do
+  let initial_filename_uuid_set = S.fromList $ M.toList initial_filename_to_uuid
+  let current_filename_uuid_set = S.fromList list_of_filename_and_uuid
+  let set_of_filename_uuid_to_trashcopy = S.difference
+        initial_filename_uuid_set current_filename_uuid_set
+
+  let list_of_filename_uuid_to_trashcopy = sortBy (
+          \(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b
+        ) $ S.toList set_of_filename_uuid_to_trashcopy
+  list_of_trashcopyop <- mapM (\(fname, uuid) -> do
+      let dest_filerepr = FileRepr (dirToTrashCopyTo path_to_trashcopy_dir uuid) fname
+      src_is_dir <- doesDirectoryExist $ cwd </> fname
+      return $ TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid src_is_dir
+    ) list_of_filename_uuid_to_trashcopy
+  -- At this point, UUIDs in `initial_filename_to_uuid` are unique. Otherwise
+  -- they would have violated the UNIQUE constraint on the `files.uuid` column.
+  -- Hence, we can safely construct a Map indexed by UUID
+  let trashcopy_uuid_to_trashcopyop = M.fromList $
+        fmap (\op@(TrashCopyOp _  _  uuid  _)  -> (uuid, op)) list_of_trashcopyop
+
+  let list_of_filename_uuid_to_copy = sortBy
+        (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
+          S.toList $
+            S.difference current_filename_uuid_set initial_filename_uuid_set
+
+  -- Map of UUID -> filename; for files that are in the current directory when
+  -- the program started.
+  let initial_uuid_to_filename = M.fromList $
+        fmap swap $ M.toList initial_filename_to_uuid
+
+  list_of_copyop <- D.withConnection path_to_db (\dbconn ->
+    mapM (\(fname, uuid) ->
+        let dest_filerepr = FileRepr cwd fname
+        in
+        case M.lookup uuid trashcopy_uuid_to_trashcopyop of
+          Just (TrashCopyOp _  new_src_filerepr  _  src_is_dir) -> do
+            return $ CopyOp new_src_filerepr dest_filerepr src_is_dir
+
+          Nothing ->
+             -- Source file is not to be trash copied.
+             -- See if we can find it in the initial set of files.
+             case M.lookup uuid initial_uuid_to_filename of
+               Just src_filename ->
+                 makeCopyOpOrNoFileOp (FileRepr cwd src_filename) dest_filerepr
+
+               Nothing -> do
+                 -- Need to perform database lookup
+                 r <- liftIO $ D.query dbconn
+                   "SELECT dir, filename, uuid FROM files WHERE uuid = ?" [uuid]
+                 case r of
+                   (FilesTableRow src_dir src_filename _ : _) ->
+                     makeCopyOpOrNoFileOp (FileRepr src_dir src_filename) dest_filerepr
+
+                   [] -> return NoFileOp
+        ) list_of_filename_uuid_to_copy
+      )
+
+  return $ list_of_trashcopyop <> filter (/= NoFileOp) list_of_copyop
   where
-    getFileOp :: D.Connection -> (FilePath, Text) -> IO FileOp
-    getFileOp dbconn (filename, file_uuid) = do
-      r <- liftIO $ D.query dbconn
-        "SELECT dir, filename, uuid FROM files WHERE uuid = ?" [file_uuid]
-      case r of
-        (FilesTableRow dir_in_table fname_in_table uuid_in_table : _) ->
-          if dir_in_table == cwd && fname_in_table == filename
-             then return NoFileOp
-             else return $
-               CopyOp dir_in_table fname_in_table cwd filename uuid_in_table
-        [] -> return NoFileOp
+    makeCopyOpOrNoFileOp :: FileRepr -> FileRepr -> IO FileOp
+    makeCopyOpOrNoFileOp src_filerepr@(FileRepr src_dir src_filename) dest_filerepr = do
+      let src_filepath = src_dir </> src_filename
+      src_is_dir <- doesDirectoryExist src_filepath
+      if src_is_dir
+         then return $ CopyOp src_filerepr dest_filerepr True
+         else do
+           src_exists <- doesPathExist src_filepath
+           if src_exists
+              then return $ CopyOp src_filerepr dest_filerepr False
+              else return $ NoFileOp
 
 
 createDirNoForce :: FilePath -> IO Bool
