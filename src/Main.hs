@@ -81,7 +81,8 @@ main = do
   case cmp_exit_code of
     ExitSuccess -> return ()
     _ -> do
-      file_op_list <- generateFileOps cwd path_to_db user_dirstate_filepath
+      list_of_filename_and_hash <- getFilenameAndHashInUserDirStateFile user_dirstate_filepath
+      file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_hash
       D.withConnection path_to_db (\conn -> do
           forM_ file_op_list (doFileOp conn)
         )
@@ -224,9 +225,14 @@ data FileOp = CopyOp { srcDir :: FilePath
                      , destDir :: FilePath
                      , destFilename :: FilePath
                      , fileHash :: Text }
+            | NoFileOp
 
 -- Assume both src and dest are in the same directory
 doFileOp :: D.Connection -> FileOp -> IO ()
+
+-- Do nothing
+doFileOp _ NoFileOp = return ()
+
 doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = do
   let path_to_src = src_dir </> src_filename
   let path_to_dest = dest_dir </> dest_filename
@@ -290,22 +296,31 @@ doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = 
                then return ()
                else addFileDetailsToDb dest_dir dbconn (dest_filename, dest_hash)
 
-generateFileOps :: FilePath -> FilePath -> FilePath -> IO [FileOp]
-generateFileOps cwd path_to_db user_dirstate_filepath =
-  D.withConnection path_to_db (\conn ->
-    runConduitRes $ sourceFile user_dirstate_filepath .| decodeUtf8C .|
-      peekForeverE (parseLineConduit conn) .| sinkList
-  )
+
+getFilenameAndHashInUserDirStateFile :: FilePath -> IO [Maybe (Text, Text)]
+getFilenameAndHashInUserDirStateFile user_dirstate_filepath =
+  runConduitRes $ sourceFile user_dirstate_filepath .| decodeUtf8C .|
+    peekForeverE parseLineConduit .| sinkList
   where
-    parseLineConduit conn = lineC (do
+    parseLineConduit = lineC (do
         mx <- await
         case mx of
           Just x ->
             let parse_result = runIdentity $ runParserT parseUserDirStateFile () "" x
-            in either (const (return ())) (getFileOp conn) parse_result
+            in either (const (return ())) onlyYieldJust parse_result
           Nothing -> return ()
       )
-    getFileOp :: D.Connection -> Maybe (Text, Text) -> ConduitM Text FileOp (ResourceT IO) ()
+
+    onlyYieldJust j@(Just _) = yield j
+    onlyYieldJust _ = return ()
+
+generateFileOps :: FilePath -> FilePath -> [Maybe (Text, Text)] -> IO [FileOp]
+generateFileOps cwd path_to_db list_of_filename_and_hash =
+  D.withConnection path_to_db (\conn ->
+    mapM (getFileOp conn) list_of_filename_and_hash
+  )
+  where
+    getFileOp :: D.Connection -> Maybe (Text, Text) -> IO FileOp
     getFileOp dbconn (Just (filename_text, file_hash)) = do
       let filename = toList filename_text
       r <- liftIO $ D.query dbconn
@@ -313,11 +328,10 @@ generateFileOps cwd path_to_db user_dirstate_filepath =
       case r of
         (FilesTableRow dir_in_table fname_in_table hash_in_table : _) ->
           if dir_in_table == cwd && fname_in_table == filename
-             then return ()
-             else yield $
+             then return NoFileOp
+             else return $
                CopyOp dir_in_table fname_in_table cwd filename hash_in_table
-        [] -> return ()
-    getFileOp _ Nothing = return ()
+        [] -> return NoFileOp
 
 createAppTmpDir :: FilePath -> Bool -> IO ()
 createAppTmpDir app_tmp_dir False = do
