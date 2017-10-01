@@ -84,7 +84,7 @@ main = do
       list_of_filename_and_hash <- getFilenameAndHashInUserDirStateFile user_dirstate_filepath
       file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_hash
       D.withConnection path_to_db (\conn -> do
-          forM_ file_op_list (doFileOp conn)
+          forM_ file_op_list doFileOp
         )
 
   -- cleanup
@@ -118,16 +118,6 @@ addFileDetailsToDb dir conn (filename, file_hash) =
 
 instance FromRow Int where
   fromRow = field
-
-addFileDetailsToDbIfNotFound :: D.Connection -> FilePath -> FilePath -> IO ()
-addFileDetailsToDbIfNotFound conn dir filename = do
-  [nr_rows] <- D.query conn "SELECT COUNT(1) FROM files WHERE dir = ? AND filename = ?"
-                 [dir, filename] :: IO [Int]
-  if nr_rows == 0
-     then do
-       filehash <- computeHash $ dir </> filename
-       addFileDetailsToDb dir conn (filename, filehash)
-     else return ()
 
 appendSlashToDir :: FilePath -> FilePath -> IO FilePath
 appendSlashToDir dirname filename = do
@@ -228,12 +218,12 @@ data FileOp = CopyOp { srcDir :: FilePath
             | NoFileOp
 
 -- Assume both src and dest are in the same directory
-doFileOp :: D.Connection -> FileOp -> IO ()
+doFileOp :: FileOp -> IO ()
 
 -- Do nothing
-doFileOp _ NoFileOp = return ()
+doFileOp NoFileOp = return ()
 
-doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = do
+doFileOp (CopyOp src_dir src_filename dest_dir dest_filename filehash) = do
   let path_to_src = src_dir </> src_filename
   let path_to_dest = dropTrailingPathSeparator $ dest_dir </> dest_filename
   src_is_dir <- doesDirectoryExist path_to_src
@@ -251,7 +241,6 @@ doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = 
               ExitSuccess -> do
                 TIO.putStrLn $
                   "cp -R " <> (pack path_to_src) <> " " <> (pack path_to_dest)
-                addFileDetailsToDbIfNotFound dbconn dest_dir dest_filename
 
               _ -> return()
           else do
@@ -264,9 +253,8 @@ doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = 
        if dest_exists
           then do
             (removeFile path_to_dest >>
-              (TIO.putStrLn $ "rm " <> (pack path_to_dest)) >>
-              addFileDetailsToDbIfNotFound dbconn dest_dir dest_filename
-              ) `catch` (const $ return () :: IOException -> IO ())
+              (TIO.putStrLn $ "rm " <> (pack path_to_dest))) `catch`
+              (const $ return () :: IOException -> IO ())
           else return ()
        if src_is_dir
           then do
@@ -275,18 +263,10 @@ doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = 
             case file_op_exit_code of
               ExitSuccess -> do
                 TIO.putStrLn $ "cp -R " <> (pack path_to_src) <> " " <> (pack path_to_dest)
-                dest_hash <- computeHash path_to_dest
-                if dest_exists
-                   then return ()
-                   else addFileDetailsToDb dest_dir dbconn (dest_filename, dest_hash)
               _ -> return ()
           else do
             copyFile path_to_src path_to_dest
             TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
-            dest_hash <- computeHash path_to_dest
-            if dest_exists
-               then return ()
-               else addFileDetailsToDb dest_dir dbconn (dest_filename, dest_hash)
 
 
 getFilenameAndHashInUserDirStateFile :: FilePath -> IO [Maybe (Text, Text)]
