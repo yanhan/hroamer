@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 module Main where
 
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
