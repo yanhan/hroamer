@@ -472,7 +472,7 @@ createDirNoForce app_data_dir = do
        if is_dir
           then return True
           else do
-            putStrLn $ "Eeror: `" <> (show app_data_dir) <> "` exists but is not a directory."
+            putStrLn $ "Error: `" <> (show app_data_dir) <> "` exists but is not a directory."
             return False
      else do
        createDirectory app_data_dir
