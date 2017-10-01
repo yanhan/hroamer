@@ -18,6 +18,7 @@ import Data.Functor.Identity (runIdentity)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Functor.Identity (Identity)
 import Data.Set (Set)
@@ -273,10 +274,12 @@ doFileOp (CopyOp src_dir src_filename dest_dir dest_filename file_uuid) = do
             TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
 
 
-getFilenameAndUUIDInUserDirStateFile:: FilePath -> IO [Maybe (Text, Text)]
-getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath =
-  runConduitRes $ sourceFile user_dirstate_filepath .| decodeUtf8C .|
-    peekForeverE parseLineConduit .| sinkList
+getFilenameAndUUIDInUserDirStateFile:: FilePath -> IO [(Text, Text)]
+getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
+  list_of_maybe_fname_uuid <- runConduitRes $
+      sourceFile user_dirstate_filepath .| decodeUtf8C .|
+        peekForeverE parseLineConduit .| sinkList
+  return $ fmap fromJust list_of_maybe_fname_uuid
   where
     parseLineConduit = lineC (do
         mx <- await
@@ -290,14 +293,14 @@ getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath =
     onlyYieldJust j@(Just _) = yield j
     onlyYieldJust _ = return ()
 
-generateFileOps :: FilePath -> FilePath -> [Maybe (Text, Text)] -> IO [FileOp]
+generateFileOps :: FilePath -> FilePath -> [(Text, Text)] -> IO [FileOp]
 generateFileOps cwd path_to_db list_of_filename_and_uuid =
   D.withConnection path_to_db (\conn ->
     mapM (getFileOp conn) list_of_filename_and_uuid
   )
   where
-    getFileOp :: D.Connection -> Maybe (Text, Text) -> IO FileOp
-    getFileOp dbconn (Just (filename_text, file_uuid)) = do
+    getFileOp :: D.Connection -> (Text, Text) -> IO FileOp
+    getFileOp dbconn (filename_text, file_uuid) = do
       let filename = toList filename_text
       r <- liftIO $ D.query dbconn
         "SELECT dir, filename, uuid FROM files WHERE uuid = ?" [file_uuid]
