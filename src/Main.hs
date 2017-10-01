@@ -114,7 +114,8 @@ main = do
             )
         else do
           TIO.putStrLn "Error - the following filenames are duplicated:"
-          mapM_ (\s -> TIO.putStrLn $ "- " <> s) $ List.sort (S.toList dupFilenames)
+          mapM_ (\s -> TIO.putStrLn $ "- " <> (pack s)) $
+            List.sort (S.toList dupFilenames)
 
   -- cleanup
   removeFile dirstate_filepath `catch` excHandler
@@ -123,7 +124,7 @@ main = do
     excHandler :: IOException -> IO ()
     excHandler = const $ return ()
 
-    getDuplicateFilenames :: [(Text, Text)] -> Set Text
+    getDuplicateFilenames :: [(FilePath, Text)] -> Set FilePath
     getDuplicateFilenames = fst . foldr (\(fname, _) (dup_fnames, all_fnames) ->
       if S.member fname all_fnames
          then (S.insert fname dup_fnames, all_fnames)
@@ -315,12 +316,15 @@ doFileOp (CopyOp src_dir src_filename dest_dir dest_filename file_uuid) = do
             TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
 
 
-getFilenameAndUUIDInUserDirStateFile:: FilePath -> IO [(Text, Text)]
+getFilenameAndUUIDInUserDirStateFile:: FilePath -> IO [(FilePath, Text)]
 getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
   list_of_maybe_fname_uuid <- runConduitRes $
       sourceFile user_dirstate_filepath .| decodeUtf8C .|
         peekForeverE parseLineConduit .| sinkList
-  return $ fmap fromJust list_of_maybe_fname_uuid
+  return $ fmap (\x ->
+      let (fn, uuid) = fromJust x
+      in ((dropTrailingPathSeparator . toList) fn, uuid)
+    ) list_of_maybe_fname_uuid
   where
     parseLineConduit = lineC (do
         mx <- await
@@ -334,15 +338,14 @@ getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
     onlyYieldJust j@(Just _) = yield j
     onlyYieldJust _ = return ()
 
-generateFileOps :: FilePath -> FilePath -> [(Text, Text)] -> IO [FileOp]
+generateFileOps :: FilePath -> FilePath -> [(FilePath, Text)] -> IO [FileOp]
 generateFileOps cwd path_to_db list_of_filename_and_uuid =
   D.withConnection path_to_db (\conn ->
     mapM (getFileOp conn) list_of_filename_and_uuid
   )
   where
-    getFileOp :: D.Connection -> (Text, Text) -> IO FileOp
-    getFileOp dbconn (filename_text, file_uuid) = do
-      let filename = toList filename_text
+    getFileOp :: D.Connection -> (FilePath, Text) -> IO FileOp
+    getFileOp dbconn (filename, file_uuid) = do
       r <- liftIO $ D.query dbconn
         "SELECT dir, filename, uuid FROM files WHERE uuid = ?" [file_uuid]
       case r of
