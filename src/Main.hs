@@ -86,10 +86,16 @@ main = do
     ExitSuccess -> return ()
     _ -> do
       list_of_filename_and_uuid <- getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath
-      file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_uuid
-      D.withConnection path_to_db (\conn -> do
-          forM_ file_op_list doFileOp
-        )
+      let dupFilenames = getDuplicateFilenames list_of_filename_and_uuid
+      if S.null dupFilenames
+        then do
+          file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_uuid
+          D.withConnection path_to_db (\conn -> do
+              forM_ file_op_list doFileOp
+            )
+        else do
+          TIO.putStrLn "Error - the following filenames are duplicated:"
+          mapM_ (\s -> TIO.putStrLn $ "- " <> s) $ List.sort (S.toList dupFilenames)
 
   -- cleanup
   removeFile dirstate_filepath `catch` excHandler
@@ -97,6 +103,13 @@ main = do
   where
     excHandler :: IOException -> IO ()
     excHandler = const $ return ()
+
+    getDuplicateFilenames :: [(Text, Text)] -> Set Text
+    getDuplicateFilenames = fst . foldr (\(fname, _) (dup_fnames, all_fnames) ->
+      if S.member fname all_fnames
+         then (S.insert fname dup_fnames, all_fnames)
+         else (dup_fnames, S.insert fname all_fnames)
+      ) (S.empty, S.empty)
 
 
 createDbAndTables :: FilePath -> IO ()
