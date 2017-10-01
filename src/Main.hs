@@ -8,7 +8,6 @@ import Control.Exception (catch, IOException)
 import Control.Monad (forM_, join)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (ResourceT)
-import Crypto.Hash (Context, Digest, HashAlgorithm, SHA1, hash, hashFinalize, hashInit, hashUpdate, hashFinalize)
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Char
 import Data.Conduit ((.|), ConduitM, await, runConduitRes, yield)
@@ -16,6 +15,7 @@ import Data.Conduit.Binary (sourceFile)
 import qualified Data.Conduit.List as CL
 import Data.Either (either)
 import Data.Functor.Identity (runIdentity)
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Monoid ((<>))
@@ -27,6 +27,8 @@ import Data.Text (Text, pack, unpack)
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import qualified Data.Text.IO as TIO
 import Data.Time.Format (defaultTimeLocale, formatTime)
+import qualified Data.UUID.V4 as UUID4
+import qualified Data.UUID as UUID
 import Data.Void (Void)
 import qualified Database.SQLite.Simple as D
 import Database.SQLite.Simple.FromField (FromField)
@@ -43,6 +45,7 @@ import System.IO.Temp (writeTempFile)
 import System.Posix.Signals (Handler(Catch), addSignal, emptySignalSet, installHandler, keyboardSignal, siginfoSignal, softwareStop, softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
 import Text.Parsec ((<|>), ParsecT, anyChar, char, count, eof, hexDigit, lookAhead, manyTill, runParserT, string, try)
+import Text.Parsec.Char (alphaNum)
 
 main :: IO ()
 main = do
@@ -81,8 +84,8 @@ main = do
   case cmp_exit_code of
     ExitSuccess -> return ()
     _ -> do
-      list_of_filename_and_hash <- getFilenameAndHashInUserDirStateFile user_dirstate_filepath
-      file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_hash
+      list_of_filename_and_uuid <- getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath
+      file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_uuid
       D.withConnection path_to_db (\conn -> do
           forM_ file_op_list doFileOp
         )
@@ -100,7 +103,7 @@ createDbAndTables path_to_db = do
   db_exists <- doesFileExist path_to_db
   if not db_exists
     then D.withConnection path_to_db (\conn -> do
-      D.execute_ conn "CREATE TABLE IF NOT EXISTS files(dir TEXT, filename TEXT, hash TEXT, CONSTRAINT files__idx_dir_filename UNIQUE(dir, filename) ON CONFLICT ROLLBACK, CONSTRAINT files__hash UNIQUE(hash) ON CONFLICT ROLLBACK);"
+      D.execute_ conn "CREATE TABLE IF NOT EXISTS files(dir TEXT, filename TEXT, uuid CHAR(36), CONSTRAINT files__idx_dir_filename UNIQUE(dir, filename) ON CONFLICT ROLLBACK, CONSTRAINT files__uuid UNIQUE(uuid) ON CONFLICT ROLLBACK);"
       D.execute_ conn "CREATE INDEX files__idx_dir ON files(dir);"
     )
     else return ()
@@ -111,10 +114,10 @@ deleteFileFromDb cwd conn filename =
   [cwd, filename]
 
 addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], [Char]) -> IO ()
-addFileDetailsToDb dir conn (filename, file_hash) =
+addFileDetailsToDb dir conn (filename, uuid) =
   D.execute conn
-    "INSERT INTO files(dir, filename, hash) VALUES(?, ?, ?);"
-    [dir, filename, file_hash]
+    "INSERT INTO files(dir, filename, uuid) VALUES(?, ?, ?);"
+    [dir, filename, uuid]
 
 instance FromRow Int where
   fromRow = field
@@ -126,47 +129,38 @@ appendSlashToDir dirname filename = do
     then return $ addTrailingPathSeparator filename
     else return filename
 
-computeHash :: FilePath -> IO [Char]
-computeHash path_to_file = do
-  mod_time <- getModificationTime path_to_file
-  let mod_time_string = formatTime
-                          defaultTimeLocale "%Y-%m-%d %H:%M:%S" mod_time
-  let digest = hash . encodeUtf8 $
-                 (pack path_to_file <> pack mod_time_string) :: Digest SHA1
-  return . toList $ show digest
-
 constructTextFileHeader :: FilePath -> [Char]
 constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
 processCwd :: FilePath -> FilePath -> FilePath -> IO FilePath
 processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- join $ fmap (mapM (appendSlashToDir cwd)) $ listDirectory cwd
-  files_and_hashes__in_db <- selectFromDbAllFilesInDir path_to_db cwd
-  let file_to_hash__in_db = M.fromList files_and_hashes__in_db
-  let files__in_db = fmap fst files_and_hashes__in_db
+  files_and_uuid__in_db <- selectFromDbAllFilesInDir path_to_db cwd
+  let file_to_uuid__in_db = M.fromList files_and_uuid__in_db
+  let files__in_db = fmap fst files_and_uuid__in_db
   let (files_on_both, files_only_on_system, files_only_in_db) =
         separateFilesIntoCategories files__on_system files__in_db
   let l_files_only_on_system = S.toList files_only_on_system
-  hash__only_on_system <- mapM computeHash l_files_only_on_system
-  let file_to_hash__only_on_system = zip l_files_only_on_system
-                                        hash__only_on_system
+  uuid__only_on_system <- mapM (fmap UUID.toString)
+    (List.take (List.length l_files_only_on_system) $ List.repeat UUID4.nextRandom)
+  let file_to_uuid__only_on_system = zip l_files_only_on_system uuid__only_on_system
   -- DB operations
   D.withConnection path_to_db (\conn -> do
       D.execute_ conn "BEGIN TRANSACTION;"
-      mapM_ (addFileDetailsToDb cwd conn) file_to_hash__only_on_system
+      mapM_ (addFileDetailsToDb cwd conn) file_to_uuid__only_on_system
       mapM_ (deleteFileFromDb cwd conn) (S.toList files_only_in_db)
       D.execute_ conn "COMMIT;"
     )
 
-  let file_to_hash__accurate = M.unionWith (\_ y -> y)
-        (M.filterWithKey (\k _ -> k `S.notMember` files_only_in_db) file_to_hash__in_db)
-        (M.fromList file_to_hash__only_on_system)
-  let files_and_hashes_sorted = sortBy
+  let file_to_uuid__accurate = M.unionWith (\_ y -> y)
+        (M.filterWithKey (\k _ -> k `S.notMember` files_only_in_db) file_to_uuid__in_db)
+        (M.fromList file_to_uuid__only_on_system)
+  let files_and_uuid_sorted = sortBy
         (\x y -> case (x, y) of
                    ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
-        (M.toList file_to_hash__accurate)
+        (M.toList file_to_uuid__accurate)
   let lines_to_write_to_file = fmap (\(fn, h) -> pack fn <> " | " <> pack h)
-                                 files_and_hashes_sorted
+                                 files_and_uuid_sorted
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
     (constructTextFileHeader cwd <>
       (toList $ intercalate "\n" lines_to_write_to_file))
@@ -182,7 +176,7 @@ processCwd cwd app_tmp_dir path_to_db = do
 
     selectFromDbAllFilesInDir path_to_db dirname =
       D.withConnection path_to_db (\conn ->
-        D.query conn "SELECT filename, hash FROM files WHERE dir = ?;" [dirname] :: IO [([Char], [Char])]
+        D.query conn "SELECT filename, uuid FROM files WHERE dir = ?;" [dirname] :: IO [([Char], [Char])]
       )
 
 parseUserDirStateFile :: ParsecT Text () Identity (Maybe (Text, Text))
@@ -194,13 +188,23 @@ parseUserDirStateFile = try commentLine <|> normalLine
       return Nothing
 
     normalLine = do
-      l <- manyTill anyChar (try . lookAhead $ (sepBarParser *> sha1Parser) <* eof)
+      l <- manyTill anyChar (try . lookAhead $ (sepBarParser *> uuidParser) <* eof)
       sepBarParser
-      s <- sha1Parser
+      s <- uuidParser
       return $ Just $ (pack l, pack s)
 
     sepBarParser = string " | "
-    sha1Parser = count 40 hexDigit
+    uuidParser = do
+      s1 <- count 8 alphaNum
+      char '-'
+      s2 <- count 4 alphaNum
+      char '-'
+      s3 <- count 4 alphaNum
+      char '-'
+      s4 <- count 4 alphaNum
+      char '-'
+      s5 <- count 12 alphaNum
+      return $ s1 <> "-" <> s2 <> "-" <> s3 <> "-" <> s4 <> "-" <> s5
 
 data FilesTableRow = FilesTableRow FilePath FilePath Text deriving (Show)
 
@@ -208,13 +212,13 @@ instance FromRow FilesTableRow where
   fromRow = FilesTableRow <$> field <*> field <*> field
 
 instance ToRow FilesTableRow where
-  toRow (FilesTableRow dir filename file_hash) = toRow (dir, filename, file_hash)
+  toRow (FilesTableRow dir filename file_uuid) = toRow (dir, filename, file_uuid)
 
 data FileOp = CopyOp { srcDir :: FilePath
                      , srcFilename :: FilePath
                      , destDir :: FilePath
                      , destFilename :: FilePath
-                     , fileHash :: Text }
+                     , fileUUID :: Text }
             | NoFileOp
 
 -- Assume both src and dest are in the same directory
@@ -223,7 +227,7 @@ doFileOp :: FileOp -> IO ()
 -- Do nothing
 doFileOp NoFileOp = return ()
 
-doFileOp (CopyOp src_dir src_filename dest_dir dest_filename filehash) = do
+doFileOp (CopyOp src_dir src_filename dest_dir dest_filename file_uuid) = do
   let path_to_src = src_dir </> src_filename
   let path_to_dest = dropTrailingPathSeparator $ dest_dir </> dest_filename
   src_is_dir <- doesDirectoryExist path_to_src
@@ -269,8 +273,8 @@ doFileOp (CopyOp src_dir src_filename dest_dir dest_filename filehash) = do
             TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
 
 
-getFilenameAndHashInUserDirStateFile :: FilePath -> IO [Maybe (Text, Text)]
-getFilenameAndHashInUserDirStateFile user_dirstate_filepath =
+getFilenameAndUUIDInUserDirStateFile:: FilePath -> IO [Maybe (Text, Text)]
+getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath =
   runConduitRes $ sourceFile user_dirstate_filepath .| decodeUtf8C .|
     peekForeverE parseLineConduit .| sinkList
   where
@@ -287,22 +291,22 @@ getFilenameAndHashInUserDirStateFile user_dirstate_filepath =
     onlyYieldJust _ = return ()
 
 generateFileOps :: FilePath -> FilePath -> [Maybe (Text, Text)] -> IO [FileOp]
-generateFileOps cwd path_to_db list_of_filename_and_hash =
+generateFileOps cwd path_to_db list_of_filename_and_uuid =
   D.withConnection path_to_db (\conn ->
-    mapM (getFileOp conn) list_of_filename_and_hash
+    mapM (getFileOp conn) list_of_filename_and_uuid
   )
   where
     getFileOp :: D.Connection -> Maybe (Text, Text) -> IO FileOp
-    getFileOp dbconn (Just (filename_text, file_hash)) = do
+    getFileOp dbconn (Just (filename_text, file_uuid)) = do
       let filename = toList filename_text
       r <- liftIO $ D.query dbconn
-        "SELECT dir, filename, hash FROM files WHERE hash = ?" [file_hash]
+        "SELECT dir, filename, uuid FROM files WHERE uuid = ?" [file_uuid]
       case r of
-        (FilesTableRow dir_in_table fname_in_table hash_in_table : _) ->
+        (FilesTableRow dir_in_table fname_in_table uuid_in_table : _) ->
           if dir_in_table == cwd && fname_in_table == filename
              then return NoFileOp
              else return $
-               CopyOp dir_in_table fname_in_table cwd filename hash_in_table
+               CopyOp dir_in_table fname_in_table cwd filename uuid_in_table
         [] -> return NoFileOp
 
 createAppTmpDir :: FilePath -> Bool -> IO ()

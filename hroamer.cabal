@@ -37,3 +37,4 @@ executable hroamer
                      , text
                      , time
                      , unix
+                     , uuid
