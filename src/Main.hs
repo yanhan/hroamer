@@ -17,7 +17,7 @@ import Data.Either (either)
 import Data.Functor.Identity (runIdentity)
 import qualified Data.List as List
 import Data.Map (Map)
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Functor.Identity (Identity)
