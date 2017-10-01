@@ -5,7 +5,7 @@ module Main where
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Applicative ((<*), (*>))
 import Control.Exception (catch, IOException)
-import Control.Monad (forM_, join)
+import Control.Monad (forM_, join, sequence)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (ResourceT)
 import qualified Data.ByteString.Char8 as B8
@@ -174,7 +174,7 @@ constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
 processCwd :: FilePath -> FilePath -> FilePath -> IO (Map FilePath [Char], FilePath)
 processCwd cwd app_tmp_dir path_to_db = do
-  files__on_system <- join $ fmap (mapM (appendSlashToDir cwd)) $ listDirectory cwd
+  files__on_system <- listDirectory cwd
   files_and_uuid__in_db <- selectFromDbAllFilesInDir path_to_db cwd
   let file_to_uuid__in_db = M.fromList files_and_uuid__in_db
   let files__in_db = fmap fst files_and_uuid__in_db
@@ -199,8 +199,10 @@ processCwd cwd app_tmp_dir path_to_db = do
         (\x y -> case (x, y) of
                    ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
         (M.toList file_to_uuid__accurate)
-  let lines_to_write_to_file = fmap (\(fn, h) -> pack fn <> " | " <> pack h)
-                                 files_and_uuid_sorted
+  lines_to_write_to_file <- sequence $ fmap (\(fn, h) -> do
+        fn_perhaps_with_trailing_slash <- appendSlashToDir cwd fn
+        return $ pack fn_perhaps_with_trailing_slash <> " | " <> pack h
+    ) files_and_uuid_sorted
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
     (constructTextFileHeader cwd <>
       (toList $ intercalate "\n" lines_to_write_to_file))
