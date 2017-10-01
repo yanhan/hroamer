@@ -62,7 +62,7 @@ main = do
   createDbAndTables path_to_db
 
   cwd <- getCurrentDirectory
-  dirstate_filepath <- processCwd cwd app_tmp_dir path_to_db
+  (initial_fname_to_uuid, dirstate_filepath) <- processCwd cwd app_tmp_dir path_to_db
   let user_dirstate_filepath = (takeDirectory dirstate_filepath) </>
                                  ("user-" <> takeBaseName dirstate_filepath)
   copyFile dirstate_filepath user_dirstate_filepath
@@ -132,7 +132,7 @@ appendSlashToDir dirname filename = do
 constructTextFileHeader :: FilePath -> [Char]
 constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
-processCwd :: FilePath -> FilePath -> FilePath -> IO FilePath
+processCwd :: FilePath -> FilePath -> FilePath -> IO (Map FilePath [Char], FilePath)
 processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- join $ fmap (mapM (appendSlashToDir cwd)) $ listDirectory cwd
   files_and_uuid__in_db <- selectFromDbAllFilesInDir path_to_db cwd
@@ -164,7 +164,7 @@ processCwd cwd app_tmp_dir path_to_db = do
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
     (constructTextFileHeader cwd <>
       (toList $ intercalate "\n" lines_to_write_to_file))
-  return dirstate_filepath
+  return (file_to_uuid__accurate, dirstate_filepath)
   where
     separateFilesIntoCategories :: [FilePath] -> [[Char]] -> (Set [Char], Set [Char], Set [Char])
     separateFilesIntoCategories files_on_system files_in_db =
