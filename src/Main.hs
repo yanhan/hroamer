@@ -105,7 +105,8 @@ main = do
     ExitSuccess -> return ()
     _ -> do
       list_of_filename_and_uuid <- getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath
-      let dupFilenames = getDuplicateFilenames list_of_filename_and_uuid
+      let list_of_filename = fmap fst list_of_filename_and_uuid
+      let dupFilenames = getDuplicateFilenames list_of_filename
       if S.null dupFilenames
         then do
           file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_uuid
@@ -122,8 +123,8 @@ main = do
     excHandler :: IOException -> IO ()
     excHandler = const $ return ()
 
-    getDuplicateFilenames :: [(FilePath, Text)] -> Set FilePath
-    getDuplicateFilenames = fst . foldr (\(fname, _) (dup_fnames, all_fnames) ->
+    getDuplicateFilenames :: [FilePath] -> Set FilePath
+    getDuplicateFilenames = fst . foldr (\fname (dup_fnames, all_fnames) ->
       if S.member fname all_fnames
          then (S.insert fname dup_fnames, all_fnames)
          else (dup_fnames, S.insert fname all_fnames)
