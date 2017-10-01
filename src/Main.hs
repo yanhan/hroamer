@@ -52,12 +52,16 @@ main :: IO ()
 main = do
   home_dir <- getHomeDirectory
   app_data_dir <- getXdgDirectory XdgData "hroamer"
-  app_data_dir_exists <- doesDirectoryExist app_data_dir
-  createAppDataDir app_data_dir app_data_dir_exists
+  success_creating_app_data_dir <- createDirNoForce app_data_dir
 
   let app_tmp_dir = app_data_dir </> "tmp"
-  app_tmp_dir_exists <- doesDirectoryExist app_tmp_dir
-  createAppTmpDir app_tmp_dir app_tmp_dir_exists
+  success_creating_app_tmp_dir <- createDirNoForce app_tmp_dir
+
+  if not success_creating_app_data_dir || not success_creating_app_tmp_dir
+     then do
+       TIO.putStrLn "Exiting."
+       exitWith $ ExitFailure 1
+     else return ()
 
   let path_to_db = app_data_dir </> "hroamer.db"
   createDbAndTables path_to_db
@@ -325,24 +329,18 @@ generateFileOps cwd path_to_db list_of_filename_and_uuid =
                CopyOp dir_in_table fname_in_table cwd filename uuid_in_table
         [] -> return NoFileOp
 
-createAppTmpDir :: FilePath -> Bool -> IO ()
-createAppTmpDir app_tmp_dir False = do
-  path_exists <- doesPathExist app_tmp_dir
-  if path_exists
-     then removeFile app_tmp_dir
-     else return ()
-  createDirectory app_tmp_dir
 
-createAppTmpDir app_tmp_dir True = return ()
-
-
-createAppDataDir :: FilePath -> Bool -> IO ()
-createAppDataDir app_data_dir False = do
+createDirNoForce :: FilePath -> IO Bool
+createDirNoForce app_data_dir = do
   path_exists <- doesPathExist app_data_dir
   if path_exists
      then do
-       putStrLn $ "Error: `" <> (show app_data_dir) <> "` exists but is not a directory. Exiting."
-       exitWith $ ExitFailure 1
-     else createDirectory app_data_dir
-
-createAppDataDir app_data_dir True = return ()
+       is_dir <- doesDirectoryExist app_data_dir
+       if is_dir
+          then return True
+          else do
+            putStrLn $ "Eeror: `" <> (show app_data_dir) <> "` exists but is not a directory."
+            return False
+     else do
+       createDirectory app_data_dir
+       return True
