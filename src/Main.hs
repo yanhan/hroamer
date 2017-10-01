@@ -200,11 +200,12 @@ deleteFileFromDb cwd conn filename =
   D.execute conn "DELETE FROM files WHERE dir = ? AND filename = ?;"
   [cwd, filename]
 
-addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], [Char]) -> IO ()
+
+addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], Text) -> IO ()
 addFileDetailsToDb dir conn (filename, uuid) =
   D.execute conn
     "INSERT INTO files(dir, filename, uuid) VALUES(?, ?, ?);"
-    [dir, filename, uuid]
+    (FilesTableRow dir filename uuid)
 
 instance FromRow Int where
   fromRow = field
@@ -219,7 +220,7 @@ appendSlashToDir dirname filename = do
 constructTextFileHeader :: FilePath -> [Char]
 constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
-processCwd :: FilePath -> FilePath -> FilePath -> IO (Map FilePath [Char], FilePath)
+processCwd :: FilePath -> FilePath -> FilePath -> IO (Map FilePath Text, FilePath)
 processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- listDirectory cwd
   files_and_uuid__in_db <- selectFromDbAllFilesInDir path_to_db cwd
@@ -228,7 +229,7 @@ processCwd cwd app_tmp_dir path_to_db = do
   let (files_on_both, files_only_on_system, files_only_in_db) =
         separateFilesIntoCategories files__on_system files__in_db
   let l_files_only_on_system = S.toList files_only_on_system
-  uuid__only_on_system <- mapM (fmap UUID.toString)
+  uuid__only_on_system <- mapM (fmap UUID.toText)
     (List.take (List.length l_files_only_on_system) $ List.repeat UUID4.nextRandom)
   let file_to_uuid__only_on_system = zip l_files_only_on_system uuid__only_on_system
   -- DB operations
@@ -248,7 +249,7 @@ processCwd cwd app_tmp_dir path_to_db = do
         (M.toList file_to_uuid__accurate)
   lines_to_write_to_file <- sequence $ fmap (\(fn, h) -> do
         fn_perhaps_with_trailing_slash <- appendSlashToDir cwd fn
-        return $ pack fn_perhaps_with_trailing_slash <> " | " <> pack h
+        return $ pack fn_perhaps_with_trailing_slash <> " | " <> h
     ) files_and_uuid_sorted
   dirstate_filepath <- writeTempFile app_tmp_dir "dirst"
     (constructTextFileHeader cwd <>
@@ -265,7 +266,7 @@ processCwd cwd app_tmp_dir path_to_db = do
 
     selectFromDbAllFilesInDir path_to_db dirname =
       D.withConnection path_to_db (\conn ->
-        D.query conn "SELECT filename, uuid FROM files WHERE dir = ?;" [dirname] :: IO [([Char], [Char])]
+        D.query conn "SELECT filename, uuid FROM files WHERE dir = ?;" [dirname] :: IO [([Char], Text)]
       )
 
 parseUserDirStateFile :: ParsecT Text () Identity (Maybe (Text, Text))
