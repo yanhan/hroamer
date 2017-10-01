@@ -72,6 +72,16 @@ main = do
   createDbAndTables path_to_db
 
   cwd <- getCurrentDirectory
+  -- Do not allow user to use hroamer to manage files that it creates
+  if isWeakAncestorDir app_data_dir cwd
+     then do
+       TIO.putStrLn $
+         "Error: You tried to use hroamer to manage " <> (pack cwd) <> "\n" <>
+         "However, you are not allowed to use hroamer to manage " <>
+         (pack app_data_dir) <> " and directories below it.\nExiting."
+       exitWith $ ExitFailure 1
+     else return ()
+
   (initial_fname_to_uuid, dirstate_filepath) <- processCwd cwd app_tmp_dir path_to_db
   let user_dirstate_filepath = (takeDirectory dirstate_filepath) </>
                                  ("user-" <> takeBaseName dirstate_filepath)
@@ -119,6 +129,13 @@ main = do
          then (S.insert fname dup_fnames, all_fnames)
          else (dup_fnames, S.insert fname all_fnames)
       ) (S.empty, S.empty)
+
+
+isWeakAncestorDir suspected_ancestor "/" = suspected_ancestor == "/"
+isWeakAncestorDir suspected_ancestor dir_of_interest =
+  if suspected_ancestor == dir_of_interest
+     then True
+     else isWeakAncestorDir suspected_ancestor $ takeDirectory dir_of_interest
 
 
 createDbAndTables :: FilePath -> IO ()
