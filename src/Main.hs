@@ -245,8 +245,6 @@ doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = 
        TIO.putStrLn $ "rm -rf " <> (pack path_to_dest)
        if src_is_dir
           then do
-            TIO.putStrLn $
-              "cp -R " <> (pack path_to_src) <> " " <> (pack path_to_dest)
             (_, _, _, ph) <- createProcess (proc "cp" ["-R", path_to_src, path_to_dest])
             file_op_exit_code <- waitForProcess ph
             case file_op_exit_code of
