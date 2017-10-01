@@ -12,9 +12,9 @@ Inspired by roamer: https://github.com/abaldwin88/roamer
 Because this is the first non-trivial Haskell project I've worked on
 
 - The code does not look good at all
-- There is a lack of tests
+- There are no tests. These will come in future patches
 - Usage of cabal file may be wrong in that I didn't specify library versions
-- Possibly many non idiomatic usages of Haskell. I have tried to make the code as Haskell as possible, to the best of my ability
+- Possibly many non idiomatic usages of Haskell. Most of the code is essentially written in an imperative style. I have tried to make the code as Haskell as possible, to the best of my ability
 - Code organization is far from ideal. Currently all the code that does the hard work is in one file
 
 
