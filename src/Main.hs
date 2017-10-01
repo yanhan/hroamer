@@ -109,9 +109,7 @@ main = do
       if S.null dupFilenames
         then do
           file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_uuid
-          D.withConnection path_to_db (\conn -> do
-              forM_ file_op_list doFileOp
-            )
+          forM_ file_op_list doFileOp
         else do
           TIO.putStrLn "Error - the following filenames are duplicated:"
           mapM_ (\s -> TIO.putStrLn $ "- " <> (pack s)) $
