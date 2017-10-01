@@ -258,14 +258,8 @@ doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = 
               _ -> return()
           else do
             TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
-            (_, _, _, ph) <- createProcess (proc "cp" [path_to_src, path_to_dest])
-            file_op_exit_code <- waitForProcess ph
-            case file_op_exit_code of
-              ExitSuccess -> do
-                TIO.putStrLn $ "cp " <> (pack path_to_src) <> " " <> (pack path_to_dest)
-                addFileDetailsToDbIfNotFound dbconn dest_dir dest_filename
+            copyFile path_to_src path_to_dest
 
-              _ -> return ()
      else do
        -- Destination is not a directory. And there may be nothing there.
        dest_exists <- doesFileExist path_to_dest
