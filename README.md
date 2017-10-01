@@ -1,6 +1,6 @@
 # hroamer
 
-A plain text file manager using your text editor for manipulations.
+A file manager that lets you use your text editor for manipulations.
 
 Writing this so I can work on something more real world using Haskell.
 
