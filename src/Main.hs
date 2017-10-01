@@ -5,7 +5,7 @@ module Main where
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Applicative ((<*), (*>))
 import Control.Exception (catch, IOException)
-import Control.Monad (forM_, join, sequence)
+import Control.Monad (foldM, forM_, join, sequence)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (ResourceT)
 import qualified Data.ByteString.Char8 as B8
@@ -38,10 +38,10 @@ import Database.SQLite.Simple.ToRow (ToRow, toRow)
 import Foundation hiding ((<|>))
 import Foundation.Collection (mapM, mapM_, zip, zipWith)
 import Prelude (print)
-import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeDirectoryRecursive, removeFile)
+import System.Directory (XdgDirectory(XdgData), canonicalizePath, copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeDirectoryRecursive, removeFile)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
-import System.FilePath.Posix (FilePath, (</>), addTrailingPathSeparator, dropTrailingPathSeparator, takeDirectory, takeBaseName)
+import System.FilePath.Posix (FilePath, (</>), addTrailingPathSeparator, dropTrailingPathSeparator, isAbsolute, isValid, takeDirectory, takeBaseName)
 import System.IO.Temp (writeTempFile)
 import System.Posix.Signals (Handler(Catch), addSignal, emptySignalSet, installHandler, keyboardSignal, siginfoSignal, softwareStop, softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
@@ -109,8 +109,38 @@ main = do
       let dupFilenames = getDuplicateFilenames list_of_filename
       if S.null dupFilenames
         then do
-          file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_uuid
-          forM_ file_op_list doFileOp
+          (abs_paths, files_not_in_cwd, invalid_paths) <-
+                getUnsupportedPaths cwd list_of_filename
+          -- TODO: Separate the error messages by a newline if necessary
+          if not $ S.null abs_paths
+             then do
+               TIO.putStrLn "Error: Absolute paths not supported. We found that you entered these:"
+               mapM_ (\s -> TIO.putStrLn $ "- " <> (pack s))
+                 (List.sort $ S.toList abs_paths)
+             else return ()
+
+          if not $ S.null files_not_in_cwd
+             then do
+               TIO.putStrLn $
+                 "Error: the following paths are housed in a directory that is not the current directory " <>
+                 (pack cwd)
+               mapM_ (\s -> TIO.putStrLn $ "- " <> (pack s))
+                 (List.sort $ S.toList files_not_in_cwd)
+             else return ()
+
+          if not $ S.null invalid_paths
+             then do
+               TIO.putStrLn "Error: the following paths are invalid:"
+               mapM_ (\s -> TIO.putStrLn $ "- " <> (pack s))
+                 (List.sort $ S.toList invalid_paths)
+             else return ()
+
+          if S.null abs_paths && S.null files_not_in_cwd && S.null invalid_paths
+             then do
+               file_op_list <- generateFileOps cwd path_to_db list_of_filename_and_uuid
+               forM_ file_op_list doFileOp
+             else return ()
+
         else do
           TIO.putStrLn "Error - the following filenames are duplicated:"
           mapM_ (\s -> TIO.putStrLn $ "- " <> (pack s)) $
@@ -129,6 +159,23 @@ main = do
          then (S.insert fname dup_fnames, all_fnames)
          else (dup_fnames, S.insert fname all_fnames)
       ) (S.empty, S.empty)
+
+    getUnsupportedPaths :: FilePath -> [FilePath] -> IO (Set FilePath, Set FilePath, Set FilePath)
+    getUnsupportedPaths cwd = foldM
+      (\acc@(abs_paths, files_not_in_cwd, invalid_paths) fname ->
+        if isAbsolute fname
+           then return (S.insert fname abs_paths, files_not_in_cwd, invalid_paths)
+           else do
+             path <- canonicalizePath $ cwd </> fname
+             if not $ isValid path
+                 then return $
+                   (abs_paths, files_not_in_cwd, S.insert fname invalid_paths)
+                 else
+                   if takeDirectory path /= cwd
+                      then return $
+                        (abs_paths, S.insert fname files_not_in_cwd, invalid_paths)
+                      else return acc
+      ) (S.empty, S.empty, S.empty)
 
 
 isWeakAncestorDir suspected_ancestor "/" = suspected_ancestor == "/"
