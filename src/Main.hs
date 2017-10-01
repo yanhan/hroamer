@@ -38,7 +38,7 @@ import Prelude (print)
 import System.Directory (XdgDirectory(XdgData), copyFile, createDirectory, doesDirectoryExist, doesFileExist, doesPathExist, getCurrentDirectory, getModificationTime, getXdgDirectory, getHomeDirectory, listDirectory, removeDirectoryRecursive, removeFile)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
-import System.FilePath.Posix (FilePath, (</>), addTrailingPathSeparator, takeDirectory, takeBaseName)
+import System.FilePath.Posix (FilePath, (</>), addTrailingPathSeparator, dropTrailingPathSeparator, takeDirectory, takeBaseName)
 import System.IO.Temp (writeTempFile)
 import System.Posix.Signals (Handler(Catch), addSignal, emptySignalSet, installHandler, keyboardSignal, siginfoSignal, softwareStop, softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
@@ -235,7 +235,7 @@ doFileOp _ NoFileOp = return ()
 
 doFileOp dbconn (CopyOp src_dir src_filename dest_dir dest_filename filehash) = do
   let path_to_src = src_dir </> src_filename
-  let path_to_dest = dest_dir </> dest_filename
+  let path_to_dest = dropTrailingPathSeparator $ dest_dir </> dest_filename
   src_is_dir <- doesDirectoryExist path_to_src
   dest_is_dir <- doesDirectoryExist path_to_dest
   if dest_is_dir
