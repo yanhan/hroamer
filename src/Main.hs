@@ -54,7 +54,8 @@ import System.IO.Temp (writeTempFile)
 import System.Posix.Signals
        (Handler(Catch), addSignal, emptySignalSet, installHandler,
         keyboardSignal, siginfoSignal, softwareStop, softwareTermination)
-import System.Process (createProcess, proc, waitForProcess)
+import System.Process
+       (CreateProcess, createProcess, proc, shell, waitForProcess)
 import Text.Parsec
        ((<|>), ParsecT, anyChar, char, count, eof, hexDigit, lookAhead,
         manyTill, runParserT, string, try)
@@ -66,6 +67,17 @@ data FileRepr = FileRepr FilePath FilePath -- dir  file
 
 filerepr_to_filepath :: FileRepr -> FilePath
 filerepr_to_filepath (FileRepr dir fname) = dir </> fname
+
+
+make_editor_createprocess :: FilePath -> IO CreateProcess
+make_editor_createprocess file = do
+  maybe_editor_env_var <- lookupEnv "EDITOR"
+  case maybe_editor_env_var of
+    Just editor_env_var ->
+      return $ shell $ editor_env_var <> " " <> file
+    Nothing ->
+      -- Fallback to vim
+      return $ proc "vim" [file]
 
 
 main :: IO ()
@@ -114,9 +126,10 @@ main = do
         removeFile dirstate_filepath `catch` excHandler >>
         removeFile user_dirstate_filepath `catch` excHandler
   mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
-  -- Launch vim to let user edit
-  (_, _, _, editor_process) <-
-    createProcess (proc "vim" [user_dirstate_filepath])
+
+  -- Launch text editor to let user edit the file
+  editor_createprocess <- make_editor_createprocess user_dirstate_filepath
+  (_, _, _, editor_process) <- createProcess editor_createprocess
   waitForProcess editor_process
 
   -- Compare for difference between the files
