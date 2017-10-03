@@ -64,6 +64,7 @@ import Text.Parsec.Char (alphaNum)
 data FileRepr = FileRepr FilePath FilePath -- dir  file
   deriving (Eq, Show)
 
+filerepr_to_filepath :: FileRepr -> FilePath
 filerepr_to_filepath (FileRepr dir fname) = dir </> fname
 
 
