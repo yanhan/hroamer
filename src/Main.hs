@@ -65,6 +65,8 @@ data FileRepr = FileRepr FilePath FilePath -- dir  file
   deriving (Eq, Show)
 
 filerepr_to_filepath (FileRepr dir fname) = dir </> fname
+
+
 main :: IO ()
 main = do
   home_dir <- getHomeDirectory
@@ -239,6 +241,7 @@ createDbAndTables path_to_db = do
               D.execute_ conn "CREATE INDEX files__idx_dir ON files(dir);")
     else return ()
 
+
 deleteFileFromDb :: FilePath -> D.Connection -> [Char] -> IO ()
 deleteFileFromDb cwd conn filename =
   D.execute
@@ -253,8 +256,10 @@ addFileDetailsToDb dir conn (filename, uuid) =
     "INSERT INTO files(dir, filename, uuid) VALUES(?, ?, ?);"
     (FilesTableRow dir filename uuid)
 
+
 instance FromRow Int where
   fromRow = field
+
 
 appendSlashToDir :: FilePath -> FilePath -> IO FilePath
 appendSlashToDir dirname filename = do
@@ -263,8 +268,10 @@ appendSlashToDir dirname filename = do
     then return $ addTrailingPathSeparator filename
     else return filename
 
+
 constructTextFileHeader :: FilePath -> [Char]
 constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
+
 
 processCwd :: FilePath
            -> FilePath
@@ -331,6 +338,7 @@ processCwd cwd app_tmp_dir path_to_db = do
       in ( set_system `S.intersection` set_db
          , set_system `S.difference` set_db
          , set_db `S.difference` set_system)
+
     selectFromDbAllFilesInDir path_to_db dirname =
       D.withConnection
         path_to_db
@@ -339,6 +347,7 @@ processCwd cwd app_tmp_dir path_to_db = do
              conn
              "SELECT filename, uuid FROM files WHERE dir = ?;"
              [dirname] :: IO [([Char], Text)])
+
 
 parseUserDirStateFile :: ParsecT Text () Identity (Maybe (Text, Text))
 parseUserDirStateFile = try commentLine <|> normalLine
@@ -368,6 +377,7 @@ parseUserDirStateFile = try commentLine <|> normalLine
       s5 <- count 12 alphaNum
       return $ s1 <> "-" <> s2 <> "-" <> s3 <> "-" <> s4 <> "-" <> s5
 
+
 data FilesTableRow = FilesTableRow FilePath FilePath Text deriving (Show)
 
 instance FromRow FilesTableRow where
@@ -375,6 +385,7 @@ instance FromRow FilesTableRow where
 
 instance ToRow FilesTableRow where
   toRow (FilesTableRow dir filename file_uuid) = toRow (dir, filename, file_uuid)
+
 
 data FileOp
   = CopyOp { srcFileRepr :: FileRepr
@@ -386,6 +397,7 @@ data FileOp
                 Bool -- src_is_directory
   | NoFileOp
   deriving (Eq, Show)
+
 
 -- Assume both src and dest are in the same directory
 doFileOp :: FilePath -> D.Connection -> FileOp -> IO ()
