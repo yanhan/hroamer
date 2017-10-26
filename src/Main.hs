@@ -3,7 +3,7 @@ module Main where
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Applicative ((<*), (*>))
 import Control.Exception (catch, IOException)
-import Control.Monad (foldM, forM_, join, sequence)
+import Control.Monad (forM_, join, sequence)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (ResourceT)
 import qualified Data.ByteString.Char8 as B8
@@ -37,8 +37,8 @@ import Database.SQLite.Simple.ToRow (ToRow, toRow)
 import Foundation hiding ((<|>))
 import Foundation.Collection (mapM, mapM_, zip, zipWith)
 import System.Directory
-       (XdgDirectory(XdgData), canonicalizePath, copyFile,
-        createDirectory, doesDirectoryExist, doesFileExist, doesPathExist,
+       (XdgDirectory(XdgData), copyFile, createDirectory,
+        doesDirectoryExist, doesFileExist, doesPathExist,
         getCurrentDirectory, getModificationTime, getXdgDirectory,
         getHomeDirectory, listDirectory, removeDirectoryRecursive,
         removeFile, renameDirectory, renameFile)
@@ -47,8 +47,7 @@ import System.Exit
        (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
 import System.FilePath.Posix
        (FilePath, (</>), addTrailingPathSeparator,
-        dropTrailingPathSeparator, isAbsolute, isValid, takeDirectory,
-        takeBaseName)
+        dropTrailingPathSeparator, takeDirectory, takeBaseName)
 import System.IO.Temp (writeTempFile)
 import System.Posix.Signals
        (Handler(Catch), addSignal, emptySignalSet, installHandler,
@@ -138,7 +137,7 @@ main = do
       if S.null dupFilenames
         then do
           (abs_paths, files_not_in_cwd, invalid_paths) <-
-            getUnsupportedPaths cwd list_of_filename
+            UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
           -- TODO: Separate the error messages by a newline if necessary
           if not $ S.null abs_paths
             then do
@@ -191,29 +190,6 @@ main = do
   where
     excHandler :: IOException -> IO ()
     excHandler = const $ return ()
-
-    getUnsupportedPaths :: FilePath
-                        -> [FilePath]
-                        -> IO (Set FilePath, Set FilePath, Set FilePath)
-    getUnsupportedPaths cwd =
-      foldM
-        (\acc@(abs_paths, files_not_in_cwd, invalid_paths) fname ->
-           if isAbsolute fname
-             then return (S.insert fname abs_paths, files_not_in_cwd, invalid_paths)
-             else do
-               path <- canonicalizePath $ cwd </> fname
-               if not $ isValid path
-                 then return $
-                      ( abs_paths
-                      , files_not_in_cwd
-                      , S.insert fname invalid_paths)
-                 else if takeDirectory path /= cwd
-                        then return $
-                             ( abs_paths
-                             , S.insert fname files_not_in_cwd
-                             , invalid_paths)
-                        else return acc)
-        (S.empty, S.empty, S.empty)
 
 
 isWeakAncestorDir suspected_ancestor "/" = suspected_ancestor == "/"
