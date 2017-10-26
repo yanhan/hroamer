@@ -40,3 +40,4 @@ executable hroamer
                      , uuid
 
   other-modules:       Hroamer.UnsupportedPaths
+                     , Hroamer.Utilities
