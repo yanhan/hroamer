@@ -36,7 +36,6 @@ import Database.SQLite.Simple.FromRow (FromRow, field)
 import Database.SQLite.Simple.ToRow (ToRow, toRow)
 import Foundation hiding ((<|>))
 import Foundation.Collection (mapM, mapM_, zip, zipWith)
-import Prelude (print)
 import System.Directory
        (XdgDirectory(XdgData), canonicalizePath, copyFile,
         createDirectory, doesDirectoryExist, doesFileExist, doesPathExist,
