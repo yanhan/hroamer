@@ -60,6 +60,7 @@ import Text.Parsec
         manyTill, runParserT, string, try)
 import Text.Parsec.Char (alphaNum)
 
+import qualified Hroamer.Utilities as Utils
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 
 -- A file, broken down into its directory and filename
@@ -68,22 +69,6 @@ data FileRepr = FileRepr FilePath FilePath -- dir  file
 
 filerepr_to_filepath :: FileRepr -> FilePath
 filerepr_to_filepath (FileRepr dir fname) = dir </> fname
-
-
-make_editor_createprocess :: FilePath -> IO CreateProcess
-make_editor_createprocess file = do
-  maybe_editor_env_var <- lookupEnv "EDITOR"
-  case maybe_editor_env_var of
-    Just "" ->
-      -- Fallback to vim
-      return launch_vim
-    Just editor_env_var ->
-      return $ shell $ editor_env_var <> " " <> file
-    Nothing ->
-      -- Fallback to vim
-      return launch_vim
-  where
-    launch_vim = proc "vim" [file]
 
 
 main :: IO ()
@@ -134,7 +119,7 @@ main = do
   mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
 
   -- Launch text editor to let user edit the file
-  editor_createprocess <- make_editor_createprocess user_dirstate_filepath
+  editor_createprocess <- Utils.make_editor_createprocess user_dirstate_filepath
   (_, _, _, editor_process) <- createProcess editor_createprocess
   waitForProcess editor_process
 
