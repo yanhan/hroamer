@@ -38,3 +38,5 @@ executable hroamer
                      , time
                      , unix
                      , uuid
+
+  other-modules:       Hroamer.UnsupportedPaths

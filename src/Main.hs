@@ -61,6 +61,8 @@ import Text.Parsec
         manyTill, runParserT, string, try)
 import Text.Parsec.Char (alphaNum)
 
+import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
+
 -- A file, broken down into its directory and filename
 data FileRepr = FileRepr FilePath FilePath -- dir  file
   deriving (Eq, Show)
@@ -148,7 +150,7 @@ main = do
       list_of_filename_and_uuid <-
         getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath
       let list_of_filename = fmap fst list_of_filename_and_uuid
-      let dupFilenames = getDuplicateFilenames list_of_filename
+      let dupFilenames = UnsupportedPaths.getDuplicateFilenames list_of_filename
       if S.null dupFilenames
         then do
           (abs_paths, files_not_in_cwd, invalid_paths) <-
@@ -205,16 +207,6 @@ main = do
   where
     excHandler :: IOException -> IO ()
     excHandler = const $ return ()
-
-    getDuplicateFilenames :: [FilePath] -> Set FilePath
-    getDuplicateFilenames =
-      fst .
-      foldr
-        (\fname (dup_fnames, all_fnames) ->
-           if S.member fname all_fnames
-             then (S.insert fname dup_fnames, all_fnames)
-             else (dup_fnames, S.insert fname all_fnames))
-        (S.empty, S.empty)
 
     getUnsupportedPaths :: FilePath
                         -> [FilePath]
