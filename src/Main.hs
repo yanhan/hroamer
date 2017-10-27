@@ -136,36 +136,9 @@ main = do
       let dupFilenames = UnsupportedPaths.getDuplicateFilenames list_of_filename
       if S.null dupFilenames
         then do
-          (abs_paths, files_not_in_cwd, invalid_paths) <-
+          unsupportedPaths@(abs_paths, files_not_in_cwd, invalid_paths) <-
             UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
-          -- TODO: Separate the error messages by a newline if necessary
-          if not $ S.null abs_paths
-            then do
-              TIO.putStrLn
-                "Error: Absolute paths not supported. We found that you entered these:"
-              mapM_
-                (\s -> TIO.putStrLn $ "- " <> (pack s))
-                (List.sort $ S.toList abs_paths)
-            else return ()
-
-          if not $ S.null files_not_in_cwd
-            then do
-              TIO.putStrLn $
-                "Error: the following paths are housed in a directory that is not the current directory " <>
-                (pack cwd)
-              mapM_
-                (\s -> TIO.putStrLn $ "- " <> (pack s))
-                (List.sort $ S.toList files_not_in_cwd)
-            else return ()
-
-          if not $ S.null invalid_paths
-            then do
-              TIO.putStrLn "Error: the following paths are invalid:"
-              mapM_
-                (\s -> TIO.putStrLn $ "- " <> (pack s))
-                (List.sort $ S.toList invalid_paths)
-            else return ()
-
+          UnsupportedPaths.printUnsupportedPathsErrors cwd unsupportedPaths
           if S.null abs_paths && S.null files_not_in_cwd && S.null invalid_paths
             then do
               file_op_list <-

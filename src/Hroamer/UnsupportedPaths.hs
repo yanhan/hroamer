@@ -1,10 +1,15 @@
 module Hroamer.UnsupportedPaths
   ( getDuplicateFilenames
   , getUnsupportedPaths
+  , printUnsupportedPathsErrors
   ) where
 
-import Control.Monad (foldM)
+import Control.Monad (foldM, mapM_)
+import qualified Data.List as List
 import Data.Set (Set, empty, insert, member)
+import qualified Data.Set as S
+import Data.Text (pack)
+import qualified Data.Text.IO as TIO
 import Foundation
 import System.Directory (canonicalizePath)
 import System.FilePath.Posix
@@ -40,3 +45,34 @@ getUnsupportedPaths cwd =
                          , invalid_paths)
                     else return acc)
     (empty, empty, empty)
+
+printUnsupportedPathsErrors :: FilePath
+                            -> (Set FilePath, Set FilePath, Set FilePath)
+                            -> IO ()
+printUnsupportedPathsErrors cwd (abs_paths, files_not_in_cwd, invalid_paths)
+  -- TODO: Separate the error messages by a newline if necessary
+ = do
+  if not $ S.null abs_paths
+    then do
+      TIO.putStrLn
+        "Error: Absolute paths not supported. We found that you entered these:"
+      mapM_
+        (\s -> TIO.putStrLn $ "- " <> (pack s))
+        (List.sort $ S.toList abs_paths)
+    else return ()
+  if not $ S.null files_not_in_cwd
+    then do
+      TIO.putStrLn $
+        "Error: the following paths are housed in a directory that is not the current directory " <>
+        (pack cwd)
+      mapM_
+        (\s -> TIO.putStrLn $ "- " <> (pack s))
+        (List.sort $ S.toList files_not_in_cwd)
+    else return ()
+  if not $ S.null invalid_paths
+    then do
+      TIO.putStrLn "Error: the following paths are invalid:"
+      mapM_
+        (\s -> TIO.putStrLn $ "- " <> (pack s))
+        (List.sort $ S.toList invalid_paths)
+    else return ()
