@@ -29,6 +29,7 @@ executable hroamer
                      , directory
                      , filepath
                      , foundation
+                     , mtl
                      , parsec
                      , process
                      , resourcet

@@ -5,10 +5,11 @@ module Hroamer.UnsupportedPaths
   ) where
 
 import Control.Monad (foldM, mapM_)
+import Control.Monad.State (StateT, evalStateT, get, lift, modify)
 import qualified Data.List as List
 import Data.Set (Set, empty, insert, member)
 import qualified Data.Set as S
-import Data.Text (pack)
+import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
 import Foundation
 import System.Directory (canonicalizePath)
@@ -50,29 +51,33 @@ printUnsupportedPathsErrors :: FilePath
                             -> (Set FilePath, Set FilePath, Set FilePath)
                             -> IO ()
 printUnsupportedPathsErrors cwd (abs_paths, files_not_in_cwd, invalid_paths)
-  -- TODO: Separate the error messages by a newline if necessary
- = do
-  if not $ S.null abs_paths
-    then do
-      TIO.putStrLn
+ -- the state is the number of errors so far and we use it to determine
+ -- whether we need to print a separating newline between different error
+ -- messages
+ = evalStateT printErrors 0
+  where
+    printOneError :: Set FilePath -> Text -> StateT Int IO ()
+    printOneError files msg = do
+      if not $ S.null files
+        then do
+          nrErrors <- get
+          if nrErrors > 0
+            then lift $ TIO.putStrLn ""
+            else return ()
+          modify (+ 1)
+          lift $ TIO.putStrLn msg
+          lift $
+            mapM_
+              (\s -> TIO.putStrLn $ "- " <> (pack s))
+              (List.sort $ S.toList files)
+        else return ()
+    printErrors :: StateT Int IO ()
+    printErrors = do
+      printOneError
+        abs_paths
         "Error: Absolute paths not supported. We found that you entered these:"
-      mapM_
-        (\s -> TIO.putStrLn $ "- " <> (pack s))
-        (List.sort $ S.toList abs_paths)
-    else return ()
-  if not $ S.null files_not_in_cwd
-    then do
-      TIO.putStrLn $
-        "Error: the following paths are housed in a directory that is not the current directory " <>
-        (pack cwd)
-      mapM_
-        (\s -> TIO.putStrLn $ "- " <> (pack s))
-        (List.sort $ S.toList files_not_in_cwd)
-    else return ()
-  if not $ S.null invalid_paths
-    then do
-      TIO.putStrLn "Error: the following paths are invalid:"
-      mapM_
-        (\s -> TIO.putStrLn $ "- " <> (pack s))
-        (List.sort $ S.toList invalid_paths)
-    else return ()
+      printOneError
+        files_not_in_cwd
+        ("Error: the following paths are housed in a directory that is not the current directory " <>
+         pack cwd)
+      printOneError invalid_paths "Error: the following paths are invalid:"
