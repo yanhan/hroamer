@@ -3,7 +3,7 @@ module Main where
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Applicative ((<*), (*>))
 import Control.Exception (catch, IOException)
-import Control.Monad (forM_, join, sequence)
+import Control.Monad (forM_, sequence)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (ResourceT)
 import qualified Data.ByteString.Char8 as B8
@@ -22,16 +22,13 @@ import Data.Monoid ((<>))
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Text as T
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text, pack)
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import qualified Data.Text.IO as TIO
 import Data.Time.Format (defaultTimeLocale, formatTime)
-import qualified Data.Tuple
 import qualified Data.UUID as UUID
 import qualified Data.UUID.V4 as UUID4
-import Data.Void (Void)
 import qualified Database.SQLite.Simple as D
-import Database.SQLite.Simple.FromField (FromField)
 import Database.SQLite.Simple.FromRow (FromRow, field)
 import Database.SQLite.Simple.ToRow (ToRow, toRow)
 import Foundation hiding ((<|>))
@@ -39,12 +36,9 @@ import Foundation.Collection (mapM, mapM_, zip, zipWith)
 import System.Directory
        (XdgDirectory(XdgData), copyFile, createDirectory,
         doesDirectoryExist, doesFileExist, doesPathExist,
-        getCurrentDirectory, getModificationTime, getXdgDirectory,
-        getHomeDirectory, listDirectory, removeDirectoryRecursive,
-        removeFile, renameDirectory, renameFile)
-import System.Environment (lookupEnv)
-import System.Exit
-       (ExitCode(ExitFailure, ExitSuccess), die, exitWith)
+        getCurrentDirectory, getXdgDirectory, getHomeDirectory,
+        listDirectory, removeFile, renameDirectory, renameFile)
+import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
        (FilePath, (</>), addTrailingPathSeparator,
         dropTrailingPathSeparator, takeDirectory, takeBaseName)
@@ -52,15 +46,14 @@ import System.IO.Temp (writeTempFile)
 import System.Posix.Signals
        (Handler(Catch), addSignal, emptySignalSet, installHandler,
         keyboardSignal, siginfoSignal, softwareStop, softwareTermination)
-import System.Process
-       (CreateProcess, createProcess, proc, shell, waitForProcess)
+import System.Process (createProcess, proc, waitForProcess)
 import Text.Parsec
        ((<|>), ParsecT, anyChar, char, count, eof, hexDigit, lookAhead,
         manyTill, runParserT, string, try)
 import Text.Parsec.Char (alphaNum)
 
-import qualified Hroamer.Utilities as Utils
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
+import qualified Hroamer.Utilities as Utils
 
 -- A file, broken down into its directory and filename
 data FileRepr = FileRepr FilePath FilePath -- dir  file
