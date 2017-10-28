@@ -129,10 +129,9 @@ main = do
       let dupFilenames = UnsupportedPaths.getDuplicateFilenames list_of_filename
       if S.null dupFilenames
         then do
-          unsupportedPaths@(abs_paths, files_not_in_cwd, invalid_paths) <-
-            UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
+          unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
           UnsupportedPaths.printUnsupportedPathsErrors cwd unsupportedPaths
-          if S.null abs_paths && S.null files_not_in_cwd && S.null invalid_paths
+          if UnsupportedPaths.noUnsupportedPaths unsupportedPaths
             then do
               file_op_list <-
                 generateFileOps
