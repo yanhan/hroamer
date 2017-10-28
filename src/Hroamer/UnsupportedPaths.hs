@@ -2,7 +2,7 @@ module Hroamer.UnsupportedPaths
   ( getDuplicateFilenames
   , getUnsupportedPaths
   , noUnsupportedPaths
-  , printUnsupportedPathsErrors
+  , printErrors
   ) where
 
 import Control.Monad (mapM_)
@@ -64,8 +64,8 @@ getUnsupportedPaths cwd files = execStateT sta (UPaths empty empty empty)
                         else return ())
         files
 
-printUnsupportedPathsErrors :: FilePath -> UPaths -> IO ()
-printUnsupportedPathsErrors cwd uPaths
+printErrors :: FilePath -> UPaths -> IO ()
+printErrors cwd uPaths
  -- the state is the number of errors so far and we use it to determine
  -- whether we need to print a separating newline between different error
  -- messages

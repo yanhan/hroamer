@@ -142,7 +142,7 @@ main = do
               D.withConnection
                 path_to_db
                 (\dbconn -> forM_ file_op_list (doFileOp cwd dbconn))
-            else UnsupportedPaths.printUnsupportedPathsErrors cwd unsupportedPaths
+            else UnsupportedPaths.printErrors cwd unsupportedPaths
         else do
           TIO.putStrLn "Error - the following filenames are duplicated:"
           mapM_ (\s -> TIO.putStrLn $ "- " <> (pack s)) $
