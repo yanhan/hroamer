@@ -3,7 +3,7 @@ module Hroamer.Database
   , addFileDetailsToDb
   , createDbAndTables
   , deleteFileFromDb
-  , selectFromDbAllFilesInDir
+  , getAllFilesInDir
   ) where
 
 import Data.Text (Text)
@@ -54,8 +54,8 @@ deleteFileFromDb cwd conn filename =
     "DELETE FROM files WHERE dir = ? AND filename = ?;"
     [cwd, filename]
 
-selectFromDbAllFilesInDir :: FilePath -> FilePath -> IO [([Char], Text)]
-selectFromDbAllFilesInDir path_to_db dirname =
+getAllFilesInDir :: FilePath -> FilePath -> IO [([Char], Text)]
+getAllFilesInDir path_to_db dirname =
   withConnection
     path_to_db
     (\conn ->
