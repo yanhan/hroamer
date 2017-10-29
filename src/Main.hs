@@ -158,7 +158,7 @@ processCwd :: FilePath
            -> IO (Map FilePath Text, FilePath)
 processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- listDirectory cwd
-  files_and_uuid__in_db <- selectFromDbAllFilesInDir path_to_db cwd
+  files_and_uuid__in_db <- HroamerDb.selectFromDbAllFilesInDir path_to_db cwd
   let file_to_uuid__in_db = M.fromList files_and_uuid__in_db
   let files__in_db = fmap fst files_and_uuid__in_db
   let (files_on_both, files_only_on_system, files_only_in_db) =
@@ -217,15 +217,6 @@ processCwd cwd app_tmp_dir path_to_db = do
       in ( set_system `S.intersection` set_db
          , set_system `S.difference` set_db
          , set_db `S.difference` set_system)
-
-    selectFromDbAllFilesInDir path_to_db dirname =
-      D.withConnection
-        path_to_db
-        (\conn ->
-           D.query
-             conn
-             "SELECT filename, uuid FROM files WHERE dir = ?;"
-             [dirname] :: IO [([Char], Text)])
 
 
 
