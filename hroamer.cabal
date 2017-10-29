@@ -41,6 +41,7 @@ executable hroamer
                      , uuid
 
   other-modules:       Hroamer.Database
+                     , Hroamer.Parser
                      , Hroamer.Path
                      , Hroamer.UnsupportedPaths
                      , Hroamer.Utilities

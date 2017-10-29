@@ -1,7 +1,6 @@
 module Main where
 
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
-import Control.Applicative ((<*), (*>))
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_, sequence)
 import Control.Monad.IO.Class (liftIO)
@@ -13,7 +12,6 @@ import Data.Conduit.Binary (sourceFile)
 import qualified Data.Conduit.List as CL
 import Data.Either (either)
 import Data.Functor.Identity (runIdentity)
-import Data.Functor.Identity (Identity)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map.Strict as M
@@ -47,14 +45,12 @@ import System.Posix.Signals
        (Handler(Catch), addSignal, emptySignalSet, installHandler,
         keyboardSignal, siginfoSignal, softwareStop, softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
-import Text.Parsec
-       ((<|>), ParsecT, anyChar, char, count, eof, hexDigit, lookAhead,
-        manyTill, runParserT, string, try)
-import Text.Parsec.Char (alphaNum)
+import Text.Parsec (runParserT)
 
 import Hroamer.Database (FilesTableRow(..))
 
 import qualified Hroamer.Database as HroamerDb
+import qualified Hroamer.Parser as Parser
 import qualified Hroamer.Path as Path
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 import qualified Hroamer.Utilities as Utils
@@ -237,34 +233,6 @@ processCwd cwd app_tmp_dir path_to_db = do
              [dirname] :: IO [([Char], Text)])
 
 
-parseUserDirStateFile :: ParsecT Text () Identity (Maybe (Text, Text))
-parseUserDirStateFile = try commentLine <|> normalLine
-  where
-    commentLine = do
-      char '"'
-      manyTill anyChar eof
-      return Nothing
-
-    normalLine = do
-      l <- manyTill anyChar (try . lookAhead $ (sepBarParser *> uuidParser) <* eof)
-      sepBarParser
-      s <- uuidParser
-      return $ Just $ (pack l, pack s)
-
-    sepBarParser = string " | "
-
-    uuidParser = do
-      s1 <- count 8 alphaNum
-      char '-'
-      s2 <- count 4 alphaNum
-      char '-'
-      s3 <- count 4 alphaNum
-      char '-'
-      s4 <- count 4 alphaNum
-      char '-'
-      s5 <- count 12 alphaNum
-      return $ s1 <> "-" <> s2 <> "-" <> s3 <> "-" <> s4 <> "-" <> s5
-
 
 data FileOp
   = CopyOp { srcFileRepr :: FileRepr
@@ -340,7 +308,7 @@ getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
             case mx of
               Just x ->
                 let parse_result =
-                      runIdentity $ runParserT parseUserDirStateFile () "" x
+                      runIdentity $ runParserT Parser.parseUserDirStateFile () "" x
                 in either (const (return ())) onlyYieldJust parse_result
               Nothing -> return ())
 
