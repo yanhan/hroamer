@@ -151,14 +151,6 @@ main = do
     excHandler = const $ return ()
 
 
-deleteFileFromDb :: FilePath -> D.Connection -> [Char] -> IO ()
-deleteFileFromDb cwd conn filename =
-  D.execute
-    conn
-    "DELETE FROM files WHERE dir = ? AND filename = ?;"
-    [cwd, filename]
-
-
 addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], Text) -> IO ()
 addFileDetailsToDb dir conn (filename, uuid) =
   D.execute conn
@@ -199,7 +191,7 @@ processCwd cwd app_tmp_dir path_to_db = do
     (\conn -> do
        D.execute_ conn "BEGIN TRANSACTION;"
        mapM_ (addFileDetailsToDb cwd conn) file_to_uuid__only_on_system
-       mapM_ (deleteFileFromDb cwd conn) (S.toList files_only_in_db)
+       mapM_ (HroamerDb.deleteFileFromDb cwd conn) (S.toList files_only_in_db)
        D.execute_ conn "COMMIT;")
 
   let file_to_uuid__accurate =
