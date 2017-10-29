@@ -68,14 +68,14 @@ main :: IO ()
 main = do
   home_dir <- getHomeDirectory
   app_data_dir <- getXdgDirectory XdgData "hroamer"
-  success_creating_app_data_dir <- createDirNoForce app_data_dir
+  success_creating_app_data_dir <- Path.createDirNoForce app_data_dir
 
   let app_tmp_dir = app_data_dir </> "tmp"
-  success_creating_app_tmp_dir <- createDirNoForce app_tmp_dir
+  success_creating_app_tmp_dir <- Path.createDirNoForce app_tmp_dir
 
   -- Directory for storing files 'deleted' using hroamer
   let path_to_trashcopy_dir = app_data_dir </> "trash-copy"
-  success_creating_trashcopy_dir <- createDirNoForce path_to_trashcopy_dir
+  success_creating_trashcopy_dir <- Path.createDirNoForce path_to_trashcopy_dir
 
   if not success_creating_app_data_dir ||
      not success_creating_app_tmp_dir || not success_creating_trashcopy_dir
@@ -476,21 +476,3 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
           if src_exists
             then return $ CopyOp src_filerepr dest_filerepr False
             else return $ NoFileOp
-
-
-createDirNoForce :: FilePath -> IO Bool
-createDirNoForce app_data_dir = do
-  path_exists <- doesPathExist app_data_dir
-  if path_exists
-    then do
-      is_dir <- doesDirectoryExist app_data_dir
-      if is_dir
-        then return True
-        else do
-          putStrLn $
-            "Error: `" <> (show app_data_dir) <>
-            "` exists but is not a directory."
-          return False
-    else do
-      createDirectory app_data_dir
-      return True
