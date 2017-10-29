@@ -3,11 +3,12 @@ module Hroamer.Database
   , addFileDetailsToDb
   , createDbAndTables
   , deleteFileFromDb
+  , selectFromDbAllFilesInDir
   ) where
 
 import Data.Text (Text)
 import Database.SQLite.Simple
-       (Connection, execute, execute_, withConnection)
+       (Connection, execute, execute_, query, withConnection)
 import Database.SQLite.Simple.FromRow (FromRow, field, fromRow)
 import Database.SQLite.Simple.ToRow (ToRow, toRow)
 import Foundation
@@ -52,3 +53,13 @@ deleteFileFromDb cwd conn filename =
     conn
     "DELETE FROM files WHERE dir = ? AND filename = ?;"
     [cwd, filename]
+
+selectFromDbAllFilesInDir :: FilePath -> FilePath -> IO [([Char], Text)]
+selectFromDbAllFilesInDir path_to_db dirname =
+  withConnection
+    path_to_db
+    (\conn ->
+       query
+         conn
+         "SELECT filename, uuid FROM files WHERE dir = ?;"
+         [dirname])
