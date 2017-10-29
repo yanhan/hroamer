@@ -40,8 +40,8 @@ import System.Directory
         listDirectory, removeFile, renameDirectory, renameFile)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
-       (FilePath, (</>), addTrailingPathSeparator,
-        dropTrailingPathSeparator, takeDirectory, takeBaseName)
+       (FilePath, (</>), dropTrailingPathSeparator, takeDirectory,
+        takeBaseName)
 import System.IO.Temp (writeTempFile)
 import System.Posix.Signals
        (Handler(Catch), addSignal, emptySignalSet, installHandler,
@@ -183,14 +183,6 @@ instance FromRow Int where
   fromRow = field
 
 
-appendSlashToDir :: FilePath -> FilePath -> IO FilePath
-appendSlashToDir dirname filename = do
-  isdir <- doesDirectoryExist $ dirname </> filename
-  if isdir
-    then return $ addTrailingPathSeparator filename
-    else return filename
-
-
 constructTextFileHeader :: FilePath -> [Char]
 constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
@@ -240,7 +232,7 @@ processCwd cwd app_tmp_dir path_to_db = do
     sequence $
     fmap
       (\(fn, h) -> do
-         fn_perhaps_with_trailing_slash <- appendSlashToDir cwd fn
+         fn_perhaps_with_trailing_slash <- Path.appendSlashToDir cwd fn
          return $ pack fn_perhaps_with_trailing_slash <> " | " <> h)
       files_and_uuid_sorted
   dirstate_filepath <-
