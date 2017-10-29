@@ -52,6 +52,8 @@ import Text.Parsec
         manyTill, runParserT, string, try)
 import Text.Parsec.Char (alphaNum)
 
+import Hroamer.Database (FilesTableRow(..))
+
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
@@ -151,13 +153,6 @@ main = do
     excHandler = const $ return ()
 
 
-addFileDetailsToDb :: FilePath -> D.Connection -> ([Char], Text) -> IO ()
-addFileDetailsToDb dir conn (filename, uuid) =
-  D.execute conn
-    "INSERT INTO files(dir, filename, uuid) VALUES(?, ?, ?);"
-    (FilesTableRow dir filename uuid)
-
-
 instance FromRow Int where
   fromRow = field
 
@@ -190,7 +185,7 @@ processCwd cwd app_tmp_dir path_to_db = do
     path_to_db
     (\conn -> do
        D.execute_ conn "BEGIN TRANSACTION;"
-       mapM_ (addFileDetailsToDb cwd conn) file_to_uuid__only_on_system
+       mapM_ (HroamerDb.addFileDetailsToDb cwd conn) file_to_uuid__only_on_system
        mapM_ (HroamerDb.deleteFileFromDb cwd conn) (S.toList files_only_in_db)
        D.execute_ conn "COMMIT;")
 
@@ -269,15 +264,6 @@ parseUserDirStateFile = try commentLine <|> normalLine
       char '-'
       s5 <- count 12 alphaNum
       return $ s1 <> "-" <> s2 <> "-" <> s3 <> "-" <> s4 <> "-" <> s5
-
-
-data FilesTableRow = FilesTableRow FilePath FilePath Text deriving (Show)
-
-instance FromRow FilesTableRow where
-  fromRow = FilesTableRow <$> field <*> field <*> field
-
-instance ToRow FilesTableRow where
-  toRow (FilesTableRow dir filename file_uuid) = toRow (dir, filename, file_uuid)
 
 
 data FileOp
