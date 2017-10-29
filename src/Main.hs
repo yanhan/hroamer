@@ -52,6 +52,7 @@ import Text.Parsec
         manyTill, runParserT, string, try)
 import Text.Parsec.Char (alphaNum)
 
+import qualified Hroamer.Path as Path
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 import qualified Hroamer.Utilities as Utils
 
@@ -88,7 +89,7 @@ main = do
 
   cwd <- getCurrentDirectory
   -- Do not allow user to use hroamer to manage files that it creates
-  if isWeakAncestorDir app_data_dir cwd
+  if Path.isWeakAncestorDir app_data_dir cwd
     then do
       TIO.putStrLn $
         "Error: You tried to use hroamer to manage " <> (pack cwd) <> "\n" <>
@@ -147,13 +148,6 @@ main = do
   where
     excHandler :: IOException -> IO ()
     excHandler = const $ return ()
-
-
-isWeakAncestorDir suspected_ancestor "/" = suspected_ancestor == "/"
-isWeakAncestorDir suspected_ancestor dir_of_interest =
-  if suspected_ancestor == dir_of_interest
-    then True
-    else isWeakAncestorDir suspected_ancestor $ takeDirectory dir_of_interest
 
 
 createDbAndTables :: FilePath -> IO ()
