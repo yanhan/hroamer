@@ -1,13 +1,12 @@
 module Hroamer.UnsupportedPaths
-  ( getDuplicateFilenames
-  , getUnsupportedPaths
+  ( getUnsupportedPaths
   , noUnsupportedPaths
   , printErrors
   ) where
 
 import Control.Monad (mapM_)
 import Control.Monad.State
-       (StateT, evalStateT, execStateT, get, lift, modify)
+       (StateT, evalStateT, execStateT, get, lift, modify, put)
 import qualified Data.List as List
 import Data.Set (Set, empty, insert, member)
 import qualified Data.Set as S
@@ -20,7 +19,8 @@ import System.FilePath.Posix
 
 -- Types of paths that are not supported by hroamer
 data UPaths = UPaths
-  { absPaths :: Set FilePath
+  { duplicatePaths :: Set FilePath
+  , absPaths :: Set FilePath
   , filesNotInCwd :: Set FilePath
   , invalidPaths :: Set FilePath
   }
@@ -30,38 +30,45 @@ noUnsupportedPaths uPaths =
   S.null (absPaths uPaths) &&
   S.null (filesNotInCwd uPaths) && S.null (invalidPaths uPaths)
 
-getDuplicateFilenames :: [FilePath] -> Set FilePath
-getDuplicateFilenames =
-  fst .
-  foldr
-    (\fname (dup_fnames, all_fnames) ->
-       if member fname all_fnames
-         then (insert fname dup_fnames, all_fnames)
-         else (dup_fnames, insert fname all_fnames))
-    (empty, empty)
-
 getUnsupportedPaths :: FilePath -> [FilePath] -> IO UPaths
-getUnsupportedPaths cwd files = execStateT sta (UPaths empty empty empty)
+getUnsupportedPaths cwd files = do
+  (_, uPaths) <- execStateT sta (empty, (UPaths empty empty empty empty))
+  return uPaths
   where
-    sta :: StateT UPaths IO ()
+    sta :: StateT (Set FilePath, UPaths) IO ()
     sta =
       mapM_
-        (\fname ->
-           if isAbsolute fname
-             then modify (\s -> s {absPaths = insert fname (absPaths s)})
+        (\fname -> do
+           (filesSeen, uPaths) <- get
+           if member fname filesSeen
+             then put
+                    ( filesSeen
+                    , uPaths
+                      {duplicatePaths = insert fname (duplicatePaths uPaths)})
              else do
-               path <- lift $ canonicalizePath $ cwd </> fname
-               if not $ isValid path
-                 then modify
-                        (\s -> s {invalidPaths = insert fname (invalidPaths s)})
-                 else if takeDirectory path /= cwd
-                        then modify
-                               (\s ->
-                                  s
-                                  { filesNotInCwd =
-                                      insert fname (filesNotInCwd s)
-                                  })
-                        else return ())
+               let filesSeen' = insert fname filesSeen
+               put (filesSeen', uPaths)
+               if isAbsolute fname
+                 then put
+                        ( filesSeen'
+                        , uPaths {absPaths = insert fname (absPaths uPaths)})
+                 else do
+                   path <- lift $ canonicalizePath $ cwd </> fname
+                   if not $ isValid path
+                     then put
+                            ( filesSeen'
+                            , uPaths
+                              { invalidPaths =
+                                  insert fname (invalidPaths uPaths)
+                              })
+                     else if takeDirectory path /= cwd
+                            then put
+                                   ( filesSeen'
+                                   , uPaths
+                                     { filesNotInCwd =
+                                         insert fname (filesNotInCwd uPaths)
+                                     })
+                            else return ())
         files
 
 printErrors :: FilePath -> UPaths -> IO ()
@@ -88,6 +95,9 @@ printErrors cwd uPaths
         else return ()
     printErrors :: StateT Int IO ()
     printErrors = do
+      printOneError
+        (duplicatePaths uPaths)
+        "Error: the following filenames are duplicated:"
       printOneError
         (absPaths uPaths)
         "Error: Absolute paths not supported. We found that you entered these:"

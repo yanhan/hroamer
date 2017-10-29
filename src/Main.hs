@@ -126,27 +126,20 @@ main = do
       list_of_filename_and_uuid <-
         getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath
       let list_of_filename = fmap fst list_of_filename_and_uuid
-      let dupFilenames = UnsupportedPaths.getDuplicateFilenames list_of_filename
-      if S.null dupFilenames
+      unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
+      if UnsupportedPaths.noUnsupportedPaths unsupportedPaths
         then do
-          unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
-          if UnsupportedPaths.noUnsupportedPaths unsupportedPaths
-            then do
-              file_op_list <-
-                generateFileOps
-                  path_to_trashcopy_dir
-                  cwd
-                  path_to_db
-                  list_of_filename_and_uuid
-                  initial_fname_to_uuid
-              D.withConnection
-                path_to_db
-                (\dbconn -> forM_ file_op_list (doFileOp cwd dbconn))
-            else UnsupportedPaths.printErrors cwd unsupportedPaths
-        else do
-          TIO.putStrLn "Error - the following filenames are duplicated:"
-          mapM_ (\s -> TIO.putStrLn $ "- " <> (pack s)) $
-            List.sort (S.toList dupFilenames)
+          file_op_list <-
+            generateFileOps
+              path_to_trashcopy_dir
+              cwd
+              path_to_db
+              list_of_filename_and_uuid
+              initial_fname_to_uuid
+          D.withConnection
+            path_to_db
+            (\dbconn -> forM_ file_op_list (doFileOp cwd dbconn))
+        else UnsupportedPaths.printErrors cwd unsupportedPaths
 
   -- cleanup
   removeFile dirstate_filepath `catch` excHandler
