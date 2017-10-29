@@ -16,20 +16,15 @@ import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust)
-import Data.Monoid ((<>))
 import Data.Set (Set)
 import qualified Data.Set as S
-import qualified Data.Text as T
 import Data.Text (Text, pack)
-import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import qualified Data.Text.IO as TIO
-import Data.Time.Format (defaultTimeLocale, formatTime)
 import qualified Data.UUID as UUID
 import qualified Data.UUID.V4 as UUID4
 import qualified Database.SQLite.Simple as D
 import Database.SQLite.Simple.FromRow (FromRow, field)
-import Database.SQLite.Simple.ToRow (ToRow, toRow)
-import Foundation hiding ((<|>))
+import Foundation
 import Foundation.Collection (mapM, mapM_, zip, zipWith)
 import System.Directory
        (XdgDirectory(XdgData), copyFile, createDirectory,
