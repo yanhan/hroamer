@@ -52,6 +52,7 @@ import Text.Parsec
         manyTill, runParserT, string, try)
 import Text.Parsec.Char (alphaNum)
 
+import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 import qualified Hroamer.Utilities as Utils
@@ -85,7 +86,7 @@ main = do
     else return ()
 
   let path_to_db = app_data_dir </> "hroamer.db"
-  createDbAndTables path_to_db
+  HroamerDb.createDbAndTables path_to_db
 
   cwd <- getCurrentDirectory
   -- Do not allow user to use hroamer to manage files that it creates
@@ -148,20 +149,6 @@ main = do
   where
     excHandler :: IOException -> IO ()
     excHandler = const $ return ()
-
-
-createDbAndTables :: FilePath -> IO ()
-createDbAndTables path_to_db = do
-  db_exists <- doesFileExist path_to_db
-  if not db_exists
-    then D.withConnection
-           path_to_db
-           (\conn -> do
-              D.execute_
-                conn
-                "CREATE TABLE IF NOT EXISTS files(dir TEXT, filename TEXT, uuid CHAR(36), CONSTRAINT files__idx_dir_filename UNIQUE(dir, filename) ON CONFLICT ROLLBACK, CONSTRAINT files__uuid UNIQUE(uuid) ON CONFLICT ROLLBACK);"
-              D.execute_ conn "CREATE INDEX files__idx_dir ON files(dir);")
-    else return ()
 
 
 deleteFileFromDb :: FilePath -> D.Connection -> [Char] -> IO ()
