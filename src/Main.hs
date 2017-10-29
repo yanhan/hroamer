@@ -247,10 +247,9 @@ doFileOp cwd dbconn (TrashCopyOp src_filerepr dest_filerepr uuid src_is_dir) = d
     then renameDirectory src_filepath dest_filepath
     else renameFile src_filepath dest_filepath
   TIO.putStrLn $ "trash-copy " <> (pack src_filepath)
-  D.execute
-    dbconn
-    "UPDATE files SET dir=?, filename=? WHERE uuid=?;"
-    (FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid})
+  -- what
+  HroamerDb.updateDirAndFilename dbconn
+    FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid}
 
 doFileOp cwd _ (CopyOp src_filerepr dest_filerepr src_is_dir) = do
   let (FileRepr dest_dir dest_filename) = dest_filerepr

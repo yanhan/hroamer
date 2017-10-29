@@ -4,6 +4,7 @@ module Hroamer.Database
   , createDbAndTables
   , deleteFileFromDb
   , getAllFilesInDir
+  , updateDirAndFilename
   ) where
 
 import Data.Text (Text)
@@ -63,3 +64,10 @@ getAllFilesInDir path_to_db dirname =
          conn
          "SELECT filename, uuid FROM files WHERE dir = ?;"
          [dirname])
+
+updateDirAndFilename :: Connection -> FilesTableRow -> IO ()
+updateDirAndFilename dbconn ftr =
+  execute
+    dbconn
+    "UPDATE files SET dir=?, filename=? WHERE uuid=?;"
+    ftr
