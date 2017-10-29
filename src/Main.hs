@@ -158,7 +158,7 @@ processCwd :: FilePath
            -> IO (Map FilePath Text, FilePath)
 processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- listDirectory cwd
-  files_and_uuid__in_db <- HroamerDb.selectFromDbAllFilesInDir path_to_db cwd
+  files_and_uuid__in_db <- HroamerDb.getAllFilesInDir path_to_db cwd
   let file_to_uuid__in_db = M.fromList files_and_uuid__in_db
   let files__in_db = fmap fst files_and_uuid__in_db
   let (files_on_both, files_only_on_system, files_only_in_db) =
