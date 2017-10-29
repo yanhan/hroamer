@@ -40,35 +40,32 @@ getUnsupportedPaths cwd files = do
       mapM_
         (\fname -> do
            (filesSeen, uPaths) <- get
-           if member fname filesSeen
-             then put
-                    ( filesSeen
-                    , uPaths
-                      {duplicatePaths = insert fname (duplicatePaths uPaths)})
-             else do
-               let filesSeen' = insert fname filesSeen
-               put (filesSeen', uPaths)
-               if isAbsolute fname
-                 then put
-                        ( filesSeen'
-                        , uPaths {absPaths = insert fname (absPaths uPaths)})
-                 else do
-                   path <- lift $ canonicalizePath $ cwd </> fname
-                   if not $ isValid path
-                     then put
-                            ( filesSeen'
-                            , uPaths
-                              { invalidPaths =
-                                  insert fname (invalidPaths uPaths)
-                              })
-                     else if takeDirectory path /= cwd
-                            then put
-                                   ( filesSeen'
-                                   , uPaths
-                                     { filesNotInCwd =
-                                         insert fname (filesNotInCwd uPaths)
-                                     })
-                            else return ())
+           canonPath <- lift $ canonicalizePath $ cwd </> fname
+           let filesSeen' = insert fname filesSeen
+           -- `case () of _` trick with guards is learnt from:
+           -- https://wiki.haskell.org/Case
+           -- https://stackoverflow.com/a/40836465
+           case () of
+             _
+               | member fname filesSeen ->
+                 put
+                   ( filesSeen
+                   , uPaths
+                     {duplicatePaths = insert fname (duplicatePaths uPaths)})
+               | isAbsolute fname ->
+                 put
+                   ( filesSeen'
+                   , uPaths {absPaths = insert fname (absPaths uPaths)})
+               | not $ isValid canonPath ->
+                 put
+                   ( filesSeen'
+                   , uPaths {invalidPaths = insert fname (invalidPaths uPaths)})
+               | takeDirectory canonPath /= cwd ->
+                 put
+                   ( filesSeen'
+                   , uPaths
+                     {filesNotInCwd = insert fname (filesNotInCwd uPaths)})
+               | otherwise -> put (filesSeen', uPaths))
         files
 
 printErrors :: FilePath -> UPaths -> IO ()
