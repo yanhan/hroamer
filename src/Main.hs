@@ -296,7 +296,7 @@ doFileOp cwd dbconn (TrashCopyOp src_filerepr dest_filerepr uuid src_is_dir) = d
   D.execute
     dbconn
     "UPDATE files SET dir=?, filename=? WHERE uuid=?;"
-    (FilesTableRow dest_dir dest_filename uuid)
+    (FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid})
 
 doFileOp cwd _ (CopyOp src_filerepr dest_filerepr src_is_dir) = do
   let (FileRepr dest_dir dest_filename) = dest_filerepr
@@ -421,7 +421,7 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
                              "SELECT dir, filename, uuid FROM files WHERE uuid = ?"
                              [uuid]
                          case r of
-                           (FilesTableRow src_dir src_filename _:_) ->
+                           (FilesTableRow {dir = src_dir, filename = src_filename}:_) ->
                              makeCopyOpOrNoFileOp
                                (FileRepr src_dir src_filename)
                                dest_filerepr

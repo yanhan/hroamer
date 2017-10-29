@@ -14,18 +14,17 @@ import Foundation
 import System.Directory (doesFileExist)
 import System.FilePath.Posix (FilePath)
 
-data FilesTableRow =
-  FilesTableRow FilePath
-                FilePath
-                Text
-  deriving (Show)
+data FilesTableRow = FilesTableRow
+  { dir :: FilePath
+  , filename :: FilePath
+  , uuid :: Text
+  } deriving (Show)
 
 instance FromRow FilesTableRow where
   fromRow = FilesTableRow <$> field <*> field <*> field
 
 instance ToRow FilesTableRow where
-  toRow (FilesTableRow dir filename file_uuid) =
-    toRow (dir, filename, file_uuid)
+  toRow ftr = toRow (dir ftr, filename ftr, uuid ftr)
 
 createDbAndTables :: FilePath -> IO ()
 createDbAndTables path_to_db = do
@@ -45,7 +44,7 @@ addFileDetailsToDb dir conn (filename, uuid) =
   execute
     conn
     "INSERT INTO files(dir, filename, uuid) VALUES(?, ?, ?);"
-    (FilesTableRow dir filename uuid)
+    (FilesTableRow {dir = dir, filename = filename, uuid = uuid})
 
 deleteFileFromDb :: FilePath -> Connection -> [Char] -> IO ()
 deleteFileFromDb cwd conn filename =
