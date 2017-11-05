@@ -180,7 +180,7 @@ processCwd cwd app_tmp_dir path_to_db = do
   let files__in_db = fmap fst files_and_uuid__in_db
   let (files_only_on_system, files_only_in_db) =
         separateFilesIntoCategories files__on_system files__in_db
-  files_and_uuid__only_on_system <-
+  files_and_uuids__only_on_system <-
     mapM
       (\fname -> do
          uuid <- fmap UUID.toText UUID4.nextRandom
@@ -189,14 +189,14 @@ processCwd cwd app_tmp_dir path_to_db = do
   HroamerDb.updateDbToMatchDirState
     cwd
     path_to_db
-    files_and_uuid__only_on_system
+    files_and_uuids__only_on_system
     (S.toList files_only_in_db)
 
   let files_and_uuids_accurate =
         filter
           (\(fname, _) -> fname `S.notMember` files_only_in_db)
           files_and_uuid__in_db <>
-        files_and_uuid__only_on_system
+        files_and_uuids__only_on_system
   dirstate_filepath <- writeStateFile cwd app_tmp_dir files_and_uuids_accurate
   return (files_and_uuids_accurate, dirstate_filepath)
   where
