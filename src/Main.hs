@@ -4,15 +4,11 @@ import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_, sequence)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Resource (ResourceT)
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.Char
-import Data.Conduit ((.|), ConduitM, await, runConduitRes, yield)
+import Data.Conduit ((.|), await, runConduitRes, yield)
 import Data.Conduit.Binary (sourceFile)
-import qualified Data.Conduit.List as CL
 import Data.Either (either)
 import Data.Functor.Identity (runIdentity)
-import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust)
@@ -25,20 +21,20 @@ import qualified Data.UUID.V4 as UUID4
 import qualified Database.SQLite.Simple as D
 import Database.SQLite.Simple.FromRow (FromRow, field)
 import Foundation
-import Foundation.Collection (mapM, mapM_, zip, zipWith)
+import Foundation.Collection (mapM, mapM_, zip)
 import System.Directory
        (XdgDirectory(XdgData), copyFile, createDirectory,
-        doesDirectoryExist, doesFileExist, doesPathExist,
-        getCurrentDirectory, getXdgDirectory, getHomeDirectory,
-        listDirectory, removeFile, renameDirectory, renameFile)
+        doesDirectoryExist, doesPathExist, getCurrentDirectory,
+        getXdgDirectory, getHomeDirectory, listDirectory, removeFile,
+        renameDirectory, renameFile)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
        (FilePath, (</>), dropTrailingPathSeparator, takeDirectory,
         takeBaseName)
 import System.IO.Temp (writeTempFile)
 import System.Posix.Signals
-       (Handler(Catch), addSignal, emptySignalSet, installHandler,
-        keyboardSignal, siginfoSignal, softwareStop, softwareTermination)
+       (Handler(Catch), installHandler, keyboardSignal, softwareStop,
+        softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
 import Text.Parsec (runParserT)
 
