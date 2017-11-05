@@ -185,14 +185,12 @@ processCwd cwd app_tmp_dir path_to_db = do
   let files__in_db = fmap fst files_and_uuid__in_db
   let (files_only_on_system, files_only_in_db) =
         separateFilesIntoCategories files__on_system files__in_db
-  let l_files_only_on_system = S.toList files_only_on_system
-  uuid__only_on_system <-
+  file_to_uuid__only_on_system <-
     mapM
-      (fmap UUID.toText)
-      (List.take (List.length l_files_only_on_system) $
-       List.repeat UUID4.nextRandom)
-  let file_to_uuid__only_on_system =
-        zip l_files_only_on_system uuid__only_on_system
+      (\fname -> do
+         uuid <- fmap UUID.toText UUID4.nextRandom
+         return (fname, uuid))
+      (S.toList files_only_on_system)
   HroamerDb.updateDbToMatchDirState
     cwd
     path_to_db
