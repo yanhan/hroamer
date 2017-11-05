@@ -388,7 +388,7 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
   -- the program started.
   let initial_uuid_to_filename =
         M.fromList $ fmap swap initial_filenames_and_uuids
-  list_of_copyop <-
+  copyOps <-
     D.withConnection
       path_to_db
       (\dbconn ->
@@ -398,4 +398,4 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
            uuid_to_trashcopyop
            initial_uuid_to_filename
            list_of_filename_uuid_to_copy)
-  return $ trashCopyOps <> filter (/= NoFileOp) list_of_copyop
+  return $ trashCopyOps <> filter (/= NoFileOp) copyOps
