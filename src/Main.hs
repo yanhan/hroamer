@@ -288,11 +288,11 @@ genTrashCopyOps
   -> Set FilePathUUIDPair
   -> IO [FileOp]
 genTrashCopyOps path_to_trashcopy_dir cwd initial_filenames_uuids current_filenames_uuids = do
-  let set_of_filename_uuid_to_trashcopy =
+  let filenames_uuids_to_trashcopy =
         S.difference initial_filenames_uuids current_filenames_uuids
   let list_of_filename_uuid_to_trashcopy =
         sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
-        S.toList set_of_filename_uuid_to_trashcopy
+        S.toList filenames_uuids_to_trashcopy
   mapM
     (\(fname, uuid) -> do
        let dest_filerepr =
