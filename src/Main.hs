@@ -317,7 +317,7 @@ generateFileOps
 generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid initial_filenames_and_uuids = do
   let initial_filename_uuid_set = S.fromList initial_filenames_and_uuids
   let current_filename_uuid_set = S.fromList list_of_filename_and_uuid
-  list_of_trashcopyop <-
+  trashCopyOps <-
     genTrashCopyOps
       path_to_trashcopy_dir
       cwd
@@ -328,7 +328,7 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
   -- Hence, we can safely construct a Map indexed by UUID
   let uuid_to_trashcopyop =
         M.fromList $
-        fmap (\op@(TrashCopyOp _ _ uuid _) -> (uuid, op)) list_of_trashcopyop
+        fmap (\op@(TrashCopyOp _ _ uuid _) -> (uuid, op)) trashCopyOps
 
   let list_of_filename_uuid_to_copy =
         sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
@@ -374,7 +374,7 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
                            [] -> return NoFileOp)
            list_of_filename_uuid_to_copy)
 
-  return $ list_of_trashcopyop <> filter (/= NoFileOp) list_of_copyop
+  return $ trashCopyOps <> filter (/= NoFileOp) list_of_copyop
   where
     makeCopyOpOrNoFileOp :: FileRepr -> FileRepr -> IO FileOp
     makeCopyOpOrNoFileOp src_filerepr@(FileRepr src_dir src_filename) dest_filerepr = do
