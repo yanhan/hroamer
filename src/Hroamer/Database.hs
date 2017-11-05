@@ -3,6 +3,7 @@ module Hroamer.Database
   , createDbAndTables
   , deleteFileFromDb
   , getAllFilesInDir
+  , getRowFromUUID
   , updateDbToMatchDirState
   , updateDirAndFilename
   ) where
@@ -65,6 +66,10 @@ getAllFilesInDir path_to_db dirname =
          conn
          "SELECT filename, uuid FROM files WHERE dir = ?;"
          [dirname])
+
+getRowFromUUID :: Connection -> Text -> IO [FilesTableRow]
+getRowFromUUID dbconn uuid =
+  query dbconn "SELECT dir, filename, uuid FROM files WHERE uuid = ?" [uuid]
 
 updateDirAndFilename :: Connection -> FilesTableRow -> IO ()
 updateDirAndFilename dbconn ftr =
