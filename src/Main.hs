@@ -89,7 +89,7 @@ main = do
       exitWith $ ExitFailure 1
     else return ()
 
-  (initial_fname_to_uuid, dirstate_filepath) <-
+  (initial_fnames_and_uuids, dirstate_filepath) <-
     processCwd cwd app_tmp_dir path_to_db
   let user_dirstate_filepath =
         (takeDirectory dirstate_filepath) </>
@@ -126,7 +126,7 @@ main = do
               cwd
               path_to_db
               list_of_filename_and_uuid
-              initial_fname_to_uuid
+              initial_fnames_and_uuids
           D.withConnection
             path_to_db
             (\dbconn -> forM_ file_op_list (doFileOp cwd dbconn))
@@ -173,7 +173,7 @@ writeStateFile cwd app_tmp_dir files_and_uuid__accurate = do
 processCwd :: FilePath
            -> FilePath
            -> FilePath
-           -> IO (Map FilePath Text, FilePath)
+           -> IO ([(FilePath, Text)], FilePath)
 processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- listDirectory cwd
   files_and_uuid__in_db <- HroamerDb.getAllFilesInDir path_to_db cwd
@@ -198,7 +198,7 @@ processCwd cwd app_tmp_dir path_to_db = do
           files_and_uuid__in_db <>
         files_and_uuid__only_on_system
   dirstate_filepath <- writeStateFile cwd app_tmp_dir file_to_uuid__accurate
-  return (M.fromList file_to_uuid__accurate, dirstate_filepath)
+  return (file_to_uuid__accurate, dirstate_filepath)
   where
     separateFilesIntoCategories :: [FilePath]
                                 -> [[Char]]
@@ -300,10 +300,10 @@ generateFileOps
   -> FilePath
   -> FilePath
   -> [(FilePath, Text)]
-  -> Map FilePath Text
+  -> [(FilePath, Text)]
   -> IO [FileOp]
-generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid initial_filename_to_uuid = do
-  let initial_filename_uuid_set = S.fromList $ M.toList initial_filename_to_uuid
+generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid initial_filenames_and_uuids = do
+  let initial_filename_uuid_set = S.fromList initial_filenames_and_uuids
   let current_filename_uuid_set = S.fromList list_of_filename_and_uuid
   let set_of_filename_uuid_to_trashcopy =
         S.difference initial_filename_uuid_set current_filename_uuid_set
@@ -319,7 +319,7 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
          src_is_dir <- doesDirectoryExist $ cwd </> fname
          return $ TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid src_is_dir)
       list_of_filename_uuid_to_trashcopy
-  -- At this point, UUIDs in `initial_filename_to_uuid` are unique. Otherwise
+  -- At this point, UUIDs in `initial_filenames_and_uuids` are unique. Otherwise
   -- they would have violated the UNIQUE constraint on the `files.uuid` column.
   -- Hence, we can safely construct a Map indexed by UUID
   let trashcopy_uuid_to_trashcopyop =
@@ -334,7 +334,7 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
   -- the program started.
 
   let initial_uuid_to_filename =
-        M.fromList $ fmap swap $ M.toList initial_filename_to_uuid
+        M.fromList $ fmap swap initial_filenames_and_uuids
 
   list_of_copyop <-
     D.withConnection
