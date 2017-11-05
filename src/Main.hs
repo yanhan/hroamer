@@ -315,34 +315,33 @@ genCopyOps
   -> IO [FileOp]
 genCopyOps cwd uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy dbGetRowFromUUID =
   mapM
-    (\(fname, uuid) ->
+    (\(fname, uuid) -> do
        let dest_filerepr = FileRepr cwd fname
-       in do x <-
-               runExceptT
-                 (do maybeToExceptT
-                       (\(TrashCopyOp _ new_src_filerepr _ src_is_dir) ->
-                          return $
-                          CopyOp new_src_filerepr dest_filerepr src_is_dir)
-                       (M.lookup uuid uuid_to_trashcopyop)
+       x <-
+         runExceptT
+           (do maybeToExceptT
+                 (\(TrashCopyOp _ new_src_filerepr _ src_is_dir) ->
+                    return $ CopyOp new_src_filerepr dest_filerepr src_is_dir)
+                 (M.lookup uuid uuid_to_trashcopyop)
              -- Source file is not to be trash copied.
              -- See if we can find it in the initial set of files.
-                     maybeToExceptT
-                       (\src_filename ->
-                          makeCopyOpOrNoFileOp
-                            (FileRepr cwd src_filename)
-                            dest_filerepr)
-                       (M.lookup uuid initial_uuid_to_filename)
+               maybeToExceptT
+                 (\src_filename ->
+                    makeCopyOpOrNoFileOp
+                      (FileRepr cwd src_filename)
+                      dest_filerepr)
+                 (M.lookup uuid initial_uuid_to_filename)
              -- Need to perform database lookup
-                     row <- liftIO $ dbGetRowFromUUID uuid
-                     maybeToExceptT
-                       (\FilesTableRow {dir = src_dir, filename = src_filename} ->
-                          makeCopyOpOrNoFileOp
-                            (FileRepr src_dir src_filename)
-                            dest_filerepr)
-                       (listToMaybe row))
-             case x of
-               Left fileop -> return fileop
-               _ -> return NoFileOp)
+               row <- liftIO $ dbGetRowFromUUID uuid
+               maybeToExceptT
+                 (\FilesTableRow {dir = src_dir, filename = src_filename} ->
+                    makeCopyOpOrNoFileOp
+                      (FileRepr src_dir src_filename)
+                      dest_filerepr)
+                 (listToMaybe row))
+       case x of
+         Left fileop -> return fileop
+         _ -> return NoFileOp)
     list_of_filename_uuid_to_copy
   where
     maybeToExceptT :: (a -> IO FileOp) -> Maybe a -> ExceptT FileOp IO ()
