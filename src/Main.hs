@@ -152,11 +152,7 @@ constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 writeStateFile :: FilePath -> FilePath -> [FilePathUUIDPair] -> IO FilePath
 writeStateFile cwd app_tmp_dir files_and_uuid__accurate = do
   let files_and_uuid_sorted =
-        sortBy
-          (\x y ->
-             case (x, y) of
-               ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
-        files_and_uuid__accurate
+        sortBy (\(fn1, _) (fn2, _) -> compare fn1 fn2) files_and_uuid__accurate
   lines_to_write_to_file <-
     sequence $
     fmap
