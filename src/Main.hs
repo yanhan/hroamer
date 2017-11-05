@@ -152,6 +152,28 @@ constructTextFileHeader :: FilePath -> [Char]
 constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
 
+writeStateFile :: FilePath -> FilePath -> Map FilePath Text -> IO FilePath
+writeStateFile cwd app_tmp_dir file_to_uuid__accurate = do
+  let files_and_uuid_sorted =
+        sortBy
+          (\x y ->
+             case (x, y) of
+               ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
+        (M.toList file_to_uuid__accurate)
+  lines_to_write_to_file <-
+    sequence $
+    fmap
+      (\(fn, h) -> do
+         fn_perhaps_with_trailing_slash <- Path.appendSlashToDir cwd fn
+         return $ pack fn_perhaps_with_trailing_slash <> " | " <> h)
+      files_and_uuid_sorted
+  writeTempFile
+    app_tmp_dir
+    "dirst"
+    (constructTextFileHeader cwd <>
+     (toList $ intercalate "\n" lines_to_write_to_file))
+
+
 processCwd :: FilePath
            -> FilePath
            -> FilePath
@@ -187,25 +209,7 @@ processCwd cwd app_tmp_dir path_to_db = do
              (\k _ -> k `S.notMember` files_only_in_db)
              file_to_uuid__in_db)
           (M.fromList file_to_uuid__only_on_system)
-  let files_and_uuid_sorted =
-        sortBy
-          (\x y ->
-             case (x, y) of
-               ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
-        (M.toList file_to_uuid__accurate)
-  lines_to_write_to_file <-
-    sequence $
-    fmap
-      (\(fn, h) -> do
-         fn_perhaps_with_trailing_slash <- Path.appendSlashToDir cwd fn
-         return $ pack fn_perhaps_with_trailing_slash <> " | " <> h)
-      files_and_uuid_sorted
-  dirstate_filepath <-
-    writeTempFile
-      app_tmp_dir
-      "dirst"
-      (constructTextFileHeader cwd <>
-       (toList $ intercalate "\n" lines_to_write_to_file))
+  dirstate_filepath <- writeStateFile cwd app_tmp_dir file_to_uuid__accurate
   return (file_to_uuid__accurate, dirstate_filepath)
   where
     separateFilesIntoCategories :: [FilePath]
