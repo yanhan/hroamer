@@ -302,6 +302,57 @@ genTrashCopyOps path_to_trashcopy_dir cwd initial_filenames_uuids current_filena
     list_of_filename_uuid_to_trashcopy
 
 
+genCopyOps
+  :: FilePath
+  -> D.Connection
+  -> Map Text FileOp
+  -> Map Text FilePath
+  -> [FilePathUUIDPair]
+  -> IO [FileOp]
+genCopyOps cwd dbconn uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy =
+  mapM
+    (\(fname, uuid) ->
+       let dest_filerepr = FileRepr cwd fname
+       in case M.lookup uuid uuid_to_trashcopyop of
+            Just (TrashCopyOp _ new_src_filerepr _ src_is_dir) -> do
+              return $ CopyOp new_src_filerepr dest_filerepr src_is_dir
+            Nothing
+              -- Source file is not to be trash copied.
+              -- See if we can find it in the initial set of files.
+             ->
+              case M.lookup uuid initial_uuid_to_filename of
+                Just src_filename ->
+                  makeCopyOpOrNoFileOp (FileRepr cwd src_filename) dest_filerepr
+                Nothing
+                  -- Need to perform database lookup
+                 -> do
+                  r <-
+                    liftIO $
+                    D.query
+                      dbconn
+                      "SELECT dir, filename, uuid FROM files WHERE uuid = ?"
+                      [uuid]
+                  case r of
+                    (FilesTableRow {dir = src_dir, filename = src_filename}:_) ->
+                      makeCopyOpOrNoFileOp
+                        (FileRepr src_dir src_filename)
+                        dest_filerepr
+                    [] -> return NoFileOp)
+    list_of_filename_uuid_to_copy
+  where
+    makeCopyOpOrNoFileOp :: FileRepr -> FileRepr -> IO FileOp
+    makeCopyOpOrNoFileOp src_filerepr@(FileRepr src_dir src_filename) dest_filerepr = do
+      let src_filepath = src_dir </> src_filename
+      src_is_dir <- doesDirectoryExist src_filepath
+      if src_is_dir
+        then return $ CopyOp src_filerepr dest_filerepr True
+        else do
+          src_exists <- doesPathExist src_filepath
+          if src_exists
+            then return $ CopyOp src_filerepr dest_filerepr False
+            else return $ NoFileOp
+
+
 dirToTrashCopyTo :: FilePath -> Text -> FilePath
 dirToTrashCopyTo path_to_trashcopy_dir uuid =
   path_to_trashcopy_dir </> (toList uuid)
@@ -329,61 +380,22 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
   let uuid_to_trashcopyop =
         M.fromList $
         fmap (\op@(TrashCopyOp _ _ uuid _) -> (uuid, op)) trashCopyOps
-
   let list_of_filename_uuid_to_copy =
         sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
         S.toList $
         S.difference current_filename_uuid_set initial_filename_uuid_set
   -- Map of UUID -> filename; for files that are in the current directory when
   -- the program started.
-
   let initial_uuid_to_filename =
         M.fromList $ fmap swap initial_filenames_and_uuids
-
   list_of_copyop <-
     D.withConnection
       path_to_db
       (\dbconn ->
-         mapM
-           (\(fname, uuid) ->
-              let dest_filerepr = FileRepr cwd fname
-              in case M.lookup uuid uuid_to_trashcopyop of
-                   Just (TrashCopyOp _ new_src_filerepr _ src_is_dir) -> do
-                     return $ CopyOp new_src_filerepr dest_filerepr src_is_dir
-                   Nothing ->
-                     -- Source file is not to be trash copied.
-                     -- See if we can find it in the initial set of files.
-                     case M.lookup uuid initial_uuid_to_filename of
-                       Just src_filename ->
-                         makeCopyOpOrNoFileOp
-                           (FileRepr cwd src_filename)
-                           dest_filerepr
-                       Nothing -> do
-                         -- Need to perform database lookup
-                         r <-
-                           liftIO $
-                           D.query
-                             dbconn
-                             "SELECT dir, filename, uuid FROM files WHERE uuid = ?"
-                             [uuid]
-                         case r of
-                           (FilesTableRow {dir = src_dir, filename = src_filename}:_) ->
-                             makeCopyOpOrNoFileOp
-                               (FileRepr src_dir src_filename)
-                               dest_filerepr
-                           [] -> return NoFileOp)
+         genCopyOps
+           cwd
+           dbconn
+           uuid_to_trashcopyop
+           initial_uuid_to_filename
            list_of_filename_uuid_to_copy)
-
   return $ trashCopyOps <> filter (/= NoFileOp) list_of_copyop
-  where
-    makeCopyOpOrNoFileOp :: FileRepr -> FileRepr -> IO FileOp
-    makeCopyOpOrNoFileOp src_filerepr@(FileRepr src_dir src_filename) dest_filerepr = do
-      let src_filepath = src_dir </> src_filename
-      src_is_dir <- doesDirectoryExist src_filepath
-      if src_is_dir
-        then return $ CopyOp src_filerepr dest_filerepr True
-        else do
-          src_exists <- doesPathExist src_filepath
-          if src_exists
-            then return $ CopyOp src_filerepr dest_filerepr False
-            else return $ NoFileOp
