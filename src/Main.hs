@@ -38,6 +38,7 @@ import System.Posix.Signals
 import System.Process (createProcess, proc, waitForProcess)
 import Text.Parsec (runParserT)
 
+import Hroamer.DataStructures (FilePathUUIDPair)
 import Hroamer.Database (FilesTableRow(..))
 
 import qualified Hroamer.Database as HroamerDb
@@ -148,7 +149,7 @@ constructTextFileHeader :: FilePath -> [Char]
 constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
 
-writeStateFile :: FilePath -> FilePath -> [(FilePath, Text)] -> IO FilePath
+writeStateFile :: FilePath -> FilePath -> [FilePathUUIDPair] -> IO FilePath
 writeStateFile cwd app_tmp_dir files_and_uuid__accurate = do
   let files_and_uuid_sorted =
         sortBy
@@ -173,7 +174,7 @@ writeStateFile cwd app_tmp_dir files_and_uuid__accurate = do
 processCwd :: FilePath
            -> FilePath
            -> FilePath
-           -> IO ([(FilePath, Text)], FilePath)
+           -> IO ([FilePathUUIDPair], FilePath)
 processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- listDirectory cwd
   files_and_uuid__in_db <- HroamerDb.getAllFilesInDir path_to_db cwd
@@ -262,7 +263,7 @@ doFileOp cwd _ (CopyOp src_filerepr dest_filerepr src_is_dir) = do
       TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
 
 
-getFilenameAndUUIDInUserDirStateFile :: FilePath -> IO [(FilePath, Text)]
+getFilenameAndUUIDInUserDirStateFile :: FilePath -> IO [FilePathUUIDPair]
 getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
   list_of_maybe_fname_uuid <-
     runConduitRes $
@@ -299,8 +300,8 @@ generateFileOps
   :: FilePath
   -> FilePath
   -> FilePath
-  -> [(FilePath, Text)]
-  -> [(FilePath, Text)]
+  -> [FilePathUUIDPair]
+  -> [FilePathUUIDPair]
   -> IO [FileOp]
 generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid initial_filenames_and_uuids = do
   let initial_filename_uuid_set = S.fromList initial_filenames_and_uuids
