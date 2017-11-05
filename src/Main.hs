@@ -3,6 +3,8 @@ module Main where
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_, sequence)
+import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Char8 as B8
 import Data.Conduit ((.|), await, runConduitRes, yield)
 import Data.Conduit.Binary (sourceFile)
@@ -10,6 +12,7 @@ import Data.Either (either)
 import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import qualified Data.Map.Strict as M
+import Data.Maybe (listToMaybe)
 import Data.Maybe (fromJust)
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -314,28 +317,37 @@ genCopyOps cwd uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uui
   mapM
     (\(fname, uuid) ->
        let dest_filerepr = FileRepr cwd fname
-       in case M.lookup uuid uuid_to_trashcopyop of
-            Just (TrashCopyOp _ new_src_filerepr _ src_is_dir) -> do
-              return $ CopyOp new_src_filerepr dest_filerepr src_is_dir
-            Nothing
-              -- Source file is not to be trash copied.
-              -- See if we can find it in the initial set of files.
-             ->
-              case M.lookup uuid initial_uuid_to_filename of
-                Just src_filename ->
-                  makeCopyOpOrNoFileOp (FileRepr cwd src_filename) dest_filerepr
-                Nothing
-                  -- Need to perform database lookup
-                 -> do
-                  r <- dbGetRowFromUUID uuid
-                  case r of
-                    (FilesTableRow {dir = src_dir, filename = src_filename}:_) ->
-                      makeCopyOpOrNoFileOp
-                        (FileRepr src_dir src_filename)
-                        dest_filerepr
-                    [] -> return NoFileOp)
+       in do x <-
+               runExceptT
+                 (do maybeToExceptT
+                       (\(TrashCopyOp _ new_src_filerepr _ src_is_dir) ->
+                          return $
+                          CopyOp new_src_filerepr dest_filerepr src_is_dir)
+                       (M.lookup uuid uuid_to_trashcopyop)
+             -- Source file is not to be trash copied.
+             -- See if we can find it in the initial set of files.
+                     maybeToExceptT
+                       (\src_filename ->
+                          makeCopyOpOrNoFileOp
+                            (FileRepr cwd src_filename)
+                            dest_filerepr)
+                       (M.lookup uuid initial_uuid_to_filename)
+             -- Need to perform database lookup
+                     row <- liftIO $ dbGetRowFromUUID uuid
+                     maybeToExceptT
+                       (\FilesTableRow {dir = src_dir, filename = src_filename} ->
+                          makeCopyOpOrNoFileOp
+                            (FileRepr src_dir src_filename)
+                            dest_filerepr)
+                       (listToMaybe row))
+             case x of
+               Left fileop -> return fileop
+               _ -> return NoFileOp)
     list_of_filename_uuid_to_copy
   where
+    maybeToExceptT :: (a -> IO FileOp) -> Maybe a -> ExceptT FileOp IO ()
+    maybeToExceptT f (Just x) = (liftIO $ f x) >>= throwError
+    maybeToExceptT _ Nothing = return ()
     makeCopyOpOrNoFileOp :: FileRepr -> FileRepr -> IO FileOp
     makeCopyOpOrNoFileOp src_filerepr@(FileRepr src_dir src_filename) dest_filerepr = do
       let src_filepath = src_dir </> src_filename
