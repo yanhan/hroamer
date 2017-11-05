@@ -156,9 +156,9 @@ writeStateFile cwd app_tmp_dir files_and_uuid__accurate = do
   lines_to_write_to_file <-
     sequence $
     fmap
-      (\(fn, h) -> do
+      (\(fn, uuid) -> do
          fn_perhaps_with_trailing_slash <- Path.appendSlashToDir cwd fn
-         return $ pack fn_perhaps_with_trailing_slash <> " | " <> h)
+         return $ pack fn_perhaps_with_trailing_slash <> " | " <> uuid)
       files_and_uuid_sorted
   writeTempFile
     app_tmp_dir
