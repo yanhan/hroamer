@@ -6,6 +6,7 @@ module Hroamer.Database
   , getRowFromUUID
   , updateDbToMatchDirState
   , updateDirAndFilename
+  , wrapDbConn
   ) where
 
 import Data.Text (Text)
@@ -88,3 +89,7 @@ updateDbToMatchDirState cwd path_to_db file_to_uuid__only_on_system files_only_i
        mapM_ (addFileDetailsToDb cwd conn) file_to_uuid__only_on_system
        mapM_ (deleteFileFromDb cwd conn) files_only_in_db
        execute_ conn "COMMIT;")
+
+wrapDbConn :: FilePath -> (b -> IO a) -> (Connection -> b) -> IO a
+wrapDbConn pathToDb workFunction dbFunction =
+  withConnection pathToDb (\conn -> workFunction (dbFunction conn))

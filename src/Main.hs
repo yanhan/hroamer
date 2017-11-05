@@ -17,7 +17,6 @@ import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
 import qualified Data.UUID as UUID
 import qualified Data.UUID.V4 as UUID4
-import qualified Database.SQLite.Simple as D
 import Foundation
 import Foundation.Collection (mapM, mapM_, zip)
 import System.Directory
@@ -126,9 +125,8 @@ main = do
               path_to_db
               list_of_filename_and_uuid
               initial_fnames_and_uuids
-          D.withConnection
-            path_to_db
-            (\dbconn -> forM_ file_op_list (doFileOp cwd dbconn))
+          HroamerDb.wrapDbConn path_to_db
+            (\f -> forM_ file_op_list (doFileOp cwd f)) HroamerDb.updateDirAndFilename
         else UnsupportedPaths.printErrors cwd unsupportedPaths
 
   -- cleanup
@@ -212,12 +210,12 @@ data FileOp
 
 
 -- Assume both src and dest are in the same directory
-doFileOp :: FilePath -> D.Connection -> FileOp -> IO ()
+doFileOp :: FilePath -> (FilesTableRow -> IO ()) -> FileOp ->  IO ()
 
 -- Do nothing
 doFileOp _ _ NoFileOp = return ()
 
-doFileOp cwd dbconn (TrashCopyOp src_filerepr dest_filerepr uuid src_is_dir) = do
+doFileOp cwd dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid src_is_dir) = do
   let (FileRepr dest_dir dest_filename) = dest_filerepr
   let src_filepath = filerepr_to_filepath src_filerepr
   let dest_filepath = filerepr_to_filepath dest_filerepr
@@ -227,7 +225,7 @@ doFileOp cwd dbconn (TrashCopyOp src_filerepr dest_filerepr uuid src_is_dir) = d
     else renameFile src_filepath dest_filepath
   TIO.putStrLn $ "trash-copy " <> (pack src_filepath)
   -- what
-  HroamerDb.updateDirAndFilename dbconn
+  dbUpdateDirAndFileName
     FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid}
 
 doFileOp cwd _ (CopyOp src_filerepr dest_filerepr src_is_dir) = do
@@ -307,12 +305,12 @@ genTrashCopyOps path_to_trashcopy_dir cwd initial_filenames_uuids current_filena
 
 genCopyOps
   :: FilePath
-  -> D.Connection
   -> Map Text FileOp
   -> Map Text FilePath
   -> [FilePathUUIDPair]
+  -> (Text -> IO [FilesTableRow])
   -> IO [FileOp]
-genCopyOps cwd dbconn uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy =
+genCopyOps cwd uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy dbGetRowFromUUID =
   mapM
     (\(fname, uuid) ->
        let dest_filerepr = FileRepr cwd fname
@@ -329,7 +327,7 @@ genCopyOps cwd dbconn uuid_to_trashcopyop initial_uuid_to_filename list_of_filen
                 Nothing
                   -- Need to perform database lookup
                  -> do
-                  r <- HroamerDb.getRowFromUUID dbconn uuid
+                  r <- dbGetRowFromUUID uuid
                   case r of
                     (FilesTableRow {dir = src_dir, filename = src_filename}:_) ->
                       makeCopyOpOrNoFileOp
@@ -382,13 +380,12 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
   let initial_uuid_to_filename =
         M.fromList $ fmap swap initial_filenames_and_uuids
   copyOps <-
-    D.withConnection
+    HroamerDb.wrapDbConn
       path_to_db
-      (\dbconn ->
-         genCopyOps
-           cwd
-           dbconn
-           uuid_to_trashcopyop
-           initial_uuid_to_filename
-           list_of_filename_uuid_to_copy)
+      (genCopyOps
+         cwd
+         uuid_to_trashcopyop
+         initial_uuid_to_filename
+         list_of_filename_uuid_to_copy)
+      HroamerDb.getRowFromUUID
   return $ trashCopyOps <> filter (/= NoFileOp) copyOps
