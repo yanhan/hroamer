@@ -326,7 +326,7 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
   -- At this point, UUIDs in `initial_filenames_and_uuids` are unique. Otherwise
   -- they would have violated the UNIQUE constraint on the `files.uuid` column.
   -- Hence, we can safely construct a Map indexed by UUID
-  let trashcopy_uuid_to_trashcopyop =
+  let uuid_to_trashcopyop =
         M.fromList $
         fmap (\op@(TrashCopyOp _ _ uuid _) -> (uuid, op)) list_of_trashcopyop
 
@@ -347,7 +347,7 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
          mapM
            (\(fname, uuid) ->
               let dest_filerepr = FileRepr cwd fname
-              in case M.lookup uuid trashcopy_uuid_to_trashcopyop of
+              in case M.lookup uuid uuid_to_trashcopyop of
                    Just (TrashCopyOp _ new_src_filerepr _ src_is_dir) -> do
                      return $ CopyOp new_src_filerepr dest_filerepr src_is_dir
                    Nothing ->
