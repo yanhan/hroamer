@@ -145,10 +145,6 @@ instance FromRow Int where
   fromRow = field
 
 
-constructTextFileHeader :: FilePath -> [Char]
-constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
-
-
 writeStateFile :: FilePath -> FilePath -> [FilePathUUIDPair] -> IO FilePath
 writeStateFile cwd app_tmp_dir files_and_uuid__accurate = do
   let files_and_uuid_sorted =
@@ -165,6 +161,9 @@ writeStateFile cwd app_tmp_dir files_and_uuid__accurate = do
     "dirst"
     (constructTextFileHeader cwd <>
      (toList $ intercalate "\n" lines_to_write_to_file))
+  where
+    constructTextFileHeader :: FilePath -> [Char]
+    constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
 
 processCwd :: FilePath
