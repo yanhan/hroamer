@@ -192,13 +192,13 @@ processCwd cwd app_tmp_dir path_to_db = do
     files_and_uuid__only_on_system
     (S.toList files_only_in_db)
 
-  let file_to_uuid__accurate =
+  let files_and_uuids_accurate =
         filter
           (\(fname, _) -> fname `S.notMember` files_only_in_db)
           files_and_uuid__in_db <>
         files_and_uuid__only_on_system
-  dirstate_filepath <- writeStateFile cwd app_tmp_dir file_to_uuid__accurate
-  return (file_to_uuid__accurate, dirstate_filepath)
+  dirstate_filepath <- writeStateFile cwd app_tmp_dir files_and_uuids_accurate
+  return (files_and_uuids_accurate, dirstate_filepath)
   where
     separateFilesIntoCategories :: [FilePath]
                                 -> [[Char]]
