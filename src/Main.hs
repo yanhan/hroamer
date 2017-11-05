@@ -161,7 +161,7 @@ processCwd cwd app_tmp_dir path_to_db = do
   files_and_uuid__in_db <- HroamerDb.getAllFilesInDir path_to_db cwd
   let file_to_uuid__in_db = M.fromList files_and_uuid__in_db
   let files__in_db = fmap fst files_and_uuid__in_db
-  let (files_on_both, files_only_on_system, files_only_in_db) =
+  let (files_only_on_system, files_only_in_db) =
         separateFilesIntoCategories files__on_system files__in_db
   let l_files_only_on_system = S.toList files_only_on_system
   uuid__only_on_system <-
@@ -210,12 +210,11 @@ processCwd cwd app_tmp_dir path_to_db = do
   where
     separateFilesIntoCategories :: [FilePath]
                                 -> [[Char]]
-                                -> (Set [Char], Set [Char], Set [Char])
+                                -> (Set [Char], Set [Char])
     separateFilesIntoCategories files_on_system files_in_db =
       let set_system = S.fromList $ fmap toList files_on_system
           set_db = S.fromList files_in_db
-      in ( set_system `S.intersection` set_db
-         , set_system `S.difference` set_db
+      in (set_system `S.difference` set_db
          , set_db `S.difference` set_system)
 
 
