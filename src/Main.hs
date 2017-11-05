@@ -5,7 +5,6 @@ import Control.Exception (catch, IOException)
 import Control.Monad (forM_, sequence)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.IO.Class (liftIO)
-import qualified Data.ByteString.Char8 as B8
 import Data.Conduit ((.|), await, runConduitRes, yield)
 import Data.Conduit.Binary (sourceFile)
 import Data.Either (either)
