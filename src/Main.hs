@@ -11,8 +11,7 @@ import Data.Either (either)
 import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import qualified Data.Map.Strict as M
-import Data.Maybe (listToMaybe)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, listToMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text, pack)
