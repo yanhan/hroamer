@@ -193,14 +193,11 @@ processCwd cwd app_tmp_dir path_to_db = do
        List.repeat UUID4.nextRandom)
   let file_to_uuid__only_on_system =
         zip l_files_only_on_system uuid__only_on_system
-  -- DB operations
-  D.withConnection
+  HroamerDb.updateDbToMatchDirState
+    cwd
     path_to_db
-    (\conn -> do
-       D.execute_ conn "BEGIN TRANSACTION;"
-       mapM_ (HroamerDb.addFileDetailsToDb cwd conn) file_to_uuid__only_on_system
-       mapM_ (HroamerDb.deleteFileFromDb cwd conn) (S.toList files_only_in_db)
-       D.execute_ conn "COMMIT;")
+    file_to_uuid__only_on_system
+    (S.toList files_only_in_db)
 
   let file_to_uuid__accurate =
         M.unionWith
@@ -220,7 +217,6 @@ processCwd cwd app_tmp_dir path_to_db = do
           set_db = S.fromList files_in_db
       in (set_system `S.difference` set_db
          , set_db `S.difference` set_system)
-
 
 
 data FileOp

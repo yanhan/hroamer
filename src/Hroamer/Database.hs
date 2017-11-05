@@ -1,9 +1,9 @@
 module Hroamer.Database
   ( FilesTableRow(..)
-  , addFileDetailsToDb
   , createDbAndTables
   , deleteFileFromDb
   , getAllFilesInDir
+  , updateDbToMatchDirState
   , updateDirAndFilename
   ) where
 
@@ -13,6 +13,7 @@ import Database.SQLite.Simple
 import Database.SQLite.Simple.FromRow (FromRow, field, fromRow)
 import Database.SQLite.Simple.ToRow (ToRow, toRow)
 import Foundation
+import Foundation.Collection (mapM_)
 import System.Directory (doesFileExist)
 import System.FilePath.Posix (FilePath)
 
@@ -71,3 +72,14 @@ updateDirAndFilename dbconn ftr =
     dbconn
     "UPDATE files SET dir=?, filename=? WHERE uuid=?;"
     ftr
+
+updateDbToMatchDirState :: FilePath -> FilePath -> [([Char], Text)] -> [[Char]] -> IO ()
+updateDbToMatchDirState cwd path_to_db file_to_uuid__only_on_system files_only_in_db
+ =
+  withConnection
+    path_to_db
+    (\conn -> do
+       execute_ conn "BEGIN TRANSACTION;"
+       mapM_ (addFileDetailsToDb cwd conn) file_to_uuid__only_on_system
+       mapM_ (deleteFileFromDb cwd conn) files_only_in_db
+       execute_ conn "COMMIT;")
