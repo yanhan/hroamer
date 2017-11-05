@@ -148,14 +148,14 @@ constructTextFileHeader :: FilePath -> [Char]
 constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
 
-writeStateFile :: FilePath -> FilePath -> Map FilePath Text -> IO FilePath
-writeStateFile cwd app_tmp_dir file_to_uuid__accurate = do
+writeStateFile :: FilePath -> FilePath -> [(FilePath, Text)] -> IO FilePath
+writeStateFile cwd app_tmp_dir files_and_uuid__accurate = do
   let files_and_uuid_sorted =
         sortBy
           (\x y ->
              case (x, y) of
                ((fn1, _), (fn2, _)) -> compare fn1 fn2) $
-        (M.toList file_to_uuid__accurate)
+        files_and_uuid__accurate
   lines_to_write_to_file <-
     sequence $
     fmap
@@ -177,7 +177,6 @@ processCwd :: FilePath
 processCwd cwd app_tmp_dir path_to_db = do
   files__on_system <- listDirectory cwd
   files_and_uuid__in_db <- HroamerDb.getAllFilesInDir path_to_db cwd
-  let file_to_uuid__in_db = M.fromList files_and_uuid__in_db
   let files__in_db = fmap fst files_and_uuid__in_db
   let (files_only_on_system, files_only_in_db) =
         separateFilesIntoCategories files__on_system files__in_db
@@ -194,14 +193,12 @@ processCwd cwd app_tmp_dir path_to_db = do
     (S.toList files_only_in_db)
 
   let file_to_uuid__accurate =
-        M.unionWith
-          (\_ y -> y)
-          (M.filterWithKey
-             (\k _ -> k `S.notMember` files_only_in_db)
-             file_to_uuid__in_db)
-          (M.fromList files_and_uuid__only_on_system)
+        filter
+          (\(fname, _) -> fname `S.notMember` files_only_in_db)
+          files_and_uuid__in_db <>
+        files_and_uuid__only_on_system
   dirstate_filepath <- writeStateFile cwd app_tmp_dir file_to_uuid__accurate
-  return (file_to_uuid__accurate, dirstate_filepath)
+  return (M.fromList file_to_uuid__accurate, dirstate_filepath)
   where
     separateFilesIntoCategories :: [FilePath]
                                 -> [[Char]]
@@ -209,8 +206,7 @@ processCwd cwd app_tmp_dir path_to_db = do
     separateFilesIntoCategories files_on_system files_in_db =
       let set_system = S.fromList $ fmap toList files_on_system
           set_db = S.fromList files_in_db
-      in (set_system `S.difference` set_db
-         , set_db `S.difference` set_system)
+      in (set_system `S.difference` set_db, set_db `S.difference` set_system)
 
 
 data FileOp
