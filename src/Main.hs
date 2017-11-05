@@ -3,7 +3,6 @@ module Main where
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_, sequence)
-import Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Char8 as B8
 import Data.Conduit ((.|), await, runConduitRes, yield)
 import Data.Conduit.Binary (sourceFile)
@@ -331,7 +330,6 @@ genCopyOps cwd dbconn uuid_to_trashcopyop initial_uuid_to_filename list_of_filen
                   -- Need to perform database lookup
                  -> do
                   r <-
-                    liftIO $
                     D.query
                       dbconn
                       "SELECT dir, filename, uuid FROM files WHERE uuid = ?"
