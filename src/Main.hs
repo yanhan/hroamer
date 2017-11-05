@@ -300,6 +300,10 @@ genTrashCopyOps path_to_trashcopy_dir cwd initial_filenames_uuids current_filena
        src_is_dir <- doesDirectoryExist $ cwd </> fname
        return $ TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid src_is_dir)
     list_of_filename_uuid_to_trashcopy
+  where
+    dirToTrashCopyTo :: FilePath -> Text -> FilePath
+    dirToTrashCopyTo path_to_trashcopy_dir uuid =
+      path_to_trashcopy_dir </> (toList uuid)
 
 
 genCopyOps
@@ -351,11 +355,6 @@ genCopyOps cwd dbconn uuid_to_trashcopyop initial_uuid_to_filename list_of_filen
           if src_exists
             then return $ CopyOp src_filerepr dest_filerepr False
             else return $ NoFileOp
-
-
-dirToTrashCopyTo :: FilePath -> Text -> FilePath
-dirToTrashCopyTo path_to_trashcopy_dir uuid =
-  path_to_trashcopy_dir </> (toList uuid)
 
 
 generateFileOps
