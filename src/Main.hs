@@ -19,7 +19,6 @@ import qualified Data.Text.IO as TIO
 import qualified Data.UUID as UUID
 import qualified Data.UUID.V4 as UUID4
 import qualified Database.SQLite.Simple as D
-import Database.SQLite.Simple.FromRow (FromRow, field)
 import Foundation
 import Foundation.Collection (mapM, mapM_, zip)
 import System.Directory
@@ -139,10 +138,6 @@ main = do
   where
     excHandler :: IOException -> IO ()
     excHandler = const $ return ()
-
-
-instance FromRow Int where
-  fromRow = field
 
 
 writeStateFile :: FilePath -> FilePath -> [FilePathUUIDPair] -> IO FilePath
