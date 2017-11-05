@@ -329,11 +329,7 @@ genCopyOps cwd dbconn uuid_to_trashcopyop initial_uuid_to_filename list_of_filen
                 Nothing
                   -- Need to perform database lookup
                  -> do
-                  r <-
-                    D.query
-                      dbconn
-                      "SELECT dir, filename, uuid FROM files WHERE uuid = ?"
-                      [uuid]
+                  r <- HroamerDb.getRowFromUUID dbconn uuid
                   case r of
                     (FilesTableRow {dir = src_dir, filename = src_filename}:_) ->
                       makeCopyOpOrNoFileOp
