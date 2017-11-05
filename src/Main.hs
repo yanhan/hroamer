@@ -281,6 +281,27 @@ getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
     onlyYieldJust _ = return ()
 
 
+genTrashCopyOps
+  :: FilePath
+  -> FilePath
+  -> Set FilePathUUIDPair
+  -> Set FilePathUUIDPair
+  -> IO [FileOp]
+genTrashCopyOps path_to_trashcopy_dir cwd initial_filename_uuid_set current_filename_uuid_set = do
+  let set_of_filename_uuid_to_trashcopy =
+        S.difference initial_filename_uuid_set current_filename_uuid_set
+  let list_of_filename_uuid_to_trashcopy =
+        sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
+        S.toList set_of_filename_uuid_to_trashcopy
+  mapM
+    (\(fname, uuid) -> do
+       let dest_filerepr =
+             FileRepr (dirToTrashCopyTo path_to_trashcopy_dir uuid) fname
+       src_is_dir <- doesDirectoryExist $ cwd </> fname
+       return $ TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid src_is_dir)
+    list_of_filename_uuid_to_trashcopy
+
+
 dirToTrashCopyTo :: FilePath -> Text -> FilePath
 dirToTrashCopyTo path_to_trashcopy_dir uuid =
   path_to_trashcopy_dir </> (toList uuid)
@@ -296,20 +317,12 @@ generateFileOps
 generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid initial_filenames_and_uuids = do
   let initial_filename_uuid_set = S.fromList initial_filenames_and_uuids
   let current_filename_uuid_set = S.fromList list_of_filename_and_uuid
-  let set_of_filename_uuid_to_trashcopy =
-        S.difference initial_filename_uuid_set current_filename_uuid_set
-
-  let list_of_filename_uuid_to_trashcopy =
-        sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
-        S.toList set_of_filename_uuid_to_trashcopy
   list_of_trashcopyop <-
-    mapM
-      (\(fname, uuid) -> do
-         let dest_filerepr =
-               FileRepr (dirToTrashCopyTo path_to_trashcopy_dir uuid) fname
-         src_is_dir <- doesDirectoryExist $ cwd </> fname
-         return $ TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid src_is_dir)
-      list_of_filename_uuid_to_trashcopy
+    genTrashCopyOps
+      path_to_trashcopy_dir
+      cwd
+      initial_filename_uuid_set
+      current_filename_uuid_set
   -- At this point, UUIDs in `initial_filenames_and_uuids` are unique. Otherwise
   -- they would have violated the UNIQUE constraint on the `files.uuid` column.
   -- Hence, we can safely construct a Map indexed by UUID
