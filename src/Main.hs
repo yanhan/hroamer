@@ -271,7 +271,7 @@ getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
               Just line ->
                 let parse_result =
                       runParser Parser.parseDirStateLine () "" line
-                in either (const (return ())) onlyYieldJust parse_result
+                in either (const $ return ()) onlyYieldJust parse_result
               Nothing -> return ())
     onlyYieldJust j@(Just _) = yield j
     onlyYieldJust _ = return ()
