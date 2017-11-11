@@ -25,7 +25,6 @@ executable hroamer
                      , conduit-combinators
                      , conduit-extra
                      , containers
-                     , cryptonite
                      , directory
                      , filepath
                      , foundation
