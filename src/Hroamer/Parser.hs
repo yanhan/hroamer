@@ -1,5 +1,5 @@
 module Hroamer.Parser
-  ( parseUserDirStateFile
+  ( parseDirStateLine
   ) where
 
 import Control.Applicative ((*>), (<*))
@@ -10,8 +10,8 @@ import Text.Parsec
        (Parsec, alphaNum, anyChar, char, count, eof, lookAhead, manyTill,
         string, try)
 
-parseUserDirStateFile :: Parsec Text () (Maybe (Text, Text))
-parseUserDirStateFile = try commentLine <|> normalLine
+parseDirStateLine :: Parsec Text () (Maybe (Text, Text))
+parseDirStateLine = try commentLine <|> normalLine
   where
     commentLine :: Parsec Text () (Maybe a)
     commentLine = do
