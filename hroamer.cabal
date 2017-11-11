@@ -19,8 +19,8 @@ executable hroamer
   default-language:    Haskell2010
   default-extensions:  NoImplicitPrelude
                      , OverloadedStrings
-  build-depends:       base >= 4.7 && < 5
-                     , bytestring
+  build-depends:       hroamer
+                     , base >= 4.7 && < 5
                      , conduit
                      , conduit-combinators
                      , conduit-extra
@@ -33,16 +33,47 @@ executable hroamer
                      , parsec
                      , process
                      , resourcet
-                     , sqlite-simple
                      , temporary
                      , text
                      , time
                      , unix
                      , uuid
 
-  other-modules:       Hroamer.DataStructures
+-- Not the best solution but we are not using Cabal 2 so this will make do
+library
+  hs-source-dirs:      lib
+  default-language:    Haskell2010
+  default-extensions:  NoImplicitPrelude
+                     , OverloadedStrings
+  build-depends:       base >= 4.7 && < 5
+                     , bytestring
+                     , containers
+                     , directory
+                     , filepath
+                     , foundation
+                     , mtl
+                     , parsec
+                     , process
+                     , sqlite-simple
+                     , text
+                     , unix
+
+  exposed-modules:     Hroamer.DataStructures
                      , Hroamer.Database
                      , Hroamer.Parser
                      , Hroamer.Path
                      , Hroamer.UnsupportedPaths
                      , Hroamer.Utilities
+
+test-suite hroamer-testsuite
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  default-language:    Haskell2010
+  default-extensions:  NoImplicitPrelude
+                     , OverloadedStrings
+  build-depends:       hroamer
+                     , filepath
+                     , foundation
+                     , hspec
+  other-modules:       Hroamer.PathSpec
