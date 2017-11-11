@@ -22,8 +22,8 @@ import Foundation.Collection (mapM, mapM_, zip)
 import System.Directory
        (XdgDirectory(XdgData), copyFile, createDirectory,
         doesDirectoryExist, doesPathExist, getCurrentDirectory,
-        getXdgDirectory, getHomeDirectory, listDirectory, removeFile,
-        renameDirectory, renameFile)
+        getXdgDirectory, listDirectory, removeFile, renameDirectory,
+        renameFile)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
        (FilePath, (</>), dropTrailingPathSeparator, takeDirectory,
@@ -54,7 +54,6 @@ filerepr_to_filepath (FileRepr dir fname) = dir </> fname
 
 main :: IO ()
 main = do
-  home_dir <- getHomeDirectory
   app_data_dir <- getXdgDirectory XdgData "hroamer"
   success_creating_app_data_dir <- Path.createDirNoForce app_data_dir
 
