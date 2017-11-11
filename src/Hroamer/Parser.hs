@@ -13,17 +13,24 @@ import Text.Parsec
 parseUserDirStateFile :: Parsec Text () (Maybe (Text, Text))
 parseUserDirStateFile = try commentLine <|> normalLine
   where
+    commentLine :: Parsec Text () (Maybe a)
     commentLine = do
       char '"'
       manyTill anyChar eof
       return Nothing
+
+    normalLine :: Parsec Text () (Maybe (Text, Text))
     normalLine = do
       l <-
         manyTill anyChar (try . lookAhead $ (sepBarParser *> uuidParser) <* eof)
       sepBarParser
       s <- uuidParser
       return $ Just $ (pack l, pack s)
+
+    sepBarParser :: Parsec Text () [Char]
     sepBarParser = string " | "
+
+    uuidParser :: Parsec Text () [Char]
     uuidParser = do
       s1 <- count 8 alphaNum
       char '-'
