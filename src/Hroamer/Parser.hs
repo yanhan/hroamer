@@ -7,10 +7,10 @@ import Data.Functor.Identity (Identity)
 import Data.Text (Text, pack)
 import Foundation
 import Text.Parsec
-       (ParsecT, alphaNum, anyChar, char, count, eof, lookAhead, manyTill,
+       (Parsec, alphaNum, anyChar, char, count, eof, lookAhead, manyTill,
         string, try)
 
-parseUserDirStateFile :: ParsecT Text () Identity (Maybe (Text, Text))
+parseUserDirStateFile :: Parsec Text () (Maybe (Text, Text))
 parseUserDirStateFile = try commentLine <|> normalLine
   where
     commentLine = do
