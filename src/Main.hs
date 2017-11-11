@@ -337,9 +337,7 @@ genCopyOps cwd uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uui
                       (FileRepr src_dir src_filename)
                       dest_filerepr)
                  (listToMaybe row))
-       case x of
-         Left fileop -> return fileop
-         _ -> return NoFileOp)
+       either return (const $ return NoFileOp) x)
     list_of_filename_uuid_to_copy
   where
     maybeToExceptT :: (a -> IO FileOp) -> Maybe a -> ExceptT FileOp IO ()
