@@ -266,11 +266,11 @@ getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
   where
     parseLineConduit =
       lineC
-        (do mx <- await
-            case mx of
-              Just x ->
+        (do maybeLine <- await
+            case maybeLine of
+              Just line ->
                 let parse_result =
-                      runParser Parser.parseUserDirStateFile () "" x
+                      runParser Parser.parseUserDirStateFile () "" line
                 in either (const (return ())) onlyYieldJust parse_result
               Nothing -> return ())
     onlyYieldJust j@(Just _) = yield j
