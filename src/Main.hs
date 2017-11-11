@@ -224,7 +224,6 @@ doFileOp cwd dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid
     then renameDirectory src_filepath dest_filepath
     else renameFile src_filepath dest_filepath
   TIO.putStrLn $ "trash-copy " <> (pack src_filepath)
-  -- what
   dbUpdateDirAndFileName
     FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid}
 
