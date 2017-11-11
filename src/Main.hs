@@ -8,7 +8,6 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Conduit ((.|), await, runConduitRes, yield)
 import Data.Conduit.Binary (sourceFile)
 import Data.Either (either)
-import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust, listToMaybe)
@@ -34,7 +33,7 @@ import System.Posix.Signals
        (Handler(Catch), installHandler, keyboardSignal, softwareStop,
         softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
-import Text.Parsec (runParserT)
+import Text.Parsec (runParser)
 
 import Hroamer.DataStructures (FilePathUUIDPair)
 import Hroamer.Database (FilesTableRow(..))
@@ -271,10 +270,9 @@ getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
             case mx of
               Just x ->
                 let parse_result =
-                      runIdentity $ runParserT Parser.parseUserDirStateFile () "" x
+                      runParser Parser.parseUserDirStateFile () "" x
                 in either (const (return ())) onlyYieldJust parse_result
               Nothing -> return ())
-
     onlyYieldJust j@(Just _) = yield j
     onlyYieldJust _ = return ()
 
