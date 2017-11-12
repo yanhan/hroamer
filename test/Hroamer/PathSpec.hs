@@ -30,6 +30,16 @@ relativeFilePath = do
     pathSeparatorString = [pathSeparator]
 
 
+genPathSeparators :: Gen FilePath
+genPathSeparators = do
+  n <- choose (1, 5) :: Gen Int
+  return $ replicate (CountOf n) pathSeparator
+
+
+absoluteFilePath :: Gen FilePath
+absoluteFilePath = (<>) <$> genPathSeparators <*> relativeFilePath
+
+
 checkAllAncestorPaths :: FilePath -> Reader FilePath Bool
 checkAllAncestorPaths possibleAncestorFilePath = do
   orgFilePath <- ask
@@ -45,6 +55,11 @@ checkAllAncestorPaths possibleAncestorFilePath = do
 relativeFilePathProp :: Property
 relativeFilePathProp =
   forAll relativeFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
+
+
+absoluteFilePathProp :: Property
+absoluteFilePathProp =
+  forAll absoluteFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
 
 
 spec :: Spec
@@ -84,3 +99,5 @@ spec = do
       isWeakAncestorDir "///usr/bin"  "//usr/bin/gcc" `shouldBe` True
 
     it "QuickCheck relative filepath tests" $ relativeFilePathProp
+
+    it "QuickCheck absolute filepath tests" $ absoluteFilePathProp
