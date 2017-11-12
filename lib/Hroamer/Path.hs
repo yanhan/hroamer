@@ -18,12 +18,13 @@ isWeakAncestorDir suspected_ancestor dir_of_interest =
     (dropTrailingPathSeparator dir_of_interest)
   where
     helper :: FilePath -> FilePath -> Bool
-    helper suspected_ancestor "/" = suspected_ancestor == "/"
-    helper suspected_ancestor "." = suspected_ancestor == "."
-    helper suspected_ancestor dir_of_interest =
-      if suspected_ancestor == dir_of_interest
-        then True
-        else helper suspected_ancestor $ takeDirectory dir_of_interest
+    helper suspected_ancestor dir_of_interest
+      | suspected_ancestor == dir_of_interest = True
+      | otherwise =
+        let nextDirUpwards = takeDirectory dir_of_interest
+        in if nextDirUpwards == dir_of_interest
+             then False
+             else helper suspected_ancestor nextDirUpwards
 
 
 appendSlashToDir :: FilePath -> FilePath -> IO FilePath
