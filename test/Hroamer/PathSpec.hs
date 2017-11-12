@@ -78,4 +78,7 @@ spec = do
     it "should terminate and return False when suspected ancestor is a relative path and path of interest is a relative path not under it" $ do
       isWeakAncestorDir "who/let/the/dogs/out"  "jim/did" `shouldBe` False
 
+    it "should drop off leading slashes in absolute paths" $ do
+      isWeakAncestorDir "///usr/bin"  "//usr/bin/gcc" `shouldBe` True
+
     it "QuickCheck relative filepath tests" $ relativeFilePathProp
