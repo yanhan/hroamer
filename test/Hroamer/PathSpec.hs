@@ -25,9 +25,17 @@ filePathComponent = listOf1 $ suchThat noNullCharGen noPathSeparator
 relativeFilePath :: Gen FilePath
 relativeFilePath = do
   l <- listOf1 filePathComponent
-  return $ intercalate pathSeparatorString l
+  let nrPathSeparatorBlocks = length l - 1
+  case l of
+    [] -> return []
+    (x:xs) -> fmap ((x <>) . mconcat) $ prependWithPathSep xs
   where
-    pathSeparatorString = [pathSeparator]
+    prependWithPathSep :: [FilePath] -> Gen [FilePath]
+    prependWithPathSep (x:xs) = do
+      xs' <- prependWithPathSep xs
+      pathSep <- genPathSeparators
+      return $ pathSep : x : xs'
+    prependWithPathSep [] = return []
 
 
 genPathSeparators :: Gen FilePath
