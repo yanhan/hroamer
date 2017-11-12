@@ -21,8 +21,12 @@ spec = do
       let myFile = myDir </> "red" </> "tomato.txt"
       isWeakAncestorDir myDir myFile `shouldBe` True
 
-    it "should return True when comparing the same path" $ do
+    it "should return True when comparing the same path (both ending with slash)" $ do
       let myFile = "/home/paul/diary/"
+      isWeakAncestorDir myFile myFile `shouldBe` True
+
+    it "should return True when comparing the same path (both not ending with slash)" $ do
+      let myFile = "/home/paul/diary/entry01.txt"
       isWeakAncestorDir myFile myFile `shouldBe` True
 
     it "should return False when a path is not a descendent of a suspected ancestor path" $ do
