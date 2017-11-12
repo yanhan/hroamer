@@ -72,7 +72,10 @@ test-suite hroamer-testsuite
   default-extensions:  NoImplicitPrelude
                      , OverloadedStrings
   build-depends:       hroamer
+                     , base >= 4.7 && < 5
                      , filepath
                      , foundation
                      , hspec
+                     , mtl
+                     , QuickCheck
   other-modules:       Hroamer.PathSpec

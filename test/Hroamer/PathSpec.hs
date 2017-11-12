@@ -2,11 +2,48 @@ module Hroamer.PathSpec
   ( spec
   ) where
 
+import Control.Monad.Reader (Reader, ask, runReader)
+import Data.Char (chr)
 import Foundation
-import System.FilePath ((</>), FilePath)
+import System.FilePath ((</>), FilePath, pathSeparator, takeDirectory)
 import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.QuickCheck
+       (Gen, Property, arbitrary, choose, forAll, listOf1, property, suchThat)
 
 import Hroamer.Path (isWeakAncestorDir)
+
+
+filePathComponent :: Gen [Char]
+filePathComponent = listOf1 $ suchThat noNullCharGen noPathSeparator
+  where
+    noNullCharGen :: Gen Char
+    noNullCharGen = choose (chr 1, maxBound :: Char)
+    noPathSeparator :: Char -> Bool
+    noPathSeparator c = c /= pathSeparator
+
+
+relativeFilePath :: Gen FilePath
+relativeFilePath = do
+  l <- listOf1 filePathComponent
+  return $ intercalate pathSeparatorString l
+  where
+    pathSeparatorString = [pathSeparator]
+
+
+relativeFilePathProp :: Property
+relativeFilePathProp = forAll relativeFilePath (\fp -> runReader (helper fp) fp)
+  where
+    helper :: FilePath -> Reader FilePath Bool
+    helper possibleAncestorFilePath = do
+      orgFilePath <- ask
+      let ok = isWeakAncestorDir possibleAncestorFilePath orgFilePath
+      let nextAncestorFilePath = takeDirectory possibleAncestorFilePath
+      if ok
+        then if nextAncestorFilePath == possibleAncestorFilePath
+               then return True
+               else helper nextAncestorFilePath
+        else return False
+
 
 spec :: Spec
 spec = do
@@ -34,3 +71,5 @@ spec = do
 
     it "should return False when a path is not a descendent of a suspected ancestor path" $ do
       isWeakAncestorDir "/home/mike/blurb"  "/dev/sda1" `shouldBe` False
+
+    it "QuickCheck relative filepath tests" $ relativeFilePathProp
