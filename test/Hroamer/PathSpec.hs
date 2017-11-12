@@ -72,4 +72,10 @@ spec = do
     it "should return False when a path is not a descendent of a suspected ancestor path" $ do
       isWeakAncestorDir "/home/mike/blurb"  "/dev/sda1" `shouldBe` False
 
+    it "should terminate and return False when suspected ancestor is an absolute path and path of interest is a relative path" $ do
+      isWeakAncestorDir "/dev/sda1" "images/png/summer-holidays.png" `shouldBe` False
+
+    it "should terminate and return False when suspected ancestor is a relative path and path of interest is a relative path not under it" $ do
+      isWeakAncestorDir "who/let/the/dogs/out"  "jim/did" `shouldBe` False
+
     it "QuickCheck relative filepath tests" $ relativeFilePathProp
