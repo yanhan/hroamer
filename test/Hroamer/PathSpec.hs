@@ -30,19 +30,21 @@ relativeFilePath = do
     pathSeparatorString = [pathSeparator]
 
 
+checkAllAncestorPaths :: FilePath -> Reader FilePath Bool
+checkAllAncestorPaths possibleAncestorFilePath = do
+  orgFilePath <- ask
+  let ok = isWeakAncestorDir possibleAncestorFilePath orgFilePath
+  let nextAncestorFilePath = takeDirectory possibleAncestorFilePath
+  if ok
+    then if nextAncestorFilePath == possibleAncestorFilePath
+           then return True
+           else checkAllAncestorPaths nextAncestorFilePath
+    else return False
+
+
 relativeFilePathProp :: Property
-relativeFilePathProp = forAll relativeFilePath (\fp -> runReader (helper fp) fp)
-  where
-    helper :: FilePath -> Reader FilePath Bool
-    helper possibleAncestorFilePath = do
-      orgFilePath <- ask
-      let ok = isWeakAncestorDir possibleAncestorFilePath orgFilePath
-      let nextAncestorFilePath = takeDirectory possibleAncestorFilePath
-      if ok
-        then if nextAncestorFilePath == possibleAncestorFilePath
-               then return True
-               else helper nextAncestorFilePath
-        else return False
+relativeFilePathProp =
+  forAll relativeFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
 
 
 spec :: Spec
