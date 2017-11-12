@@ -70,6 +70,23 @@ absoluteFilePathProp =
   forAll absoluteFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
 
 
+absAndRelFilePath :: Gen (FilePath, FilePath)
+absAndRelFilePath = fmap (,) absoluteFilePath <*> relativeFilePath
+
+
+absoluteAndRelativeMix :: Property
+absoluteAndRelativeMix =
+  forAll
+    absAndRelFilePath
+    (\(absPath, relPath) -> not $ isWeakAncestorDir absPath relPath)
+
+
+relativeAndAbsoluteMix :: Property
+relativeAndAbsoluteMix =
+  forAll
+    absAndRelFilePath
+    (\(absPath, relPath) -> not $ isWeakAncestorDir relPath absPath)
+
 spec :: Spec
 spec = do
   describe "isWeakAncestorDir" $ do
@@ -109,3 +126,9 @@ spec = do
     it "QuickCheck relative filepath tests" $ relativeFilePathProp
 
     it "QuickCheck absolute filepath tests" $ absoluteFilePathProp
+
+    it "should return False when ancestor dir is absolute path and path of interest is relative path [QuickCheck]" $ do
+      absoluteAndRelativeMix
+
+    it "should return False when ancestor dir is relative path and path of interest is absolute path [QuickCheck]" $ do
+      relativeAndAbsoluteMix
