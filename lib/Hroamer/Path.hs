@@ -8,14 +8,22 @@ import Foundation
 import System.Directory
        (createDirectory, doesDirectoryExist, doesPathExist)
 import System.FilePath.Posix
-       (FilePath, (</>), addTrailingPathSeparator, takeDirectory)
+       (FilePath, (</>), addTrailingPathSeparator,
+        dropTrailingPathSeparator, takeDirectory)
 
 isWeakAncestorDir :: FilePath -> FilePath -> Bool
-isWeakAncestorDir suspected_ancestor "/" = suspected_ancestor == "/"
 isWeakAncestorDir suspected_ancestor dir_of_interest =
-  if suspected_ancestor == dir_of_interest
-    then True
-    else isWeakAncestorDir suspected_ancestor $ takeDirectory dir_of_interest
+  helper
+    (dropTrailingPathSeparator suspected_ancestor)
+    (dropTrailingPathSeparator dir_of_interest)
+  where
+    helper :: FilePath -> FilePath -> Bool
+    helper suspected_ancestor "/" = suspected_ancestor == "/"
+    helper suspected_ancestor dir_of_interest =
+      if suspected_ancestor == dir_of_interest
+        then True
+        else helper suspected_ancestor $ takeDirectory dir_of_interest
+
 
 appendSlashToDir :: FilePath -> FilePath -> IO FilePath
 appendSlashToDir dirname filename = do

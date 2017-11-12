@@ -4,7 +4,7 @@ module Hroamer.PathSpec
 
 import Foundation
 import System.FilePath ((</>), FilePath)
-import Test.Hspec (Spec, describe, it, pendingWith, shouldBe)
+import Test.Hspec (Spec, describe, it, shouldBe)
 
 import Hroamer.Path (isWeakAncestorDir)
 
@@ -30,7 +30,6 @@ spec = do
       isWeakAncestorDir myFile myFile `shouldBe` True
 
     it "should strip off ending slash in the initial arguments before doing comparison" $ do
-      pendingWith "have to fix this bug first"
       isWeakAncestorDir "/var/lib/apt/cache/"  "/var/lib/apt/cache" `shouldBe` True
 
     it "should return False when a path is not a descendent of a suspected ancestor path" $ do
