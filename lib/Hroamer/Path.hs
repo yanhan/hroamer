@@ -14,8 +14,8 @@ import System.FilePath.Posix
 isWeakAncestorDir :: FilePath -> FilePath -> Bool
 isWeakAncestorDir suspected_ancestor dir_of_interest =
   helper
-    (dropTrailingPathSeparator suspected_ancestor)
-    (dropTrailingPathSeparator dir_of_interest)
+    (dropLeadingSlashesSaveOne $ dropTrailingPathSeparator suspected_ancestor)
+    (dropLeadingSlashesSaveOne $ dropTrailingPathSeparator dir_of_interest)
   where
     helper :: FilePath -> FilePath -> Bool
     helper suspected_ancestor dir_of_interest
@@ -25,6 +25,11 @@ isWeakAncestorDir suspected_ancestor dir_of_interest =
         in if nextDirUpwards == dir_of_interest
              then False
              else helper suspected_ancestor nextDirUpwards
+
+    dropLeadingSlashesSaveOne :: FilePath -> FilePath
+    dropLeadingSlashesSaveOne "" = ""
+    dropLeadingSlashesSaveOne s@('/':_) = "/" <> dropWhile (== '/') s
+    dropLeadingSlashesSaveOne s = s
 
 
 appendSlashToDir :: FilePath -> FilePath -> IO FilePath
