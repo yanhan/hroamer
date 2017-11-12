@@ -19,6 +19,7 @@ isWeakAncestorDir suspected_ancestor dir_of_interest =
   where
     helper :: FilePath -> FilePath -> Bool
     helper suspected_ancestor "/" = suspected_ancestor == "/"
+    helper suspected_ancestor "." = suspected_ancestor == "."
     helper suspected_ancestor dir_of_interest =
       if suspected_ancestor == dir_of_interest
         then True
