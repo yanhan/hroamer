@@ -7,6 +7,7 @@ import Data.Char (chr)
 import Foundation
 import System.FilePath ((</>), FilePath, pathSeparator, takeDirectory)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
+import Test.Hspec.Core.QuickCheck (modifyMaxSuccess)
 import Test.QuickCheck
        (Gen, Property, arbitrary, choose, forAll, listOf1, property, suchThat)
 
@@ -123,9 +124,11 @@ spec = do
     it "should drop off leading slashes in absolute paths" $ do
       isWeakAncestorDir "///usr/bin"  "//usr/bin/gcc" `shouldBe` True
 
-    it "QuickCheck relative filepath tests" $ relativeFilePathProp
+    modifyMaxSuccess (const 30) $ it "QuickCheck relative filepath tests" $
+      relativeFilePathProp
 
-    it "QuickCheck absolute filepath tests" $ absoluteFilePathProp
+    modifyMaxSuccess (const 30) $ it "QuickCheck absolute filepath tests" $
+      absoluteFilePathProp
 
     it "should return False when ancestor dir is absolute path and path of interest is relative path [QuickCheck]" $ do
       absoluteAndRelativeMix

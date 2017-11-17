@@ -76,6 +76,7 @@ test-suite hroamer-testsuite
                      , filepath
                      , foundation
                      , hspec
+                     , hspec-core
                      , mtl
                      , QuickCheck
   other-modules:       Hroamer.PathSpec
