@@ -109,19 +109,19 @@ spec = do
       let myFile = "/home/paul/diary/entry01.txt"
       isWeakAncestorDir myFile myFile `shouldBe` True
 
-    it "should strip off ending slash in the initial arguments before doing comparison" $ do
+    it "should strip off ending slash in the initial arguments before doing comparison" $
       isWeakAncestorDir "/var/lib/apt/cache/"  "/var/lib/apt/cache" `shouldBe` True
 
-    it "should return False when a path is not a descendent of a suspected ancestor path" $ do
+    it "should return False when a path is not a descendent of a suspected ancestor path" $
       isWeakAncestorDir "/home/mike/blurb"  "/dev/sda1" `shouldBe` False
 
-    it "should terminate and return False when suspected ancestor is an absolute path and path of interest is a relative path" $ do
+    it "should terminate and return False when suspected ancestor is an absolute path and path of interest is a relative path" $
       isWeakAncestorDir "/dev/sda1" "images/png/summer-holidays.png" `shouldBe` False
 
-    it "should terminate and return False when suspected ancestor is a relative path and path of interest is a relative path not under it" $ do
+    it "should terminate and return False when suspected ancestor is a relative path and path of interest is a relative path not under it" $
       isWeakAncestorDir "who/let/the/dogs/out"  "jim/did" `shouldBe` False
 
-    it "should drop off leading slashes in absolute paths" $ do
+    it "should drop off leading slashes in absolute paths" $
       isWeakAncestorDir "///usr/bin"  "//usr/bin/gcc" `shouldBe` True
 
     modifyMaxSuccess (const 30) $ it "QuickCheck relative filepath tests" $
@@ -130,10 +130,10 @@ spec = do
     modifyMaxSuccess (const 30) $ it "QuickCheck absolute filepath tests" $
       absoluteFilePathProp
 
-    it "should return False when ancestor dir is absolute path and path of interest is relative path [QuickCheck]" $ do
+    it "should return False when ancestor dir is absolute path and path of interest is relative path [QuickCheck]" $
       absoluteAndRelativeMix
 
-    it "should return False when ancestor dir is relative path and path of interest is absolute path [QuickCheck]" $ do
+    it "should return False when ancestor dir is relative path and path of interest is absolute path [QuickCheck]" $
       relativeAndAbsoluteMix
 
   describe "appendSlashToDir" $ do
