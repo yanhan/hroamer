@@ -6,11 +6,11 @@ import Control.Monad.Reader (Reader, ask, runReader)
 import Data.Char (chr)
 import Foundation
 import System.FilePath ((</>), FilePath, pathSeparator, takeDirectory)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
 import Test.QuickCheck
        (Gen, Property, arbitrary, choose, forAll, listOf1, property, suchThat)
 
-import Hroamer.Path (isWeakAncestorDir)
+import Hroamer.Path (appendSlashToDir, isWeakAncestorDir)
 
 
 filePathComponent :: Gen [Char]
@@ -132,3 +132,16 @@ spec = do
 
     it "should return False when ancestor dir is relative path and path of interest is absolute path [QuickCheck]" $ do
       relativeAndAbsoluteMix
+
+  describe "appendSlashToDir" $ do
+    it "will append a slash to an existing dir if the slash is missing" $
+      appendSlashToDir "/"  "etc" `shouldReturn` "etc/"
+
+    it "will not append a slash to an existing dir if the slash is present" $
+      appendSlashToDir "/"  "etc/" `shouldReturn` "etc/"
+
+    it "will not append a slash to a file if the slash is missing" $
+      appendSlashToDir "/etc"  "group" `shouldReturn` "group"
+
+    it "will not append a slash to a non-existent file / dir" $
+      appendSlashToDir "/what/a/stupid/idea/man"  "yea" `shouldReturn` "yea"
