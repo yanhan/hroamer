@@ -73,10 +73,12 @@ test-suite hroamer-testsuite
                      , OverloadedStrings
   build-depends:       hroamer
                      , base >= 4.7 && < 5
+                     , directory
                      , filepath
                      , foundation
                      , hspec
                      , hspec-core
                      , mtl
+                     , temporary
                      , QuickCheck
   other-modules:       Hroamer.PathSpec
