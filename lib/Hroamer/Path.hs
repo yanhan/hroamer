@@ -4,6 +4,8 @@ module Hroamer.Path
   , isWeakAncestorDir
   ) where
 
+import Data.Text (pack)
+import qualified Data.Text.IO as TIO
 import Foundation
 import System.Directory
        (createDirectory, doesDirectoryExist, doesPathExist)
@@ -48,9 +50,9 @@ createDirNoForce app_data_dir = do
       if is_dir
         then return True
         else do
-          putStrLn $
-            "Error: `" <> (show app_data_dir) <>
-            "` exists but is not a directory."
+          TIO.putStrLn $
+            "Error: `" <> (pack app_data_dir) <>
+              "` exists but is not a directory."
           return False
     else do
       createDirectory app_data_dir
