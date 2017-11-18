@@ -4,9 +4,11 @@ module Hroamer.Path
   , isWeakAncestorDir
   ) where
 
-import Data.Text (pack)
-import qualified Data.Text.IO as TIO
-import Foundation
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Writer.Strict (WriterT, tell)
+import Data.DList (DList, singleton)
+import Data.Text (Text, pack)
+import Foundation hiding (singleton)
 import System.Directory
        (createDirectory, doesDirectoryExist, doesPathExist)
 import System.FilePath.Posix
@@ -41,19 +43,20 @@ appendSlashToDir dirname filename = do
     then return $ addTrailingPathSeparator filename
     else return filename
 
-createDirNoForce :: FilePath -> IO Bool
+createDirNoForce :: FilePath -> WriterT (DList Text) IO Bool
 createDirNoForce app_data_dir = do
-  path_exists <- doesPathExist app_data_dir
+  path_exists <- liftIO $ doesPathExist app_data_dir
   if path_exists
     then do
-      is_dir <- doesDirectoryExist app_data_dir
+      is_dir <- liftIO $ doesDirectoryExist app_data_dir
       if is_dir
         then return True
         else do
-          TIO.putStrLn $
-            "Error: `" <> (pack app_data_dir) <>
-              "` exists but is not a directory."
+          tell
+            (singleton $
+             "Error: `" <> (pack app_data_dir) <>
+             "` exists but is not a directory.")
           return False
     else do
-      createDirectory app_data_dir
+      liftIO $ createDirectory app_data_dir
       return True

@@ -26,6 +26,7 @@ executable hroamer
                      , conduit-extra
                      , containers
                      , directory
+                     , dlist
                      , filepath
                      , foundation
                      , mtl
@@ -48,6 +49,7 @@ library
                      , bytestring
                      , containers
                      , directory
+                     , dlist
                      , filepath
                      , foundation
                      , mtl
@@ -74,6 +76,7 @@ test-suite hroamer-testsuite
   build-depends:       hroamer
                      , base >= 4.7 && < 5
                      , directory
+                     , dlist
                      , filepath
                      , foundation
                      , hspec
