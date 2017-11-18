@@ -3,12 +3,15 @@ module Hroamer.PathSpec
   ) where
 
 import Control.Monad.Reader (Reader, ask, runReader)
+import Control.Monad.Writer.Strict (runWriterT)
 import Data.Char (chr)
+import qualified Data.DList
 import Foundation
 import System.Directory (doesDirectoryExist)
 import System.FilePath ((</>), FilePath, pathSeparator, takeDirectory)
 import System.IO.Temp (withSystemTempDirectory)
-import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
+import Test.Hspec
+       (Spec, describe, it, shouldBe, shouldNotBe, shouldReturn)
 import Test.Hspec.Core.QuickCheck (modifyMaxSuccess)
 import Test.QuickCheck
        (Gen, Property, arbitrary, choose, forAll, listOf1, property, suchThat)
@@ -153,15 +156,21 @@ spec = do
       appendSlashToDir "/what/a/stupid/idea/man"  "yea" `shouldReturn` "yea"
 
   describe "createDirNoForce" $ do
-    it "will return (IO True) for an existing dir" $
-      createDirNoForce "/usr/bin" `shouldReturn` True
+    it "will return (WriterT DList.empty IO True) for an existing dir" $ do
+      (dirExists, emptyDList) <- runWriterT $ createDirNoForce "/usr/bin"
+      dirExists `shouldBe` True
+      emptyDList `shouldBe` Data.DList.empty
 
-    it "will return (IO False) for an existing file" $
-      createDirNoForce "/bin/ls" `shouldReturn` False
+    it "will return (WriterT (non-empty DList) IO False) for an existing file" $ do
+      (dirExists, errorDList) <- runWriterT $ createDirNoForce "/bin/ls"
+      dirExists `shouldBe` False
+      errorDList `shouldNotBe` Data.DList.empty
 
-    it "will return (IO True) and create a directory for a non existent path" $
+    it "will return (WriterT DList.empty IO True) and create a directory for a non existent path" $
       withSystemTempDirectory "pathSpecCreateDirNoForce" (\tempDir -> do
         let nonExistentDir = tempDir </> "sandwich"
-        createDirNoForce nonExistentDir `shouldReturn` True
+        (dirExists, emptyDList) <- runWriterT $ createDirNoForce nonExistentDir
+        dirExists `shouldBe` True
+        emptyDList `shouldBe` Data.DList.empty
         doesDirectoryExist nonExistentDir `shouldReturn` True
       )

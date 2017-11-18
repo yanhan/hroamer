@@ -5,8 +5,10 @@ import Control.Exception (catch, IOException)
 import Control.Monad (forM_, sequence)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Writer.Strict (runWriterT)
 import Data.Conduit ((.|), await, runConduitRes, yield)
 import Data.Conduit.Binary (sourceFile)
+import qualified Data.DList
 import Data.Either (either)
 import Data.Map (Map)
 import qualified Data.Map.Strict as M
@@ -55,18 +57,22 @@ filerepr_to_filepath (FileRepr dir fname) = dir </> fname
 main :: IO ()
 main = do
   app_data_dir <- getXdgDirectory XdgData "hroamer"
-  success_creating_app_data_dir <- Path.createDirNoForce app_data_dir
-
   let app_tmp_dir = app_data_dir </> "tmp"
-  success_creating_app_tmp_dir <- Path.createDirNoForce app_tmp_dir
-
   -- Directory for storing files 'deleted' using hroamer
   let path_to_trashcopy_dir = app_data_dir </> "trash-copy"
-  success_creating_trashcopy_dir <- Path.createDirNoForce path_to_trashcopy_dir
 
-  if not success_creating_app_data_dir ||
-     not success_creating_app_tmp_dir || not success_creating_trashcopy_dir
+  (allDirsOk, errorDList) <- runWriterT $ do
+    -- WriterT (DList Text) IO Bool
+    success_creating_app_data_dir <- Path.createDirNoForce app_data_dir
+    success_creating_app_tmp_dir <- Path.createDirNoForce app_tmp_dir
+    success_creating_trashcopy_dir <- Path.createDirNoForce path_to_trashcopy_dir
+    return $
+      success_creating_app_data_dir &&
+      success_creating_app_tmp_dir && success_creating_trashcopy_dir
+
+  if not allDirsOk
     then do
+      mapM_ TIO.putStrLn $ Data.DList.toList errorDList
       TIO.putStrLn "Exiting."
       exitWith $ ExitFailure 1
     else return ()
