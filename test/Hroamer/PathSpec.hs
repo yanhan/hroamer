@@ -5,13 +5,16 @@ module Hroamer.PathSpec
 import Control.Monad.Reader (Reader, ask, runReader)
 import Data.Char (chr)
 import Foundation
+import System.Directory (doesDirectoryExist)
 import System.FilePath ((</>), FilePath, pathSeparator, takeDirectory)
+import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
 import Test.Hspec.Core.QuickCheck (modifyMaxSuccess)
 import Test.QuickCheck
        (Gen, Property, arbitrary, choose, forAll, listOf1, property, suchThat)
 
-import Hroamer.Path (appendSlashToDir, isWeakAncestorDir)
+import Hroamer.Path
+       (appendSlashToDir, createDirNoForce, isWeakAncestorDir)
 
 
 filePathComponent :: Gen [Char]
@@ -148,3 +151,17 @@ spec = do
 
     it "will not append a slash to a non-existent file / dir" $
       appendSlashToDir "/what/a/stupid/idea/man"  "yea" `shouldReturn` "yea"
+
+  describe "createDirNoForce" $ do
+    it "will return (IO True) for an existing dir" $
+      createDirNoForce "/usr/bin" `shouldReturn` True
+
+    it "will return (IO False) for an existing file" $
+      createDirNoForce "/bin/ls" `shouldReturn` False
+
+    it "will return (IO True) and create a directory for a non existent path" $
+      withSystemTempDirectory "pathSpecCreateDirNoForce" (\tempDir -> do
+        let nonExistentDir = tempDir </> "sandwich"
+        createDirNoForce nonExistentDir `shouldReturn` True
+        doesDirectoryExist nonExistentDir `shouldReturn` True
+      )
