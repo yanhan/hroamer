@@ -65,6 +65,7 @@ library
                      , Hroamer.Path
                      , Hroamer.UnsupportedPaths
                      , Hroamer.Utilities
+                     , Hroamer.Database.Internal
                      , Hroamer.UnsupportedPaths.Internal
 
 test-suite hroamer-testsuite
