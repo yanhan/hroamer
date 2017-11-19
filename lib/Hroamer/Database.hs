@@ -18,7 +18,8 @@ import System.Directory (doesFileExist)
 import System.FilePath.Posix (FilePath)
 
 import Hroamer.Database.Internal
-       (FilesTableRow(FilesTableRow, dir, filename, uuid), addFileDetailsToDb)
+       (FilesTableRow(FilesTableRow, dir, filename, uuid),
+        addFileDetailsToDb, deleteFileFromDb)
 
 createDbAndTables :: FilePath -> IO ()
 createDbAndTables path_to_db = do
@@ -32,14 +33,6 @@ createDbAndTables path_to_db = do
                 "CREATE TABLE IF NOT EXISTS files(dir TEXT, filename TEXT, uuid CHAR(36), CONSTRAINT files__idx_dir_filename UNIQUE(dir, filename) ON CONFLICT ROLLBACK, CONSTRAINT files__uuid UNIQUE(uuid) ON CONFLICT ROLLBACK);"
               execute_ conn "CREATE INDEX files__idx_dir ON files(dir);")
     else return ()
-
-
-deleteFileFromDb :: Connection -> FilePath -> [Char] -> IO ()
-deleteFileFromDb conn cwd filename =
-  execute
-    conn
-    "DELETE FROM files WHERE dir = ? AND filename = ?;"
-    [cwd, filename]
 
 getAllFilesInDir :: FilePath -> FilePath -> IO [([Char], Text)]
 getAllFilesInDir path_to_db dirname =
