@@ -91,3 +91,4 @@ test-suite hroamer-testsuite
   other-modules:       Hroamer.ParserSpec
                      , Hroamer.PathSpec
                      , Hroamer.UnsupportedPathsSpec
+                     , Hroamer.UnsupportedPaths.InternalSpec
