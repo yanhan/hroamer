@@ -30,5 +30,5 @@ spec = do
           pathToDb
           (\dbconn -> do
             query_ dbconn "SELECT COUNT(1) FROM files;" `shouldReturn` [0 :: Int]
-            addFileDetailsToDb dir dbconn (filename, uuid)
+            addFileDetailsToDb dbconn dir (filename, uuid)
             query_ dbconn "SELECT COUNT(1) FROM files;" `shouldReturn` [1 :: Int])

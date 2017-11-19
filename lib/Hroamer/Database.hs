@@ -69,7 +69,7 @@ updateDbToMatchDirState cwd path_to_db file_to_uuid__only_on_system files_only_i
     path_to_db
     (\conn -> do
        execute_ conn "BEGIN TRANSACTION;"
-       mapM_ (addFileDetailsToDb cwd conn) file_to_uuid__only_on_system
+       mapM_ (addFileDetailsToDb conn cwd) file_to_uuid__only_on_system
        mapM_ (deleteFileFromDb cwd conn) files_only_in_db
        execute_ conn "COMMIT;")
 

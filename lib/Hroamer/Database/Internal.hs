@@ -22,8 +22,8 @@ instance FromRow FilesTableRow where
 instance ToRow FilesTableRow where
   toRow ftr = toRow (dir ftr, filename ftr, uuid ftr)
 
-addFileDetailsToDb :: FilePath -> Connection -> ([Char], Text) -> IO ()
-addFileDetailsToDb dir conn (filename, uuid) =
+addFileDetailsToDb :: Connection -> FilePath -> ([Char], Text) -> IO ()
+addFileDetailsToDb conn dir (filename, uuid) =
   execute
     conn
     "INSERT INTO files(dir, filename, uuid) VALUES(?, ?, ?);"
