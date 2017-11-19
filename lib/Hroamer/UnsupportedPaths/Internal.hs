@@ -3,6 +3,7 @@ module Hroamer.UnsupportedPaths.Internal
   ) where
 
 import Data.Set (Set)
+import Foundation
 import System.FilePath.Posix (FilePath)
 
 -- Types of paths that are not supported by hroamer
@@ -11,4 +12,4 @@ data UPaths = UPaths
   , absPaths :: Set FilePath
   , filesNotInCwd :: Set FilePath
   , invalidPaths :: Set FilePath
-  }
+  } deriving (Eq, Show)
