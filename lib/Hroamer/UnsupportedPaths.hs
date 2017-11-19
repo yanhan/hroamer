@@ -1,18 +1,21 @@
 module Hroamer.UnsupportedPaths
-  ( getUnsupportedPaths
+  ( getErrors
+  , getUnsupportedPaths
   , noUnsupportedPaths
-  , printErrors
   ) where
 
 import Control.Monad (mapM_)
 import Control.Monad.State
-       (StateT, evalStateT, execStateT, get, lift, modify, put)
+       (State, StateT, evalState, evalStateT, execStateT, get, lift,
+        modify, put)
+import Control.Monad.Writer.Strict (WriterT, runWriterT, tell)
+import Data.DList (DList, singleton)
 import qualified Data.List as List
 import Data.Set (Set, empty, insert, member)
 import qualified Data.Set as S
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
-import Foundation
+import Foundation hiding (singleton)
 import System.Directory (canonicalizePath)
 import System.FilePath.Posix
        ((</>), FilePath, isAbsolute, isValid, takeDirectory)
@@ -64,40 +67,39 @@ getUnsupportedPaths cwd files = do
                | otherwise -> put (filesSeen', uPaths))
         files
 
-printErrors :: FilePath -> UPaths -> IO ()
-printErrors cwd uPaths
+getErrors :: FilePath -> UPaths -> DList Text
+getErrors cwd uPaths
  -- the state is the number of errors so far and we use it to determine
  -- whether we need to print a separating newline between different error
  -- messages
- = evalStateT printErrors 0
+ = snd $ evalState (runWriterT getErrorsInternal) 0
   where
-    printOneError :: Set FilePath -> Text -> StateT Int IO ()
-    printOneError files msg = do
+    getOneError :: Set FilePath -> Text -> WriterT (DList Text) (State Int) ()
+    getOneError files msg = do
       if not $ S.null files
         then do
-          nrErrors <- get
+          nrErrors <- lift get
           if nrErrors > 0
-            then lift $ TIO.putStrLn ""
+            then tell $ singleton ""
             else return ()
-          modify (+ 1)
-          lift $ TIO.putStrLn msg
-          lift $
-            mapM_
-              (\s -> TIO.putStrLn $ "- " <> (pack s))
-              (List.sort $ S.toList files)
+          lift $ modify (+ 1)
+          tell $ singleton msg
+          mapM_
+            (\s -> tell . singleton $ "- " <> (pack s))
+            (List.sort $ S.toList files)
         else return ()
-    printErrors :: StateT Int IO ()
-    printErrors = do
-      printOneError
+    getErrorsInternal :: WriterT (DList Text) (State Int) ()
+    getErrorsInternal = do
+      getOneError
         (duplicatePaths uPaths)
         "Error: the following filenames are duplicated:"
-      printOneError
+      getOneError
         (absPaths uPaths)
         "Error: Absolute paths not supported. We found that you entered these:"
-      printOneError
+      getOneError
         (filesNotInCwd uPaths)
         ("Error: the following paths are housed in a directory that is not the current directory " <>
          pack cwd)
-      printOneError
+      getOneError
         (invalidPaths uPaths)
         "Error: the following paths are invalid:"

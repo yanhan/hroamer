@@ -132,7 +132,10 @@ main = do
               initial_fnames_and_uuids
           HroamerDb.wrapDbConn path_to_db
             (\f -> forM_ file_op_list (doFileOp cwd f)) HroamerDb.updateDirAndFilename
-        else UnsupportedPaths.printErrors cwd unsupportedPaths
+        else mapM_
+               TIO.putStrLn $
+                 Data.DList.toList $
+                   UnsupportedPaths.getErrors cwd unsupportedPaths
 
   -- cleanup
   removeFile dirstate_filepath `catch` excHandler
