@@ -2,14 +2,19 @@ module Hroamer.UnsupportedPathsSpec
   ( spec
   ) where
 
+import qualified Data.DList as DList
+import qualified Data.List as List
 import qualified Data.Set as S
 import Data.Set (empty)
+import Data.Text (pack)
 import Foundation
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
 
 import Hroamer.UnsupportedPaths
-       (getUnsupportedPaths, noUnsupportedPaths)
-import Hroamer.UnsupportedPaths.Internal (UPaths(UPaths))
+       (getErrors, getUnsupportedPaths, noUnsupportedPaths)
+import Hroamer.UnsupportedPaths.Internal
+       (UPaths(UPaths), absolutePathsErrorTitle, duplicatePathsErrorTitle,
+        invalidPathsErrorTitle, relativePathsErrorTitle)
 
 spec :: Spec
 spec = do
@@ -51,3 +56,41 @@ spec = do
       let invalidPaths = S.fromList ["we\0k"]
       let expectedUPaths = UPaths duplicatePaths absolutePaths relativePaths invalidPaths
       getUnsupportedPaths "/bin" paths `shouldReturn` expectedUPaths
+
+  describe "getErrors" $ do
+    let txPaths = List.sort . fmap (("- " <>) . pack)
+
+    it "when there are multiple categories of errors, it will construct a message that separates each category by an empty line and sort the filenames in each category of error" $ do
+      let duplicatePaths = ["main.c", "jobs.txt"]
+      let absolutePaths = ["/home/thomas/search"]
+      let relativePaths = ["../flight-details.png"]
+      let invalidPaths = ["saturd\0y"]
+      let upaths =
+            UPaths
+              (S.fromList duplicatePaths)
+              (S.fromList absolutePaths)
+              (S.fromList relativePaths)
+              (S.fromList invalidPaths)
+      let cwd = "/home/thomas"
+      DList.toList (getErrors cwd upaths) `shouldBe`
+        [duplicatePathsErrorTitle] <>
+        txPaths duplicatePaths <>
+        ["", absolutePathsErrorTitle] <>
+        txPaths absolutePaths <>
+        ["", relativePathsErrorTitle $ pack cwd] <>
+        txPaths relativePaths <>
+        ["", invalidPathsErrorTitle] <>
+        txPaths invalidPaths
+
+    it "will not construct a message with empty lines if there is only one category of error" $ do
+      let relativePaths =
+            ["../homework01.txt", "../records.sql", "../cute-cats.png"]
+      let upaths = UPaths empty empty (S.fromList relativePaths) empty
+      let cwd = "/home/jake/docs"
+      DList.toList (getErrors cwd upaths) `shouldBe`
+        [relativePathsErrorTitle $ pack cwd] <>
+        txPaths relativePaths
+
+    it "will return an empty DList if there are no errors" $
+      getErrors "/opt/local/x" (UPaths empty empty empty empty) `shouldBe`
+        DList.empty
