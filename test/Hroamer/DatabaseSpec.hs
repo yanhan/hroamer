@@ -2,7 +2,7 @@ module Hroamer.DatabaseSpec
   ( spec
   ) where
 
-import Database.SQLite.Simple (query_, withConnection)
+import Database.SQLite.Simple (withConnection)
 import Foundation
 import System.Directory (doesFileExist, doesPathExist)
 import System.FilePath.Posix ((</>))
@@ -10,8 +10,9 @@ import System.IO (readFile)
 import System.IO.Temp (withSystemTempDirectory, writeTempFile)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
 
-import Hroamer.Database (FilesTableRow, createDbAndTables)
+import Hroamer.Database (createDbAndTables)
 import Hroamer.Database.Internal (addFileDetailsToDb)
+import TestHelpers (getTotalRows)
 
 spec :: Spec
 spec = do
@@ -22,11 +23,7 @@ spec = do
         doesPathExist pathToDb `shouldReturn` False
         createDbAndTables pathToDb
         doesFileExist pathToDb `shouldReturn` True
-        withConnection
-          pathToDb
-          (\dbconn -> do
-             query_ dbconn "SELECT * FROM files;" `shouldReturn`
-               ([] :: [FilesTableRow]))
+        withConnection pathToDb (\dbconn -> do getTotalRows dbconn `shouldReturn` [0])
 
     it "should not create a SQLite database if a file exists at that location" $
       withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
