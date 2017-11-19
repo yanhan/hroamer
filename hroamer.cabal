@@ -65,6 +65,7 @@ library
                      , Hroamer.Path
                      , Hroamer.UnsupportedPaths
                      , Hroamer.Utilities
+                     , Hroamer.UnsupportedPaths.Internal
 
 test-suite hroamer-testsuite
   type:                exitcode-stdio-1.0
@@ -75,6 +76,7 @@ test-suite hroamer-testsuite
                      , OverloadedStrings
   build-depends:       hroamer
                      , base >= 4.7 && < 5
+                     , containers
                      , directory
                      , dlist
                      , filepath
@@ -87,3 +89,4 @@ test-suite hroamer-testsuite
                      , QuickCheck
   other-modules:       Hroamer.ParserSpec
                      , Hroamer.PathSpec
+                     , Hroamer.UnsupportedPathsSpec
