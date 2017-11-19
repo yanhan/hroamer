@@ -121,7 +121,8 @@ main = do
         getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath
       let list_of_filename = fmap fst list_of_filename_and_uuid
       unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
-      if UnsupportedPaths.noUnsupportedPaths unsupportedPaths
+      let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
+      if unsupportedPathsDList == Data.DList.empty
         then do
           file_op_list <-
             generateFileOps
@@ -132,10 +133,8 @@ main = do
               initial_fnames_and_uuids
           HroamerDb.wrapDbConn path_to_db
             (\f -> forM_ file_op_list (doFileOp cwd f)) HroamerDb.updateDirAndFilename
-        else mapM_
-               TIO.putStrLn $
-                 Data.DList.toList $
-                   UnsupportedPaths.getErrors cwd unsupportedPaths
+        else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
+
 
   -- cleanup
   removeFile dirstate_filepath `catch` excHandler
