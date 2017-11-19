@@ -11,6 +11,7 @@ import System.IO.Temp (withSystemTempDirectory, writeTempFile)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
 
 import Hroamer.Database (FilesTableRow, createDbAndTables)
+import Hroamer.Database.Internal (addFileDetailsToDb)
 
 spec :: Spec
 spec = do

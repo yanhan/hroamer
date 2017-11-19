@@ -90,7 +90,8 @@ test-suite hroamer-testsuite
                      , temporary
                      , text
                      , QuickCheck
-  other-modules:       Hroamer.DatabaseSpec
+  other-modules:       Hroamer.Database.InternalSpec
+                     , Hroamer.DatabaseSpec
                      , Hroamer.ParserSpec
                      , Hroamer.PathSpec
                      , Hroamer.UnsupportedPathsSpec
