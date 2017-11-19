@@ -85,10 +85,12 @@ test-suite hroamer-testsuite
                      , hspec-core
                      , mtl
                      , parsec
+                     , sqlite-simple
                      , temporary
                      , text
                      , QuickCheck
-  other-modules:       Hroamer.ParserSpec
+  other-modules:       Hroamer.DatabaseSpec
+                     , Hroamer.ParserSpec
                      , Hroamer.PathSpec
                      , Hroamer.UnsupportedPathsSpec
                      , Hroamer.UnsupportedPaths.InternalSpec
