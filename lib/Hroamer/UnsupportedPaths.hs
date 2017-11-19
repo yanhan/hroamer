@@ -17,13 +17,9 @@ import System.Directory (canonicalizePath)
 import System.FilePath.Posix
        ((</>), FilePath, isAbsolute, isValid, takeDirectory)
 
--- Types of paths that are not supported by hroamer
-data UPaths = UPaths
-  { duplicatePaths :: Set FilePath
-  , absPaths :: Set FilePath
-  , filesNotInCwd :: Set FilePath
-  , invalidPaths :: Set FilePath
-  }
+import Hroamer.UnsupportedPaths.Internal
+       (UPaths(UPaths, duplicatePaths, absPaths, filesNotInCwd,
+               invalidPaths))
 
 noUnsupportedPaths :: UPaths -> Bool
 noUnsupportedPaths uPaths =
