@@ -1,6 +1,7 @@
 module Hroamer.Database.Internal
   ( FilesTableRow(..)
   , addFileDetailsToDb
+  , deleteFileFromDb
   ) where
 
 import Database.SQLite.Simple (Connection, execute)
@@ -28,3 +29,10 @@ addFileDetailsToDb conn dir (filename, uuid) =
     conn
     "INSERT INTO files(dir, filename, uuid) VALUES(?, ?, ?);"
     (FilesTableRow {dir = dir, filename = filename, uuid = uuid})
+
+deleteFileFromDb :: Connection -> FilePath -> [Char] -> IO ()
+deleteFileFromDb conn cwd filename =
+  execute
+    conn
+    "DELETE FROM files WHERE dir = ? AND filename = ?;"
+    [cwd, filename]
