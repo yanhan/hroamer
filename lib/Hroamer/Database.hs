@@ -23,7 +23,7 @@ data FilesTableRow = FilesTableRow
   { dir :: FilePath
   , filename :: FilePath
   , uuid :: Text
-  } deriving (Show)
+  } deriving (Eq, Show)
 
 instance FromRow FilesTableRow where
   fromRow = FilesTableRow <$> field <*> field <*> field
