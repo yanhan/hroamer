@@ -1,7 +1,6 @@
 module Hroamer.UnsupportedPaths
   ( getErrors
   , getUnsupportedPaths
-  , noUnsupportedPaths
   ) where
 
 import Control.Monad (mapM_)
@@ -26,11 +25,6 @@ import Hroamer.UnsupportedPaths.Internal
         absolutePathsErrorTitle, duplicatePathsErrorTitle,
         formatPathsForErrorMessage, invalidPathsErrorTitle,
         relativePathsErrorTitle)
-
-noUnsupportedPaths :: UPaths -> Bool
-noUnsupportedPaths uPaths =
-  S.null (absPaths uPaths) &&
-  S.null (filesNotInCwd uPaths) && S.null (invalidPaths uPaths)
 
 getUnsupportedPaths :: FilePath -> [FilePath] -> IO UPaths
 getUnsupportedPaths cwd files = do
