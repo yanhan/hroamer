@@ -9,8 +9,8 @@ import Control.Monad.State
        (State, StateT, evalState, evalStateT, execStateT, get, lift,
         modify, put)
 import Control.Monad.Writer.Strict (WriterT, runWriterT, tell)
+import qualified Data.DList as DList
 import Data.DList (DList, singleton)
-import qualified Data.List as List
 import Data.Set (Set, empty, insert, member)
 import qualified Data.Set as S
 import Data.Text (Text, pack)
@@ -24,7 +24,8 @@ import Hroamer.UnsupportedPaths.Internal
        (UPaths(UPaths, duplicatePaths, absPaths, filesNotInCwd,
                invalidPaths),
         absolutePathsErrorTitle, duplicatePathsErrorTitle,
-        invalidPathsErrorTitle, relativePathsErrorTitle)
+        formatPathsForErrorMessage, invalidPathsErrorTitle,
+        relativePathsErrorTitle)
 
 noUnsupportedPaths :: UPaths -> Bool
 noUnsupportedPaths uPaths =
@@ -86,9 +87,8 @@ getErrors cwd uPaths
             else return ()
           lift $ modify (+ 1)
           tell $ singleton msg
-          mapM_
-            (\s -> tell . singleton $ "- " <> (pack s))
-            (List.sort $ S.toList files)
+          tell . DList.fromList $
+            (formatPathsForErrorMessage $ S.toList files)
         else return ()
     getErrorsInternal :: WriterT (DList Text) (State Int) ()
     getErrorsInternal = do

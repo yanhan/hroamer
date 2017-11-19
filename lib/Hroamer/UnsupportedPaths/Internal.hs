@@ -2,12 +2,14 @@ module Hroamer.UnsupportedPaths.Internal
   ( UPaths(..)
   , absolutePathsErrorTitle
   , duplicatePathsErrorTitle
+  , formatPathsForErrorMessage
   , invalidPathsErrorTitle
   , relativePathsErrorTitle
   ) where
 
+import qualified Data.List as List
 import Data.Set (Set)
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import Foundation
 import System.FilePath.Posix (FilePath)
 
@@ -33,3 +35,6 @@ relativePathsErrorTitle cwd =
 
 invalidPathsErrorTitle :: Text
 invalidPathsErrorTitle = "Error: the following paths are invalid:"
+
+formatPathsForErrorMessage :: [FilePath] -> [Text]
+formatPathsForErrorMessage = List.sort . fmap (("- " <>) . pack)
