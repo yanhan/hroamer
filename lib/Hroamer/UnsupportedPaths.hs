@@ -22,7 +22,9 @@ import System.FilePath.Posix
 
 import Hroamer.UnsupportedPaths.Internal
        (UPaths(UPaths, duplicatePaths, absPaths, filesNotInCwd,
-               invalidPaths))
+               invalidPaths),
+        absolutePathsErrorTitle, duplicatePathsErrorTitle,
+        invalidPathsErrorTitle, relativePathsErrorTitle)
 
 noUnsupportedPaths :: UPaths -> Bool
 noUnsupportedPaths uPaths =
@@ -91,15 +93,10 @@ getErrors cwd uPaths
     getErrorsInternal :: WriterT (DList Text) (State Int) ()
     getErrorsInternal = do
       getOneError
-        (duplicatePaths uPaths)
-        "Error: the following filenames are duplicated:"
+        (duplicatePaths uPaths) duplicatePathsErrorTitle
       getOneError
-        (absPaths uPaths)
-        "Error: Absolute paths not supported. We found that you entered these:"
+        (absPaths uPaths) absolutePathsErrorTitle
       getOneError
-        (filesNotInCwd uPaths)
-        ("Error: the following paths are housed in a directory that is not the current directory " <>
-         pack cwd)
+        (filesNotInCwd uPaths) (relativePathsErrorTitle $ pack cwd)
       getOneError
-        (invalidPaths uPaths)
-        "Error: the following paths are invalid:"
+        (invalidPaths uPaths) invalidPathsErrorTitle
