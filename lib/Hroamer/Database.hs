@@ -34,8 +34,8 @@ createDbAndTables path_to_db = do
     else return ()
 
 
-deleteFileFromDb :: FilePath -> Connection -> [Char] -> IO ()
-deleteFileFromDb cwd conn filename =
+deleteFileFromDb :: Connection -> FilePath -> [Char] -> IO ()
+deleteFileFromDb conn cwd filename =
   execute
     conn
     "DELETE FROM files WHERE dir = ? AND filename = ?;"
@@ -70,7 +70,7 @@ updateDbToMatchDirState cwd path_to_db file_to_uuid__only_on_system files_only_i
     (\conn -> do
        execute_ conn "BEGIN TRANSACTION;"
        mapM_ (addFileDetailsToDb conn cwd) file_to_uuid__only_on_system
-       mapM_ (deleteFileFromDb cwd conn) files_only_in_db
+       mapM_ (deleteFileFromDb conn cwd) files_only_in_db
        execute_ conn "COMMIT;")
 
 wrapDbConn :: FilePath -> (b -> IO a) -> (Connection -> b) -> IO a

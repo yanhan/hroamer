@@ -44,7 +44,7 @@ spec = do
             addFileDetailsToDb dbconn "/usr/local/bin" ("voltron", "951ebecc-0048-4102-9c32-ecebb21c5bdc")
             addFileDetailsToDb dbconn "/home/monroe/images" ("hifive.jpeg", "cbc7f439-11ab-4255-8d1a-542874de1b17")
             getTotalRows dbconn `shouldReturn` [2]
-            deleteFileFromDb "/usr/local/bin" dbconn "voltron"
+            deleteFileFromDb dbconn "/usr/local/bin"  "voltron"
             getTotalRows dbconn `shouldReturn` [1])
 
     it "should not change the database if the specified dir and filename are not in the table" $ do
@@ -55,5 +55,5 @@ spec = do
           pathToDb
           (\dbconn -> do
             addFileDetailsToDb dbconn "/scared/shitless" ("bro", "09b190ee-63ed-4170-b77d-9565640c2545")
-            deleteFileFromDb "/another/path" dbconn "yes"
+            deleteFileFromDb dbconn "/another/path"  "yes"
             getTotalRows dbconn `shouldReturn` [1])
