@@ -14,7 +14,8 @@ import Hroamer.UnsupportedPaths
        (getErrors, getUnsupportedPaths, noUnsupportedPaths)
 import Hroamer.UnsupportedPaths.Internal
        (UPaths(UPaths), absolutePathsErrorTitle, duplicatePathsErrorTitle,
-        invalidPathsErrorTitle, relativePathsErrorTitle)
+        formatPathsForErrorMessage, invalidPathsErrorTitle,
+        relativePathsErrorTitle)
 
 spec :: Spec
 spec = do
@@ -58,7 +59,6 @@ spec = do
       getUnsupportedPaths "/bin" paths `shouldReturn` expectedUPaths
 
   describe "getErrors" $ do
-    let txPaths = List.sort . fmap (("- " <>) . pack)
 
     it "when there are multiple categories of errors, it will construct a message that separates each category by an empty line and sort the filenames in each category of error" $ do
       let duplicatePaths = ["main.c", "jobs.txt"]
@@ -74,13 +74,13 @@ spec = do
       let cwd = "/home/thomas"
       DList.toList (getErrors cwd upaths) `shouldBe`
         [duplicatePathsErrorTitle] <>
-        txPaths duplicatePaths <>
+        formatPathsForErrorMessage duplicatePaths <>
         ["", absolutePathsErrorTitle] <>
-        txPaths absolutePaths <>
+        formatPathsForErrorMessage absolutePaths <>
         ["", relativePathsErrorTitle $ pack cwd] <>
-        txPaths relativePaths <>
+        formatPathsForErrorMessage relativePaths <>
         ["", invalidPathsErrorTitle] <>
-        txPaths invalidPaths
+        formatPathsForErrorMessage invalidPaths
 
     it "will not construct a message with empty lines if there is only one category of error" $ do
       let relativePaths =
@@ -89,7 +89,7 @@ spec = do
       let cwd = "/home/jake/docs"
       DList.toList (getErrors cwd upaths) `shouldBe`
         [relativePathsErrorTitle $ pack cwd] <>
-        txPaths relativePaths
+        formatPathsForErrorMessage relativePaths
 
     it "will return an empty DList if there are no errors" $
       getErrors "/opt/local/x" (UPaths empty empty empty empty) `shouldBe`
