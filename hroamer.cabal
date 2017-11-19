@@ -82,6 +82,8 @@ test-suite hroamer-testsuite
                      , hspec
                      , hspec-core
                      , mtl
+                     , parsec
                      , temporary
                      , QuickCheck
-  other-modules:       Hroamer.PathSpec
+  other-modules:       Hroamer.ParserSpec
+                     , Hroamer.PathSpec
