@@ -59,7 +59,6 @@ spec = do
       getUnsupportedPaths "/bin" paths `shouldReturn` expectedUPaths
 
   describe "getErrors" $ do
-
     it "when there are multiple categories of errors, it will construct a message that separates each category by an empty line and sort the filenames in each category of error" $ do
       let duplicatePaths = ["main.c", "jobs.txt"]
       let absolutePaths = ["/home/thomas/search"]
