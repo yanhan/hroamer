@@ -96,3 +96,4 @@ test-suite hroamer-testsuite
                      , Hroamer.PathSpec
                      , Hroamer.UnsupportedPathsSpec
                      , Hroamer.UnsupportedPaths.InternalSpec
+                     , TestHelpers

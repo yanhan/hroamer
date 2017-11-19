@@ -3,7 +3,6 @@ module Hroamer.Database.InternalSpec
   ) where
 
 import Database.SQLite.Simple (withConnection, query_)
-import Database.SQLite.Simple.FromRow (FromRow, field, fromRow)
 import Foundation
 import System.FilePath.Posix ((</>))
 import System.IO.Temp (withSystemTempDirectory)
@@ -11,9 +10,7 @@ import Test.Hspec (Spec, describe, it, shouldReturn)
 
 import Hroamer.Database (createDbAndTables)
 import Hroamer.Database.Internal (addFileDetailsToDb)
-
-instance FromRow Int where
-  fromRow = field
+import TestHelpers (RowCount, getTotalRows)
 
 spec :: Spec
 
@@ -29,6 +26,6 @@ spec = do
         withConnection
           pathToDb
           (\dbconn -> do
-            query_ dbconn "SELECT COUNT(1) FROM files;" `shouldReturn` [0 :: Int]
+            getTotalRows dbconn `shouldReturn` [0]
             addFileDetailsToDb dbconn dir (filename, uuid)
-            query_ dbconn "SELECT COUNT(1) FROM files;" `shouldReturn` [1 :: Int])
+            getTotalRows dbconn `shouldReturn` [1])
