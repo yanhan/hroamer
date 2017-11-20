@@ -11,8 +11,10 @@ import System.IO (readFile)
 import System.IO.Temp (withSystemTempDirectory, writeTempFile)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
 
-import Hroamer.Database (createDbAndTables, getAllFilesInDir)
-import Hroamer.Database.Internal (addFileDetailsToDb)
+import Hroamer.Database
+       (createDbAndTables, getAllFilesInDir, getRowFromUUID)
+import Hroamer.Database.Internal
+       (FilesTableRow(FilesTableRow), addFileDetailsToDb)
 import TestHelpers (getTotalRows)
 
 spec :: Spec
@@ -49,3 +51,19 @@ spec = do
         fileDetails <- getAllFilesInDir pathToDb dirOfInterest
         length fileDetails `shouldBe` 2
         List.sort fileDetails `shouldBe` [secondTuple, firstTuple]
+
+  describe "getRowFromUUID" $ do
+    it "should retrieve the row with the uuid" $ do
+      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+        let pathToDb = dirPath </> "hroamer.db"
+        let dirOfInterest = "/home/fire/is/at"
+        let fileOfInterest = "somewhere"
+        let uuidOfInterest = "9cef0b1c-113b-4b51-88f2-1f93d9178a15"
+        createDbAndTables pathToDb
+        withConnection pathToDb (\dbconn -> do
+          addFileDetailsToDb dbconn "/usr/share/man/man1" ("make.1.gz", "0ae251b2-bd1d-41c6-b574-40198710e9e3")
+          addFileDetailsToDb dbconn dirOfInterest (fileOfInterest, uuidOfInterest)
+          row <- getRowFromUUID dbconn uuidOfInterest
+          length row `shouldBe` 1
+          listToMaybe row `shouldBe`
+            Just (FilesTableRow dirOfInterest fileOfInterest uuidOfInterest))
