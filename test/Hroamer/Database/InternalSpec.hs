@@ -18,7 +18,7 @@ spec :: Spec
 spec = do
   describe "addFileDetailsToDb" $ do
     it "should add a new row to the database (assuming the (dir, filename) combo does not exist)" $ do
-      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+      withSystemTempDirectory "addFileDetailsToDb" $ \dirPath -> do
         let pathToDb = dirPath </> "hroamer.db"
         createDbAndTables pathToDb
         let dir = "/home/edmund"
@@ -33,7 +33,7 @@ spec = do
 
   describe "deleteFileFromDb" $ do
     it "should delete the specified dir and filename if they are in the table" $ do
-      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+      withSystemTempDirectory "deleteFileFromDb" $ \dirPath -> do
         let pathToDb = dirPath </> "hroamer.db"
         createDbAndTables pathToDb
         withConnection
@@ -46,7 +46,7 @@ spec = do
             getTotalRows dbconn `shouldReturn` [1])
 
     it "should not change the database if the specified dir and filename are not in the table" $ do
-      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+      withSystemTempDirectory "deleteFileFromDb" $ \dirPath -> do
         let pathToDb = dirPath </> "hroamer.db"
         createDbAndTables pathToDb
         withConnection
