@@ -2,6 +2,7 @@ module Hroamer.DatabaseSpec
   ( spec
   ) where
 
+import Control.Monad (mapM_)
 import qualified Data.List as List
 import Database.SQLite.Simple (withConnection)
 import Foundation
@@ -13,9 +14,10 @@ import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
 
 import Hroamer.Database
        (createDbAndTables, getAllFilesInDir, getRowFromUUID,
-        updateDirAndFilename)
+        updateDbToMatchDirState, updateDirAndFilename)
 import Hroamer.Database.Internal
-       (FilesTableRow(FilesTableRow), addFileDetailsToDb)
+       (FilesTableRow(FilesTableRow, dir, filename, uuid),
+        addFileDetailsToDb)
 import TestHelpers (getTotalRows)
 
 spec :: Spec
@@ -87,3 +89,32 @@ spec = do
           length row `shouldBe` 1
           listToMaybe row `shouldBe`
             Just (FilesTableRow newDir newFile uuid))
+
+  describe "updateDbToMatchDirState" $ do
+    it "should insert into the table files only on the system and delete from the table files not on the system" $ do
+      withSystemTempDirectory "updateDbToMatchDirState" $ \dirPath -> do
+        let pathToDb = dirPath </> "hroamer.db"
+        let dirOfInterest = "/going/to"
+        let ftrOne = FilesTableRow "/leaving/this"  "alone"  "855fba5b-8c27-41a0-9d0b-aa60e25f4193"
+        let ftrTwo = FilesTableRow dirOfInterest  "be-created"  "91bd704f-fb43-4cd7-8eb6-3afc08086d72"
+        let ftrThree = FilesTableRow dirOfInterest "ecstatic"  "dd132727-df0f-405f-bcd1-f972916bcb4e"
+        let ftrFour = FilesTableRow dirOfInterest  "destination"  "1bcaf24f-8a88-4377-ae15-8beaf75a2b4f"
+        createDbAndTables pathToDb
+        withConnection pathToDb (\dbconn -> do
+          addFileDetailsToDb dbconn dirOfInterest ("delete", "ce053cea-bd64-42c6-b3ed-13931a917017")
+          addFileDetailsToDb dbconn (dir ftrOne) (filename ftrOne, uuid ftrOne)
+          addFileDetailsToDb dbconn dirOfInterest ("sink", "fb4d61ef-77ef-4515-b4b8-7d83db42b20d")
+          updateDbToMatchDirState
+            dirOfInterest
+            pathToDb
+            [
+              (filename ftrTwo, uuid ftrTwo)
+            , (filename ftrThree, uuid ftrThree)
+            , (filename ftrFour, uuid ftrFour)
+            ]
+            ["delete", "sink"]
+          getTotalRows dbconn `shouldReturn` [4]
+          mapM_
+            (\ftr ->
+              getRowFromUUID dbconn (uuid ftr) >>= (shouldBe $ Just ftr) . listToMaybe)
+             [ftrOne, ftrTwo, ftrThree, ftrFour])
