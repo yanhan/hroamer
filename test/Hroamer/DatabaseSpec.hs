@@ -12,7 +12,8 @@ import System.IO.Temp (withSystemTempDirectory, writeTempFile)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
 
 import Hroamer.Database
-       (createDbAndTables, getAllFilesInDir, getRowFromUUID)
+       (createDbAndTables, getAllFilesInDir, getRowFromUUID,
+        updateDirAndFilename)
 import Hroamer.Database.Internal
        (FilesTableRow(FilesTableRow), addFileDetailsToDb)
 import TestHelpers (getTotalRows)
@@ -67,3 +68,22 @@ spec = do
           length row `shouldBe` 1
           listToMaybe row `shouldBe`
             Just (FilesTableRow dirOfInterest fileOfInterest uuidOfInterest))
+
+  describe "updateDirAndFilename" $ do
+    it "should update the dir and filename of the row that has the given uuid" $ do
+      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+        let pathToDb = dirPath </> "hroamer.db"
+        let originalDir = "/my/imaginary/dir/"
+        let originalFile = "ledger.c"
+        let newDir = "/favorite/pasttimes"
+        let newFile = "movies"
+        let uuid = "5730152c-9a3f-4b4e-b373-62ea1a2abb4f"
+        createDbAndTables pathToDb
+        withConnection pathToDb (\dbconn -> do
+          addFileDetailsToDb dbconn originalDir (originalFile, uuid)
+          addFileDetailsToDb dbconn "/main/man" ("yu", "45889947-8104-4404-a704-7d59d2bd1aed")
+          updateDirAndFilename dbconn $ FilesTableRow newDir newFile uuid
+          row <- getRowFromUUID dbconn uuid
+          length row `shouldBe` 1
+          listToMaybe row `shouldBe`
+            Just (FilesTableRow newDir newFile uuid))
