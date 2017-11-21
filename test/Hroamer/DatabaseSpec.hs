@@ -39,7 +39,7 @@ spec = do
 
   describe "getAllFilesInDir" $ do
     it "should return all rows whose `dir` equal to the given value" $ do
-      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+      withSystemTempDirectory "getAllFilesInDir" $ \dirPath -> do
         let pathToDb = dirPath </> "hroamer.db"
         let dirOfInterest = "/home/betty/irc/real"
         let firstTuple = ("creds.txt", "eae274ee-9411-4dcf-8465-dd5dd5155087")
@@ -55,7 +55,7 @@ spec = do
 
   describe "getRowFromUUID" $ do
     it "should retrieve the row with the uuid" $ do
-      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+      withSystemTempDirectory "getRowFromUUID" $ \dirPath -> do
         let pathToDb = dirPath </> "hroamer.db"
         let dirOfInterest = "/home/fire/is/at"
         let fileOfInterest = "somewhere"
@@ -71,7 +71,7 @@ spec = do
 
   describe "updateDirAndFilename" $ do
     it "should update the dir and filename of the row that has the given uuid" $ do
-      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+      withSystemTempDirectory "updateDirAndFilename" $ \dirPath -> do
         let pathToDb = dirPath </> "hroamer.db"
         let originalDir = "/my/imaginary/dir/"
         let originalFile = "ledger.c"
