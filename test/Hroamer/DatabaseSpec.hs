@@ -14,7 +14,7 @@ import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
 
 import Hroamer.Database
        (createDbAndTables, getAllFilesInDir, getRowFromUUID,
-        updateDbToMatchDirState, updateDirAndFilename)
+        updateDbToMatchDirState, updateDirAndFilename, wrapDbConn)
 import Hroamer.Database.Internal
        (FilesTableRow(FilesTableRow, dir, filename, uuid),
         addFileDetailsToDb)
@@ -118,3 +118,20 @@ spec = do
             (\ftr ->
               getRowFromUUID dbconn (uuid ftr) >>= (shouldBe $ Just ftr) . listToMaybe)
              [ftrOne, ftrTwo, ftrThree, ftrFour])
+
+  describe "wrapDbConn" $ do
+    it "will encapsulate a db connection so workhorse functions don't have to handle it" $ do
+      withSystemTempDirectory "wrapDbConn" $ \dirPath -> do
+        let pathToDb = dirPath </> "hroamer.db"
+        let uuid = "e3e8bbc5-f2d5-4674-a958-c88aabf392cc"
+        let dirname = "/let/there/be"
+        let fname = "dragons"
+        let ftr = FilesTableRow dirname fname uuid
+        let f getRow = do
+                rowList <- getRow uuid
+                return $ fmap filename $ listToMaybe rowList
+        createDbAndTables pathToDb
+        withConnection pathToDb (\dbconn ->
+          addFileDetailsToDb dbconn dirname (fname, uuid))
+        justActualFilename <- wrapDbConn pathToDb f getRowFromUUID
+        justActualFilename `shouldBe` (Just fname)
