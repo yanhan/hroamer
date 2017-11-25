@@ -46,7 +46,7 @@ spec = do
         doesFileExist pathToDb `shouldReturn` True
         readFile pathToDb `shouldReturn` contents
 
-  beforeAll setupDbForTest $ afterAll deleteTempDirForTest $ after clearDb $ do
+  beforeAll (setupDbForTest "DatabaseSpec") $ afterAll deleteTempDirForTest $ after clearDb $ do
     describe "getAllFilesInDir" $ do
       it "should return all rows whose `dir` equal to the given value" $ \pathToDb -> do
         let dirOfInterest = "/home/betty/irc/real"
