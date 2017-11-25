@@ -24,23 +24,8 @@ import Hroamer.Database
 import Hroamer.Database.Internal
        (FilesTableRow(FilesTableRow, dir, filename, uuid),
         addFileDetailsToDb)
-import TestHelpers (getTotalRows)
-
-setupDbForTest :: IO FilePath
-setupDbForTest = do
-  dirPath <- createTempDirectory "/tmp"  "DatabaseSpec"
-  let pathToDb = dirPath </> "hroamer.db"
-  createDbAndTables pathToDb
-  return pathToDb
-
-deleteTempDirForTest :: FilePath -> IO ()
-deleteTempDirForTest pathToDb = do
-  removeFile pathToDb
-  removeDirectory $ takeDirectory pathToDb
-
-clearDb :: FilePath -> IO ()
-clearDb pathToDb = withConnection pathToDb (\dbconn ->
-  execute_ dbconn "DELETE FROM files;")
+import TestHelpers
+       (clearDb, deleteTempDirForTest, getTotalRows, setupDbForTest)
 
 spec :: Spec
 spec = do
