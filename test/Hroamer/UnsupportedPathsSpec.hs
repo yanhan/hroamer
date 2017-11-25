@@ -8,7 +8,8 @@ import qualified Data.Set as S
 import Data.Set (empty)
 import Data.Text (pack)
 import Foundation
-import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn)
+import Test.Hspec
+       (Spec, describe, it, parallel, shouldBe, shouldReturn)
 
 import Hroamer.UnsupportedPaths (getErrors, getUnsupportedPaths)
 import Hroamer.UnsupportedPaths.Internal
@@ -17,7 +18,7 @@ import Hroamer.UnsupportedPaths.Internal
         relativePathsErrorTitle)
 
 spec :: Spec
-spec = do
+spec = parallel $ do
   describe "getUnsupportedPaths" $ do
     it "will construct a UPaths data structure with duplicate, absolute, relative and invalid paths" $ do
       let paths =
