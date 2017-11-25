@@ -2,7 +2,7 @@ module Main where
 
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Exception (catch, IOException)
-import Control.Monad (forM_, sequence)
+import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Writer.Strict (runWriterT)
@@ -30,7 +30,6 @@ import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
        (FilePath, (</>), dropTrailingPathSeparator, takeDirectory,
         takeBaseName)
-import System.IO.Temp (writeTempFile)
 import System.Posix.Signals
        (Handler(Catch), installHandler, keyboardSignal, softwareStop,
         softwareTermination)
@@ -43,6 +42,7 @@ import Hroamer.Database (FilesTableRow(..))
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Parser as Parser
 import qualified Hroamer.Path as Path
+import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 import qualified Hroamer.Utilities as Utils
 
@@ -144,27 +144,6 @@ main = do
     excHandler = const $ return ()
 
 
-writeStateFile :: FilePath -> FilePath -> [FilePathUUIDPair] -> IO FilePath
-writeStateFile cwd app_tmp_dir files_and_uuid__accurate = do
-  let files_and_uuid_sorted =
-        sortBy (\(fn1, _) (fn2, _) -> compare fn1 fn2) files_and_uuid__accurate
-  lines_to_write_to_file <-
-    sequence $
-    fmap
-      (\(fn, uuid) -> do
-         fn_perhaps_with_trailing_slash <- Path.appendSlashToDir cwd fn
-         return $ pack fn_perhaps_with_trailing_slash <> " | " <> uuid)
-      files_and_uuid_sorted
-  writeTempFile
-    app_tmp_dir
-    "dirst"
-    (constructTextFileHeader cwd <>
-     (toList $ intercalate "\n" lines_to_write_to_file))
-  where
-    constructTextFileHeader :: FilePath -> [Char]
-    constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
-
-
 processCwd :: FilePath
            -> FilePath
            -> FilePath
@@ -192,7 +171,7 @@ processCwd cwd app_tmp_dir path_to_db = do
           (\(fname, _) -> fname `S.notMember` files_only_in_db)
           files_and_uuid__in_db <>
         files_and_uuids__only_on_system
-  dirstate_filepath <- writeStateFile cwd app_tmp_dir files_and_uuids_accurate
+  dirstate_filepath <- StateFile.create cwd app_tmp_dir files_and_uuids_accurate
   return (files_and_uuids_accurate, dirstate_filepath)
   where
     separateFilesIntoCategories :: [FilePath]
