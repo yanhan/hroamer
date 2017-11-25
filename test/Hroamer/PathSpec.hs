@@ -11,7 +11,7 @@ import System.Directory (doesDirectoryExist)
 import System.FilePath ((</>), FilePath, pathSeparator, takeDirectory)
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
-       (Spec, describe, it, shouldBe, shouldNotBe, shouldReturn)
+       (Spec, describe, it, parallel, shouldBe, shouldNotBe, shouldReturn)
 import Test.Hspec.Core.QuickCheck (modifyMaxSuccess)
 import Test.QuickCheck
        (Gen, Property, arbitrary, choose, forAll, listOf1, property, suchThat)
@@ -95,7 +95,7 @@ relativeAndAbsoluteMix =
     (\(absPath, relPath) -> not $ isWeakAncestorDir relPath absPath)
 
 spec :: Spec
-spec = do
+spec = parallel $ do
   describe "isWeakAncestorDir" $ do
     it "should return True for a file under its ancestor dir (for absolute paths)" $ do
       let homeDir = "/home/jack"

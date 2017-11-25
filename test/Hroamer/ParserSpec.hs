@@ -4,13 +4,13 @@ module Hroamer.ParserSpec
 
 import Data.Either (either)
 import Foundation
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe, it, parallel, shouldBe)
 import Text.Parsec (ParseError(..), runParser)
 
 import Hroamer.Parser (parseDirStateLine)
 
 spec :: Spec
-spec = do
+spec = parallel $ do
   describe "parseDirStateLine" $ do
     it "should return (Right Nothing) for a comment line" $
       runParser parseDirStateLine () ""  "\" just a comment"  `shouldBe` Right Nothing
