@@ -12,21 +12,21 @@ import Hroamer.DataStructures (FilePathUUIDPair)
 import qualified Hroamer.Path as Path
 
 create :: FilePath -> FilePath -> [FilePathUUIDPair] -> IO FilePath
-create cwd app_tmp_dir files_and_uuid__accurate = do
-  let files_and_uuid_sorted =
-        sortBy (\(fn1, _) (fn2, _) -> compare fn1 fn2) files_and_uuid__accurate
-  lines_to_write_to_file <-
+create cwd appTmpDir filesAndUuidAccurate = do
+  let filesAndUuidSorted =
+        sortBy (\(fn1, _) (fn2, _) -> compare fn1 fn2) filesAndUuidAccurate
+  linesToWriteToFile <-
     sequence $
     fmap
       (\(fn, uuid) -> do
-         fn_perhaps_with_trailing_slash <- Path.appendSlashToDir cwd fn
-         return $ pack fn_perhaps_with_trailing_slash <> " | " <> uuid)
-      files_and_uuid_sorted
+         fnPerhapsWithTrailingSlash <- Path.appendSlashToDir cwd fn
+         return $ pack fnPerhapsWithTrailingSlash <> " | " <> uuid)
+      filesAndUuidSorted
   writeTempFile
-    app_tmp_dir
+    appTmpDir
     "dirst"
     (constructTextFileHeader cwd <>
-     (toList $ intercalate "\n" lines_to_write_to_file))
+     (toList $ intercalate "\n" linesToWriteToFile))
   where
     constructTextFileHeader :: FilePath -> [Char]
     constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
