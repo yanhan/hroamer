@@ -33,7 +33,6 @@ executable hroamer
                      , parsec
                      , process
                      , resourcet
-                     , temporary
                      , text
                      , time
                      , unix
@@ -56,6 +55,7 @@ library
                      , parsec
                      , process
                      , sqlite-simple
+                     , temporary
                      , text
                      , unix
 
@@ -66,6 +66,7 @@ library
                      , Hroamer.UnsupportedPaths
                      , Hroamer.Utilities
                      , Hroamer.Database.Internal
+                     , Hroamer.StateFile
                      , Hroamer.UnsupportedPaths.Internal
 
 test-suite hroamer-testsuite
