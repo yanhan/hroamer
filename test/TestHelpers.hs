@@ -24,9 +24,9 @@ instance FromRow Int where
 getTotalRows :: Connection -> IO [RowCount]
 getTotalRows dbconn = query_ dbconn "SELECT COUNT(1) FROM files;"
 
-setupDbForTest :: IO FilePath
-setupDbForTest = do
-  dirPath <- createTempDirectory "/tmp"  "DatabaseSpec"
+setupDbForTest :: [Char] -> IO FilePath
+setupDbForTest filenameTemplate = do
+  dirPath <- createTempDirectory "/tmp"  filenameTemplate
   let pathToDb = dirPath </> "hroamer.db"
   createDbAndTables pathToDb
   return pathToDb
