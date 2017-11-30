@@ -40,10 +40,10 @@ create cwd appTmpDir filesAndUuidAccurate = do
 
 
 read :: FilePath -> IO [FilePathUUIDPair]
-read user_dirstate_filepath = do
-  list_of_maybe_fname_uuid <-
+read userDirStateFilePath = do
+  listOfMaybeFnameUUID <-
     runConduitRes $
-    sourceFile user_dirstate_filepath .| decodeUtf8C .|
+    sourceFile userDirStateFilePath .| decodeUtf8C .|
     peekForeverE parseLineConduit .|
     sinkList
   return $
@@ -51,16 +51,16 @@ read user_dirstate_filepath = do
       (\x ->
          let (fn, uuid) = fromJust x
          in ((dropTrailingPathSeparator . toList) fn, uuid))
-      list_of_maybe_fname_uuid
+      listOfMaybeFnameUUID
   where
     parseLineConduit =
       lineC
         (do maybeLine <- await
             case maybeLine of
               Just line ->
-                let parse_result =
+                let parseResult =
                       runParser Parser.parseDirStateLine () "" line
-                in either (const $ return ()) onlyYieldJust parse_result
+                in either (const $ return ()) onlyYieldJust parseResult
               Nothing -> return ())
     onlyYieldJust j@(Just _) = yield j
     onlyYieldJust _ = return ()
