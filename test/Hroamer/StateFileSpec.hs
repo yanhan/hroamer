@@ -27,8 +27,8 @@ rmrf (fileOne, fileTwo) = do
   return ()
 
 spec :: Spec
-spec = parallel $ do
-  beforeAll createDirsForTest $ afterAll rmrf $ describe "StateFile.create" $ do
+spec = beforeAll createDirsForTest $ afterAll rmrf $ do
+  describe "StateFile.create" $ do
     it "should create a correct state file" $ \(cwd, appTmpDir) -> do
       let dirToCreatePair = ("dinosaur", "10918d1c-284b-414a-aa1b-400074abace4")
       let fileToCreatePair = ("minions", "9bc243bf-a1b4-4029-af75-f4391fe34471")
@@ -51,3 +51,15 @@ spec = parallel $ do
                      , getFilename fileToCreatePair <> " | " <> getUuid fileToCreatePair
                      ]
       fmap (<> "\n") (readFile stateFilePath) `shouldReturn` contents
+
+  describe "StateFile.read" $ do
+    it "should extract all that was written by the create function" $ \(cwd, appTmpDir) -> do
+      let pairA = ("good-Night", "2436798f-2b60-4d97-87f5-f1e91e69e455")
+      let pairB = (".main-thing", "445685f1-5faa-4bbe-8a04-c26dd4098738")
+      let pairC = ("FoolsErrand", "2a04c542-3e06-474f-a7d6-4cee6ceaa583")
+      let pairD = ("itchymonitor", "eccef357-a905-4dbb-bbaf-bf559b092965")
+      -- Create pairB as a dir
+      createDirectory $ cwd </> (fst pairB)
+      let filesAndUuidInDir = [pairA, pairB, pairC, pairD]
+      stateFilePath <- StateFile.create cwd appTmpDir filesAndUuidInDir
+      StateFile.read stateFilePath `shouldReturn` [pairB, pairC, pairA, pairD]
