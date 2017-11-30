@@ -1,14 +1,21 @@
 module Hroamer.StateFile
   ( create
+  , getFilenameAndUUIDInUserDirStateFile
   ) where
 
+import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Monad (sequence)
+import Data.Conduit ((.|), await, runConduitRes, yield)
+import Data.Conduit.Binary (sourceFile)
+import Data.Maybe (fromJust)
 import Data.Text (pack)
 import Foundation
-import System.FilePath.Posix (FilePath)
+import System.FilePath.Posix (FilePath, dropTrailingPathSeparator)
 import System.IO.Temp (writeTempFile)
+import Text.Parsec (runParser)
 
 import Hroamer.DataStructures (FilePathUUIDPair)
+import qualified Hroamer.Parser as Parser
 import qualified Hroamer.Path as Path
 
 create :: FilePath -> FilePath -> [FilePathUUIDPair] -> IO FilePath
@@ -30,3 +37,30 @@ create cwd appTmpDir filesAndUuidAccurate = do
   where
     constructTextFileHeader :: FilePath -> [Char]
     constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
+
+
+getFilenameAndUUIDInUserDirStateFile :: FilePath -> IO [FilePathUUIDPair]
+getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
+  list_of_maybe_fname_uuid <-
+    runConduitRes $
+    sourceFile user_dirstate_filepath .| decodeUtf8C .|
+    peekForeverE parseLineConduit .|
+    sinkList
+  return $
+    fmap
+      (\x ->
+         let (fn, uuid) = fromJust x
+         in ((dropTrailingPathSeparator . toList) fn, uuid))
+      list_of_maybe_fname_uuid
+  where
+    parseLineConduit =
+      lineC
+        (do maybeLine <- await
+            case maybeLine of
+              Just line ->
+                let parse_result =
+                      runParser Parser.parseDirStateLine () "" line
+                in either (const $ return ()) onlyYieldJust parse_result
+              Nothing -> return ())
+    onlyYieldJust j@(Just _) = yield j
+    onlyYieldJust _ = return ()

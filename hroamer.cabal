@@ -21,9 +21,6 @@ executable hroamer
                      , OverloadedStrings
   build-depends:       hroamer
                      , base >= 4.7 && < 5
-                     , conduit
-                     , conduit-combinators
-                     , conduit-extra
                      , containers
                      , directory
                      , dlist
@@ -46,6 +43,9 @@ library
                      , OverloadedStrings
   build-depends:       base >= 4.7 && < 5
                      , bytestring
+                     , conduit
+                     , conduit-combinators
+                     , conduit-extra
                      , containers
                      , directory
                      , dlist

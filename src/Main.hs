@@ -1,18 +1,15 @@
 module Main where
 
-import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Writer.Strict (runWriterT)
-import Data.Conduit ((.|), await, runConduitRes, yield)
-import Data.Conduit.Binary (sourceFile)
 import qualified Data.DList
 import Data.Either (either)
 import Data.Map (Map)
 import qualified Data.Map.Strict as M
-import Data.Maybe (fromJust, listToMaybe)
+import Data.Maybe (listToMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text, pack)
@@ -28,19 +25,16 @@ import System.Directory
         renameFile)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
-       (FilePath, (</>), dropTrailingPathSeparator, takeDirectory,
-        takeBaseName)
+       (FilePath, (</>), takeDirectory, takeBaseName)
 import System.Posix.Signals
        (Handler(Catch), installHandler, keyboardSignal, softwareStop,
         softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
-import Text.Parsec (runParser)
 
 import Hroamer.DataStructures (FilePathUUIDPair)
 import Hroamer.Database (FilesTableRow(..))
 
 import qualified Hroamer.Database as HroamerDb
-import qualified Hroamer.Parser as Parser
 import qualified Hroamer.Path as Path
 import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
@@ -118,7 +112,7 @@ main = do
     ExitSuccess -> return ()
     _ -> do
       list_of_filename_and_uuid <-
-        getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath
+        StateFile.getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath
       let list_of_filename = fmap fst list_of_filename_and_uuid
       unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
       let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
@@ -233,33 +227,6 @@ doFileOp cwd _ (CopyOp src_filerepr dest_filerepr src_is_dir) = do
     else do
       copyFile src_filepath dest_filepath
       TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
-
-
-getFilenameAndUUIDInUserDirStateFile :: FilePath -> IO [FilePathUUIDPair]
-getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
-  list_of_maybe_fname_uuid <-
-    runConduitRes $
-    sourceFile user_dirstate_filepath .| decodeUtf8C .|
-    peekForeverE parseLineConduit .|
-    sinkList
-  return $
-    fmap
-      (\x ->
-         let (fn, uuid) = fromJust x
-         in ((dropTrailingPathSeparator . toList) fn, uuid))
-      list_of_maybe_fname_uuid
-  where
-    parseLineConduit =
-      lineC
-        (do maybeLine <- await
-            case maybeLine of
-              Just line ->
-                let parse_result =
-                      runParser Parser.parseDirStateLine () "" line
-                in either (const $ return ()) onlyYieldJust parse_result
-              Nothing -> return ())
-    onlyYieldJust j@(Just _) = yield j
-    onlyYieldJust _ = return ()
 
 
 genTrashCopyOps
