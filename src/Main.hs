@@ -112,7 +112,7 @@ main = do
     ExitSuccess -> return ()
     _ -> do
       list_of_filename_and_uuid <-
-        StateFile.getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath
+        StateFile.read user_dirstate_filepath
       let list_of_filename = fmap fst list_of_filename_and_uuid
       unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
       let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths

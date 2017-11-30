@@ -1,6 +1,6 @@
 module Hroamer.StateFile
   ( create
-  , getFilenameAndUUIDInUserDirStateFile
+  , read
   ) where
 
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)
@@ -39,8 +39,8 @@ create cwd appTmpDir filesAndUuidAccurate = do
     constructTextFileHeader cwd = "\" pwd: " <> (toList cwd) <> "\n"
 
 
-getFilenameAndUUIDInUserDirStateFile :: FilePath -> IO [FilePathUUIDPair]
-getFilenameAndUUIDInUserDirStateFile user_dirstate_filepath = do
+read :: FilePath -> IO [FilePathUUIDPair]
+read user_dirstate_filepath = do
   list_of_maybe_fname_uuid <-
     runConduitRes $
     sourceFile user_dirstate_filepath .| decodeUtf8C .|
