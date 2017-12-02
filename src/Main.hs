@@ -340,7 +340,6 @@ generateFileOps list_of_filename_and_uuid initial_filenames_and_uuids = do
   -- the program started.
   let initial_uuid_to_filename =
         M.fromList $ fmap swap initial_filenames_and_uuids
-  path_to_db <- asks rsPathToDb
   copyOps <- genCopyOps
                uuid_to_trashcopyop
                initial_uuid_to_filename
