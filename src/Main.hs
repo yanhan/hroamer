@@ -4,7 +4,8 @@ import Control.Exception (catch, IOException)
 import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (ReaderT(ReaderT, runReaderT), ask, asks)
+import Control.Monad.Reader
+       (Reader, ReaderT(ReaderT, runReaderT), ask, asks, runReader)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import Data.Either (either)
@@ -183,12 +184,10 @@ processCwd cwd app_tmp_dir path_to_db = do
 
 data FileOp
   = CopyOp { srcFileRepr :: FileRepr
-          ,  destFileRepr :: FileRepr
-          ,  srcIsDir :: Bool}
+          ,  destFileRepr :: FileRepr }
   | TrashCopyOp FileRepr -- src
                 FileRepr -- dest
                 Text -- uuid
-                Bool -- src_is_directory
   | NoFileOp
   deriving (Eq, Show)
 
@@ -199,22 +198,24 @@ doFileOp :: FilePath -> (FilesTableRow -> IO ()) -> FileOp ->  IO ()
 -- Do nothing
 doFileOp _ _ NoFileOp = return ()
 
-doFileOp cwd dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid src_is_dir) = do
+doFileOp cwd dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid) = do
   let (FileRepr dest_dir dest_filename) = dest_filerepr
   let src_filepath = filerepr_to_filepath src_filerepr
   let dest_filepath = filerepr_to_filepath dest_filerepr
   createDirectory dest_dir
-  if src_is_dir
+  srcIsDir <- doesDirectoryExist src_filepath
+  if srcIsDir
     then renameDirectory src_filepath dest_filepath
     else renameFile src_filepath dest_filepath
   TIO.putStrLn $ "trash-copy " <> (pack src_filepath)
   dbUpdateDirAndFileName
     FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid}
 
-doFileOp cwd _ (CopyOp src_filerepr dest_filerepr src_is_dir) = do
+doFileOp cwd _ (CopyOp src_filerepr dest_filerepr) = do
   let (FileRepr dest_dir dest_filename) = dest_filerepr
   let src_filepath = filerepr_to_filepath src_filerepr
   let dest_filepath = filerepr_to_filepath dest_filerepr
+  src_is_dir <- doesDirectoryExist src_filepath
   if src_is_dir
     then do
       (_, _, _, ph) <-
@@ -236,7 +237,7 @@ doFileOp cwd _ (CopyOp src_filerepr dest_filerepr src_is_dir) = do
 genTrashCopyOps
   :: Set FilePathUUIDPair
   -> Set FilePathUUIDPair
-  -> ReaderT FileOpsReadState IO [FileOp]
+  -> Reader FileOpsReadState [FileOp]
 genTrashCopyOps initial_filenames_uuids current_filenames_uuids = do
   cwd <- asks rsCwd
   path_to_trashcopy_dir <- asks rsTrashCopyDir
@@ -245,13 +246,12 @@ genTrashCopyOps initial_filenames_uuids current_filenames_uuids = do
   let list_of_filename_uuid_to_trashcopy =
         sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
         S.toList filenames_uuids_to_trashcopy
-  liftIO $
-    mapM
-      (\(fname, uuid) -> do
+  return $
+    fmap
+      (\(fname, uuid) ->
          let dest_filerepr =
                FileRepr (dirToTrashCopyTo path_to_trashcopy_dir uuid) fname
-         src_is_dir <- doesDirectoryExist $ cwd </> fname
-         return $ TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid src_is_dir)
+         in TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid)
       list_of_filename_uuid_to_trashcopy
   where
     dirToTrashCopyTo :: FilePath -> Text -> FilePath
@@ -278,8 +278,8 @@ genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to
              x <-
                runExceptT
                  (do maybeToExceptT
-                       (\(TrashCopyOp _ new_src_filerepr _ src_is_dir) ->
-                          return $ CopyOp new_src_filerepr dest_filerepr src_is_dir)
+                       (\(TrashCopyOp _ new_src_filerepr _) ->
+                          return $ CopyOp new_src_filerepr dest_filerepr)
                        (M.lookup uuid uuid_to_trashcopyop)
                    -- Source file is not to be trash copied.
                    -- See if we can find it in the initial set of files.
@@ -307,14 +307,10 @@ genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to
     makeCopyOpOrNoFileOp :: FileRepr -> FileRepr -> IO FileOp
     makeCopyOpOrNoFileOp src_filerepr@(FileRepr src_dir src_filename) dest_filerepr = do
       let src_filepath = src_dir </> src_filename
-      src_is_dir <- doesDirectoryExist src_filepath
-      if src_is_dir
-        then return $ CopyOp src_filerepr dest_filerepr True
-        else do
-          src_exists <- doesPathExist src_filepath
-          if src_exists
-            then return $ CopyOp src_filerepr dest_filerepr False
-            else return $ NoFileOp
+      src_exists <- doesPathExist src_filepath
+      if src_exists
+        then return $ CopyOp src_filerepr dest_filerepr
+        else return $ NoFileOp
 
 
 generateFileOps
@@ -324,14 +320,17 @@ generateFileOps
 generateFileOps list_of_filename_and_uuid initial_filenames_and_uuids = do
   let initial_filename_uuid_set = S.fromList initial_filenames_and_uuids
   let current_filename_uuid_set = S.fromList list_of_filename_and_uuid
-  trashCopyOps <-
-    genTrashCopyOps initial_filename_uuid_set current_filename_uuid_set
+  r <- ask
+  let trashCopyOps =
+        runReader
+          (genTrashCopyOps initial_filename_uuid_set current_filename_uuid_set)
+          r
   -- At this point, UUIDs in `initial_filenames_and_uuids` are unique. Otherwise
   -- they would have violated the UNIQUE constraint on the `files.uuid` column.
   -- Hence, we can safely construct a Map indexed by UUID
   let uuid_to_trashcopyop =
         M.fromList $
-        fmap (\op@(TrashCopyOp _ _ uuid _) -> (uuid, op)) trashCopyOps
+        fmap (\op@(TrashCopyOp _ _ uuid) -> (uuid, op)) trashCopyOps
   let list_of_filename_uuid_to_copy =
         sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
         S.toList $
