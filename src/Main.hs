@@ -23,8 +23,7 @@ import Foundation.Collection (mapM, mapM_, zip)
 import System.Directory
        (XdgDirectory(XdgData), copyFile, createDirectory,
         doesDirectoryExist, doesPathExist, getCurrentDirectory,
-        getXdgDirectory, listDirectory, removeFile, renameDirectory,
-        renameFile)
+        getXdgDirectory, listDirectory, removeFile, renamePath)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
        (FilePath, (</>), takeDirectory, takeBaseName)
@@ -203,10 +202,7 @@ doFileOp cwd dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid
   let src_filepath = filerepr_to_filepath src_filerepr
   let dest_filepath = filerepr_to_filepath dest_filerepr
   createDirectory dest_dir
-  srcIsDir <- doesDirectoryExist src_filepath
-  if srcIsDir
-    then renameDirectory src_filepath dest_filepath
-    else renameFile src_filepath dest_filepath
+  renamePath src_filepath dest_filepath
   TIO.putStrLn $ "trash-copy " <> (pack src_filepath)
   dbUpdateDirAndFileName
     FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid}
