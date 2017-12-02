@@ -4,6 +4,7 @@ import Control.Exception (catch, IOException)
 import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (ReaderT(ReaderT, runReaderT), ask, asks)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import Data.Either (either)
@@ -46,6 +47,13 @@ data FileRepr = FileRepr FilePath FilePath -- dir  file
 
 filerepr_to_filepath :: FileRepr -> FilePath
 filerepr_to_filepath (FileRepr dir fname) = dir </> fname
+
+
+data FileOpsReadState =
+  FileOpsReadState { rsCwd :: FilePath
+                   , rsPathToDb :: FilePath
+                   , rsTrashCopyDir :: FilePath
+                   }
 
 
 main :: IO ()
@@ -118,13 +126,9 @@ main = do
       let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
       if unsupportedPathsDList == Data.DList.empty
         then do
-          file_op_list <-
-            generateFileOps
-              path_to_trashcopy_dir
-              cwd
-              path_to_db
-              list_of_filename_and_uuid
-              initial_fnames_and_uuids
+          file_op_list <- runReaderT
+            (generateFileOps list_of_filename_and_uuid initial_fnames_and_uuids)
+            (FileOpsReadState cwd path_to_db path_to_trashcopy_dir)
           HroamerDb.wrapDbConn path_to_db
             (\f -> forM_ file_op_list (doFileOp cwd f)) HroamerDb.updateDirAndFilename
         else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
@@ -230,24 +234,25 @@ doFileOp cwd _ (CopyOp src_filerepr dest_filerepr src_is_dir) = do
 
 
 genTrashCopyOps
-  :: FilePath
-  -> FilePath
+  :: Set FilePathUUIDPair
   -> Set FilePathUUIDPair
-  -> Set FilePathUUIDPair
-  -> IO [FileOp]
-genTrashCopyOps path_to_trashcopy_dir cwd initial_filenames_uuids current_filenames_uuids = do
+  -> ReaderT FileOpsReadState IO [FileOp]
+genTrashCopyOps initial_filenames_uuids current_filenames_uuids = do
+  cwd <- asks rsCwd
+  path_to_trashcopy_dir <- asks rsTrashCopyDir
   let filenames_uuids_to_trashcopy =
         S.difference initial_filenames_uuids current_filenames_uuids
   let list_of_filename_uuid_to_trashcopy =
         sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
         S.toList filenames_uuids_to_trashcopy
-  mapM
-    (\(fname, uuid) -> do
-       let dest_filerepr =
-             FileRepr (dirToTrashCopyTo path_to_trashcopy_dir uuid) fname
-       src_is_dir <- doesDirectoryExist $ cwd </> fname
-       return $ TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid src_is_dir)
-    list_of_filename_uuid_to_trashcopy
+  liftIO $
+    mapM
+      (\(fname, uuid) -> do
+         let dest_filerepr =
+               FileRepr (dirToTrashCopyTo path_to_trashcopy_dir uuid) fname
+         src_is_dir <- doesDirectoryExist $ cwd </> fname
+         return $ TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid src_is_dir)
+      list_of_filename_uuid_to_trashcopy
   where
     dirToTrashCopyTo :: FilePath -> Text -> FilePath
     dirToTrashCopyTo path_to_trashcopy_dir uuid =
@@ -255,40 +260,46 @@ genTrashCopyOps path_to_trashcopy_dir cwd initial_filenames_uuids current_filena
 
 
 genCopyOps
-  :: FilePath
-  -> Map Text FileOp
+  :: Map Text FileOp
   -> Map Text FilePath
   -> [FilePathUUIDPair]
-  -> (Text -> IO [FilesTableRow])
-  -> IO [FileOp]
-genCopyOps cwd uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy dbGetRowFromUUID =
-  mapM
-    (\(fname, uuid) -> do
-       let dest_filerepr = FileRepr cwd fname
-       x <-
-         runExceptT
-           (do maybeToExceptT
-                 (\(TrashCopyOp _ new_src_filerepr _ src_is_dir) ->
-                    return $ CopyOp new_src_filerepr dest_filerepr src_is_dir)
-                 (M.lookup uuid uuid_to_trashcopyop)
-             -- Source file is not to be trash copied.
-             -- See if we can find it in the initial set of files.
-               maybeToExceptT
-                 (\src_filename ->
-                    makeCopyOpOrNoFileOp
-                      (FileRepr cwd src_filename)
-                      dest_filerepr)
-                 (M.lookup uuid initial_uuid_to_filename)
-             -- Need to perform database lookup
-               row <- liftIO $ dbGetRowFromUUID uuid
-               maybeToExceptT
-                 (\FilesTableRow {dir = src_dir, filename = src_filename} ->
-                    makeCopyOpOrNoFileOp
-                      (FileRepr src_dir src_filename)
-                      dest_filerepr)
-                 (listToMaybe row))
-       either return (const $ return NoFileOp) x)
-    list_of_filename_uuid_to_copy
+  -> ReaderT FileOpsReadState IO [FileOp]
+genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy = do
+  cwd <- asks rsCwd
+  pathToDb <- asks rsPathToDb
+  liftIO $
+    HroamerDb.wrapDbConn
+      pathToDb
+      (\dbGetRowFromUUID ->
+        -- IO Monad
+        mapM
+          (\(fname, uuid) -> do
+             let dest_filerepr = FileRepr cwd fname
+             x <-
+               runExceptT
+                 (do maybeToExceptT
+                       (\(TrashCopyOp _ new_src_filerepr _ src_is_dir) ->
+                          return $ CopyOp new_src_filerepr dest_filerepr src_is_dir)
+                       (M.lookup uuid uuid_to_trashcopyop)
+                   -- Source file is not to be trash copied.
+                   -- See if we can find it in the initial set of files.
+                     maybeToExceptT
+                       (\src_filename ->
+                          makeCopyOpOrNoFileOp
+                            (FileRepr cwd src_filename)
+                            dest_filerepr)
+                       (M.lookup uuid initial_uuid_to_filename)
+                   -- Need to perform database lookup
+                     row <- liftIO $ dbGetRowFromUUID uuid
+                     maybeToExceptT
+                       (\FilesTableRow {dir = src_dir, filename = src_filename} ->
+                          makeCopyOpOrNoFileOp
+                            (FileRepr src_dir src_filename)
+                            dest_filerepr)
+                       (listToMaybe row))
+             either return (const $ return NoFileOp) x)
+          list_of_filename_uuid_to_copy)
+      HroamerDb.getRowFromUUID
   where
     maybeToExceptT :: (a -> IO FileOp) -> Maybe a -> ExceptT FileOp IO ()
     maybeToExceptT f (Just x) = (liftIO $ f x) >>= throwError
@@ -307,21 +318,14 @@ genCopyOps cwd uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uui
 
 
 generateFileOps
-  :: FilePath
-  -> FilePath
-  -> FilePath
+  :: [FilePathUUIDPair]
   -> [FilePathUUIDPair]
-  -> [FilePathUUIDPair]
-  -> IO [FileOp]
-generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid initial_filenames_and_uuids = do
+  -> ReaderT FileOpsReadState IO [FileOp]
+generateFileOps list_of_filename_and_uuid initial_filenames_and_uuids = do
   let initial_filename_uuid_set = S.fromList initial_filenames_and_uuids
   let current_filename_uuid_set = S.fromList list_of_filename_and_uuid
   trashCopyOps <-
-    genTrashCopyOps
-      path_to_trashcopy_dir
-      cwd
-      initial_filename_uuid_set
-      current_filename_uuid_set
+    genTrashCopyOps initial_filename_uuid_set current_filename_uuid_set
   -- At this point, UUIDs in `initial_filenames_and_uuids` are unique. Otherwise
   -- they would have violated the UNIQUE constraint on the `files.uuid` column.
   -- Hence, we can safely construct a Map indexed by UUID
@@ -336,13 +340,9 @@ generateFileOps path_to_trashcopy_dir cwd path_to_db list_of_filename_and_uuid i
   -- the program started.
   let initial_uuid_to_filename =
         M.fromList $ fmap swap initial_filenames_and_uuids
-  copyOps <-
-    HroamerDb.wrapDbConn
-      path_to_db
-      (genCopyOps
-         cwd
-         uuid_to_trashcopyop
-         initial_uuid_to_filename
-         list_of_filename_uuid_to_copy)
-      HroamerDb.getRowFromUUID
+  path_to_db <- asks rsPathToDb
+  copyOps <- genCopyOps
+               uuid_to_trashcopyop
+               initial_uuid_to_filename
+               list_of_filename_uuid_to_copy
   return $ trashCopyOps <> filter (/= NoFileOp) copyOps
