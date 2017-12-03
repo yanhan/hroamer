@@ -284,19 +284,19 @@ genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to
   return $ fmap
     (\(fname, uuid) ->
        let dest_filerepr = FileRepr cwd fname
-           x = do
-                 maybeToLeft
-                   (\(TrashCopyOp _ new_src_filerepr _) ->
-                      CopyOp new_src_filerepr dest_filerepr)
-                   (M.lookup uuid uuid_to_trashcopyop)
-               -- Source file is not to be trash copied.
-               -- See if we can find it in the initial set of files.
-                 maybeToLeft
-                   (\src_filename ->
-                     CopyOp (FileRepr cwd src_filename) dest_filerepr)
-                   (M.lookup uuid initial_uuid_to_filename)
-               -- Need to perform database lookup
-                 return $ LookupDbCopyOp dest_filerepr uuid
+           x = (do
+             maybeToLeft
+               (\(TrashCopyOp _ new_src_filerepr _) ->
+                  CopyOp new_src_filerepr dest_filerepr)
+               (M.lookup uuid uuid_to_trashcopyop)
+             -- Source file is not to be trash copied.
+             -- See if we can find it in the initial set of files.
+             maybeToLeft
+               (\src_filename ->
+                 CopyOp (FileRepr cwd src_filename) dest_filerepr)
+               (M.lookup uuid initial_uuid_to_filename)
+             -- Need to perform database lookup
+             return $ LookupDbCopyOp dest_filerepr uuid)
        in either id id x)
     list_of_filename_uuid_to_copy
   where
