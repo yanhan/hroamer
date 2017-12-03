@@ -1,5 +1,6 @@
 module Hroamer.FileOps.Internal
   ( FileOp(..)
+  , dirToTrashCopyTo
   , genCopyOps
   , genTrashCopyOps
   ) where
@@ -28,6 +29,12 @@ data FileOp
                 Text -- uuid
   deriving (Eq, Show)
 
+
+dirToTrashCopyTo :: FilePath -> Text -> FilePath
+dirToTrashCopyTo pathToTrashCopyDir uuid =
+  pathToTrashCopyDir </> (toList uuid)
+
+
 genTrashCopyOps
   :: Set FilePathUUIDPair
   -> Set FilePathUUIDPair
@@ -47,10 +54,6 @@ genTrashCopyOps initialFilenamesAndUuids currentFilenamesAndUuids = do
                FileRepr (dirToTrashCopyTo pathToTrashCopyDir uuid) fname
          in TrashCopyOp (FileRepr cwd fname) destFileRepr uuid)
       listOfFilenamesAndUuidsToTrashCopy
-  where
-    dirToTrashCopyTo :: FilePath -> Text -> FilePath
-    dirToTrashCopyTo pathToTrashCopyDir uuid =
-      pathToTrashCopyDir </> (toList uuid)
 
 
 genCopyOps
