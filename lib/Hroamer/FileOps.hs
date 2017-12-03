@@ -16,28 +16,28 @@ generateFileOps
   :: [FilePathUUIDPair]
   -> [FilePathUUIDPair]
   -> Reader FileOpsReadState [FileOp]
-generateFileOps list_of_filename_and_uuid initial_filenames_and_uuids = do
-  let initial_filename_uuid_set = S.fromList initial_filenames_and_uuids
-  let current_filename_uuid_set = S.fromList list_of_filename_and_uuid
+generateFileOps listOfFilenamesAndUuids initialFilenamesAndUuids = do
+  let initialFilenamesAndUuidsSet = S.fromList initialFilenamesAndUuids
+  let currentFilenamesAndUuidsSet = S.fromList listOfFilenamesAndUuids
   trashCopyOps <- genTrashCopyOps
-                    initial_filename_uuid_set
-                    current_filename_uuid_set
-  -- At this point, UUIDs in `initial_filenames_and_uuids` are unique. Otherwise
+                    initialFilenamesAndUuidsSet
+                    currentFilenamesAndUuidsSet
+  -- At this point, UUIDs in `initialFilenamesAndUuids` are unique. Otherwise
   -- they would have violated the UNIQUE constraint on the `files.uuid` column.
   -- Hence, we can safely construct a Map indexed by UUID
-  let uuid_to_trashcopyop =
+  let uuidToTrashCopyOp =
         M.fromList $
         fmap (\op@(TrashCopyOp _ _ uuid) -> (uuid, op)) trashCopyOps
-  let list_of_filename_uuid_to_copy =
-        sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
+  let listOfFilenameUuidToCopy =
+        sortBy (\(fnameA, _) (fnameB, _) -> fnameA `compare` fnameB) $
         S.toList $
-        S.difference current_filename_uuid_set initial_filename_uuid_set
+        S.difference currentFilenamesAndUuidsSet initialFilenamesAndUuidsSet
   -- Map of UUID -> filename; for files that are in the current directory when
   -- the program started.
-  let initial_uuid_to_filename =
-        M.fromList $ fmap swap initial_filenames_and_uuids
+  let initialUuidToFilename =
+        M.fromList $ fmap swap initialFilenamesAndUuids
   copyOps <- genCopyOps
-               uuid_to_trashcopyop
-               initial_uuid_to_filename
-               list_of_filename_uuid_to_copy
+               uuidToTrashCopyOp
+               initialUuidToFilename
+               listOfFilenameUuidToCopy
   return $ trashCopyOps <> copyOps
