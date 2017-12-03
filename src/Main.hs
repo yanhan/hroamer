@@ -2,7 +2,7 @@ module Main where
 
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_)
-import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader
        (Reader, ReaderT(ReaderT, runReaderT), ask, asks, runReader)
@@ -129,8 +129,10 @@ main = do
           file_op_list <- runReaderT
             (generateFileOps list_of_filename_and_uuid initial_fnames_and_uuids)
             (FileOpsReadState cwd path_to_db path_to_trashcopy_dir)
-          HroamerDb.wrapDbConn path_to_db
-            (\f -> forM_ file_op_list (doFileOp cwd f)) HroamerDb.updateDirAndFilename
+          HroamerDb.wrapDbConn
+            path_to_db
+            (\f -> forM_ file_op_list (doFileOp cwd path_to_db f))
+            HroamerDb.updateDirAndFilename
         else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
 
 
@@ -184,20 +186,18 @@ processCwd cwd app_tmp_dir path_to_db = do
 data FileOp
   = CopyOp { srcFileRepr :: FileRepr
           ,  destFileRepr :: FileRepr }
+  | LookupDbCopyOp FileRepr -- dest
+                   Text -- uuid
   | TrashCopyOp FileRepr -- src
                 FileRepr -- dest
                 Text -- uuid
-  | NoFileOp
   deriving (Eq, Show)
 
 
 -- Assume both src and dest are in the same directory
-doFileOp :: FilePath -> (FilesTableRow -> IO ()) -> FileOp ->  IO ()
+doFileOp :: FilePath -> FilePath -> (FilesTableRow -> IO ()) -> FileOp ->  IO ()
 
--- Do nothing
-doFileOp _ _ NoFileOp = return ()
-
-doFileOp cwd dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid) = do
+doFileOp cwd _ dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid) = do
   let (FileRepr dest_dir dest_filename) = dest_filerepr
   let src_filepath = filerepr_to_filepath src_filerepr
   let dest_filepath = filerepr_to_filepath dest_filerepr
@@ -207,12 +207,28 @@ doFileOp cwd dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid
   dbUpdateDirAndFileName
     FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid}
 
-doFileOp cwd _ (CopyOp src_filerepr dest_filerepr) = do
+-- YH TODO: This is causing us to open another connection to the db.
+-- Refactor the code so that we don't have to do that.
+doFileOp cwd pathToDb dbUpdateDirAndFileName (LookupDbCopyOp destFileRepr uuid) = do
+  HroamerDb.wrapDbConn
+    pathToDb
+    (\dbGetRowFromUUID -> do
+      row <- dbGetRowFromUUID uuid
+      case row of
+        [] -> return ()
+        (FilesTableRow {dir = srcDir, filename = srcFilename} : _ ) ->
+          let srcFileRepr = FileRepr srcDir srcFilename
+          in doFileOp cwd pathToDb dbUpdateDirAndFileName (CopyOp srcFileRepr destFileRepr))
+    HroamerDb.getRowFromUUID
+
+
+doFileOp cwd _ _ (CopyOp src_filerepr dest_filerepr) = do
   let (FileRepr dest_dir dest_filename) = dest_filerepr
   let src_filepath = filerepr_to_filepath src_filerepr
   let dest_filepath = filerepr_to_filepath dest_filerepr
+  src_exists <- doesPathExist src_filepath
   src_is_dir <- doesDirectoryExist src_filepath
-  if src_is_dir
+  if src_exists && src_is_dir
     then do
       (_, _, _, ph) <-
         createProcess (proc "cp" ["-R", src_filepath, dest_filepath])
@@ -225,9 +241,13 @@ doFileOp cwd _ (CopyOp src_filerepr dest_filerepr) = do
           TIO.putStrLn $
           "Failed to copy " <> (pack src_filepath) <> " to " <>
           (pack dest_filepath)
-    else do
-      copyFile src_filepath dest_filepath
-      TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+    else
+      if src_exists
+         then do
+           copyFile src_filepath dest_filepath
+           TIO.putStrLn $ "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+         else
+           return ()
 
 
 genTrashCopyOps
@@ -259,54 +279,31 @@ genCopyOps
   :: Map Text FileOp
   -> Map Text FilePath
   -> [FilePathUUIDPair]
-  -> ReaderT FileOpsReadState IO [FileOp]
+  -> Reader FilePath [FileOp]
 genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy = do
-  cwd <- asks rsCwd
-  pathToDb <- asks rsPathToDb
-  liftIO $
-    HroamerDb.wrapDbConn
-      pathToDb
-      (\dbGetRowFromUUID ->
-        -- IO Monad
-        mapM
-          (\(fname, uuid) -> do
-             let dest_filerepr = FileRepr cwd fname
-             x <-
-               runExceptT
-                 (do maybeToExceptT
+  cwd <- ask
+  return $ fmap
+    (\(fname, uuid) ->
+       let dest_filerepr = FileRepr cwd fname
+           x = runExcept
+                 (do maybeToExcept
                        (\(TrashCopyOp _ new_src_filerepr _) ->
-                          return $ CopyOp new_src_filerepr dest_filerepr)
+                          CopyOp new_src_filerepr dest_filerepr)
                        (M.lookup uuid uuid_to_trashcopyop)
                    -- Source file is not to be trash copied.
                    -- See if we can find it in the initial set of files.
-                     maybeToExceptT
+                     maybeToExcept
                        (\src_filename ->
-                          makeCopyOpOrNoFileOp
-                            (FileRepr cwd src_filename)
-                            dest_filerepr)
+                         CopyOp (FileRepr cwd src_filename) dest_filerepr)
                        (M.lookup uuid initial_uuid_to_filename)
                    -- Need to perform database lookup
-                     row <- liftIO $ dbGetRowFromUUID uuid
-                     maybeToExceptT
-                       (\FilesTableRow {dir = src_dir, filename = src_filename} ->
-                          makeCopyOpOrNoFileOp
-                            (FileRepr src_dir src_filename)
-                            dest_filerepr)
-                       (listToMaybe row))
-             either return (const $ return NoFileOp) x)
-          list_of_filename_uuid_to_copy)
-      HroamerDb.getRowFromUUID
+                     throwError $ LookupDbCopyOp dest_filerepr uuid)
+       in either id id x)
+    list_of_filename_uuid_to_copy
   where
-    maybeToExceptT :: (a -> IO FileOp) -> Maybe a -> ExceptT FileOp IO ()
-    maybeToExceptT f (Just x) = (liftIO $ f x) >>= throwError
-    maybeToExceptT _ Nothing = return ()
-    makeCopyOpOrNoFileOp :: FileRepr -> FileRepr -> IO FileOp
-    makeCopyOpOrNoFileOp src_filerepr@(FileRepr src_dir src_filename) dest_filerepr = do
-      let src_filepath = src_dir </> src_filename
-      src_exists <- doesPathExist src_filepath
-      if src_exists
-        then return $ CopyOp src_filerepr dest_filerepr
-        else return $ NoFileOp
+    maybeToExcept :: (a -> FileOp) -> Maybe a -> Except FileOp ()
+    maybeToExcept f (Just x) = throwError $ f x
+    maybeToExcept _ Nothing = return ()
 
 
 generateFileOps
@@ -335,8 +332,10 @@ generateFileOps list_of_filename_and_uuid initial_filenames_and_uuids = do
   -- the program started.
   let initial_uuid_to_filename =
         M.fromList $ fmap swap initial_filenames_and_uuids
-  copyOps <- genCopyOps
-               uuid_to_trashcopyop
-               initial_uuid_to_filename
-               list_of_filename_uuid_to_copy
-  return $ trashCopyOps <> filter (/= NoFileOp) copyOps
+  cwd <- asks rsCwd
+  let copyOps = runReader (genCopyOps
+                            uuid_to_trashcopyop
+                            initial_uuid_to_filename
+                            list_of_filename_uuid_to_copy)
+                          cwd
+  return $ trashCopyOps <> copyOps
