@@ -4,7 +4,7 @@ import Control.Exception (catch, IOException)
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader
-       (Reader, ReaderT(ReaderT, runReaderT), ask, asks, runReader)
+       (Reader, ReaderT(runReaderT), ask, asks, runReader)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import Data.Either (either)
@@ -126,9 +126,11 @@ main = do
       if unsupportedPathsDList == Data.DList.empty
         then do
           let r = FileOpsReadState cwd path_to_db path_to_trashcopy_dir
-          file_op_list <- runReaderT
-            (generateFileOps list_of_filename_and_uuid initial_fnames_and_uuids)
-            r
+          let file_op_list = runReader
+                               (generateFileOps
+                                 list_of_filename_and_uuid
+                                 initial_fnames_and_uuids)
+                               r
           HroamerDb.wrapDbConn
             path_to_db
             (\f ->
@@ -289,9 +291,9 @@ genCopyOps
   :: Map Text FileOp
   -> Map Text FilePath
   -> [FilePathUUIDPair]
-  -> Reader FilePath [FileOp]
+  -> Reader FileOpsReadState [FileOp]
 genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy = do
-  cwd <- ask
+  cwd <- asks rsCwd
   return $ fmap
     (\(fname, uuid) ->
        let dest_filerepr = FileRepr cwd fname
@@ -319,15 +321,13 @@ genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to
 generateFileOps
   :: [FilePathUUIDPair]
   -> [FilePathUUIDPair]
-  -> ReaderT FileOpsReadState IO [FileOp]
+  -> Reader FileOpsReadState [FileOp]
 generateFileOps list_of_filename_and_uuid initial_filenames_and_uuids = do
   let initial_filename_uuid_set = S.fromList initial_filenames_and_uuids
   let current_filename_uuid_set = S.fromList list_of_filename_and_uuid
-  r <- ask
-  let trashCopyOps =
-        runReader
-          (genTrashCopyOps initial_filename_uuid_set current_filename_uuid_set)
-          r
+  trashCopyOps <- genTrashCopyOps
+                    initial_filename_uuid_set
+                    current_filename_uuid_set
   -- At this point, UUIDs in `initial_filenames_and_uuids` are unique. Otherwise
   -- they would have violated the UNIQUE constraint on the `files.uuid` column.
   -- Hence, we can safely construct a Map indexed by UUID
@@ -342,10 +342,8 @@ generateFileOps list_of_filename_and_uuid initial_filenames_and_uuids = do
   -- the program started.
   let initial_uuid_to_filename =
         M.fromList $ fmap swap initial_filenames_and_uuids
-  cwd <- asks rsCwd
-  let copyOps = runReader (genCopyOps
-                            uuid_to_trashcopyop
-                            initial_uuid_to_filename
-                            list_of_filename_uuid_to_copy)
-                          cwd
+  copyOps <- genCopyOps
+               uuid_to_trashcopyop
+               initial_uuid_to_filename
+               list_of_filename_uuid_to_copy
   return $ trashCopyOps <> copyOps
