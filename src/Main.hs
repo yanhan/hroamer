@@ -7,10 +7,6 @@ import Control.Monad.Reader
        (Reader, ReaderT(runReaderT), ask, asks, runReader)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
-import Data.Either (either)
-import Data.Map (Map)
-import qualified Data.Map.Strict as M
-import Data.Maybe (listToMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text, pack)
@@ -31,28 +27,19 @@ import System.Posix.Signals
         softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
 
-import Hroamer.DataStructures (FilePathUUIDPair)
+import Hroamer.DataStructures
+       (FilePathUUIDPair,
+        FileOpsReadState(FileOpsReadState, rsCwd, rsPathToDb),
+        FileRepr(FileRepr), filerepr_to_filepath)
 import Hroamer.Database (FilesTableRow(..))
+import Hroamer.FileOps
+       (FileOp(CopyOp, LookupDbCopyOp, TrashCopyOp), generateFileOps)
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
 import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 import qualified Hroamer.Utilities as Utils
-
--- A file, broken down into its directory and filename
-data FileRepr = FileRepr FilePath FilePath -- dir  file
-  deriving (Eq, Show)
-
-filerepr_to_filepath :: FileRepr -> FilePath
-filerepr_to_filepath (FileRepr dir fname) = dir </> fname
-
-
-data FileOpsReadState =
-  FileOpsReadState { rsCwd :: FilePath
-                   , rsPathToDb :: FilePath
-                   , rsTrashCopyDir :: FilePath
-                   }
 
 
 main :: IO ()
@@ -186,17 +173,6 @@ processCwd cwd app_tmp_dir path_to_db = do
       in (set_system `S.difference` set_db, set_db `S.difference` set_system)
 
 
-data FileOp
-  = CopyOp { srcFileRepr :: FileRepr
-          ,  destFileRepr :: FileRepr }
-  | LookupDbCopyOp FileRepr -- dest
-                   Text -- uuid
-  | TrashCopyOp FileRepr -- src
-                FileRepr -- dest
-                Text -- uuid
-  deriving (Eq, Show)
-
-
 -- Assume both src and dest are in the same directory
 doFileOp :: (FilesTableRow -> IO ()) -> FileOp ->  ReaderT FileOpsReadState IO ()
 
@@ -260,90 +236,3 @@ doFileOp _ (CopyOp src_filerepr dest_filerepr) = do
                "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
            else
              return ()
-
-
-genTrashCopyOps
-  :: Set FilePathUUIDPair
-  -> Set FilePathUUIDPair
-  -> Reader FileOpsReadState [FileOp]
-genTrashCopyOps initial_filenames_uuids current_filenames_uuids = do
-  cwd <- asks rsCwd
-  path_to_trashcopy_dir <- asks rsTrashCopyDir
-  let filenames_uuids_to_trashcopy =
-        S.difference initial_filenames_uuids current_filenames_uuids
-  let list_of_filename_uuid_to_trashcopy =
-        sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
-        S.toList filenames_uuids_to_trashcopy
-  return $
-    fmap
-      (\(fname, uuid) ->
-         let dest_filerepr =
-               FileRepr (dirToTrashCopyTo path_to_trashcopy_dir uuid) fname
-         in TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid)
-      list_of_filename_uuid_to_trashcopy
-  where
-    dirToTrashCopyTo :: FilePath -> Text -> FilePath
-    dirToTrashCopyTo path_to_trashcopy_dir uuid =
-      path_to_trashcopy_dir </> (toList uuid)
-
-
-genCopyOps
-  :: Map Text FileOp
-  -> Map Text FilePath
-  -> [FilePathUUIDPair]
-  -> Reader FileOpsReadState [FileOp]
-genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy = do
-  cwd <- asks rsCwd
-  return $ fmap
-    (\(fname, uuid) ->
-       let dest_filerepr = FileRepr cwd fname
-           x = (do
-             maybeToLeft
-               (\(TrashCopyOp _ new_src_filerepr _) ->
-                  CopyOp new_src_filerepr dest_filerepr)
-               (M.lookup uuid uuid_to_trashcopyop)
-             -- Source file is not to be trash copied.
-             -- See if we can find it in the initial set of files.
-             maybeToLeft
-               (\src_filename ->
-                 CopyOp (FileRepr cwd src_filename) dest_filerepr)
-               (M.lookup uuid initial_uuid_to_filename)
-             -- Need to perform database lookup
-             return $ LookupDbCopyOp dest_filerepr uuid)
-       in either id id x)
-    list_of_filename_uuid_to_copy
-  where
-    maybeToLeft :: (a -> FileOp) -> Maybe a -> Either FileOp ()
-    maybeToLeft f (Just x) = Left $ f x
-    maybeToLeft _ Nothing = Right ()
-
-
-generateFileOps
-  :: [FilePathUUIDPair]
-  -> [FilePathUUIDPair]
-  -> Reader FileOpsReadState [FileOp]
-generateFileOps list_of_filename_and_uuid initial_filenames_and_uuids = do
-  let initial_filename_uuid_set = S.fromList initial_filenames_and_uuids
-  let current_filename_uuid_set = S.fromList list_of_filename_and_uuid
-  trashCopyOps <- genTrashCopyOps
-                    initial_filename_uuid_set
-                    current_filename_uuid_set
-  -- At this point, UUIDs in `initial_filenames_and_uuids` are unique. Otherwise
-  -- they would have violated the UNIQUE constraint on the `files.uuid` column.
-  -- Hence, we can safely construct a Map indexed by UUID
-  let uuid_to_trashcopyop =
-        M.fromList $
-        fmap (\op@(TrashCopyOp _ _ uuid) -> (uuid, op)) trashCopyOps
-  let list_of_filename_uuid_to_copy =
-        sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
-        S.toList $
-        S.difference current_filename_uuid_set initial_filename_uuid_set
-  -- Map of UUID -> filename; for files that are in the current directory when
-  -- the program started.
-  let initial_uuid_to_filename =
-        M.fromList $ fmap swap initial_filenames_and_uuids
-  copyOps <- genCopyOps
-               uuid_to_trashcopyop
-               initial_uuid_to_filename
-               list_of_filename_uuid_to_copy
-  return $ trashCopyOps <> copyOps
