@@ -45,10 +45,6 @@ spec = parallel $ do
           trashCopyFilename = "onions"
           trashCopyOpDestFileRepr = FileRepr "/fake/trash/dir"  trashCopyFilename
           trashCopyOpUuid = "076f6f46-76f2-429a-a586-a132e4b20b3f"
-          trashCopyOp = TrashCopyOp
-                          (FileRepr cwd trashCopyFilename)
-                          trashCopyOpDestFileRepr
-                          trashCopyOpUuid
           -- File renames in same dir
           -- file one
           fileOneName = "olive-oil"
@@ -62,7 +58,7 @@ spec = parallel $ do
           lkName = "linguine"
           lkUuid = "7c6b8a68-348a-4ce5-85dd-284ab1eea3ec"
 
-          uuidToTrashCopyOp = M.fromList [(trashCopyOpUuid, trashCopyOp)]
+          uuidToTrashCopyOp = M.fromList [(trashCopyOpUuid, trashCopyOpDestFileRepr)]
           initialUuidToFilename = M.fromList [ (fileOneUuid, fileOneName)
                                              , (fileTwoUuid, fileTwoName)
                                              ]
