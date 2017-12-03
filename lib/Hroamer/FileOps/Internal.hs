@@ -32,25 +32,25 @@ genTrashCopyOps
   :: Set FilePathUUIDPair
   -> Set FilePathUUIDPair
   -> Reader FileOpsReadState [FileOp]
-genTrashCopyOps initial_filenames_uuids current_filenames_uuids = do
+genTrashCopyOps initialFilenamesAndUuids currentFilenamesAndUuids = do
   cwd <- asks rsCwd
-  path_to_trashcopy_dir <- asks rsTrashCopyDir
-  let filenames_uuids_to_trashcopy =
-        S.difference initial_filenames_uuids current_filenames_uuids
-  let list_of_filename_uuid_to_trashcopy =
-        sortBy (\(fname_a, _) (fname_b, _) -> fname_a `compare` fname_b) $
-        S.toList filenames_uuids_to_trashcopy
+  pathToTrashCopyDir <- asks rsTrashCopyDir
+  let filenamesAndUuidsToTrashCopy =
+        S.difference initialFilenamesAndUuids currentFilenamesAndUuids
+  let listOfFilenamesAndUuidsToTrashCopy =
+        sortBy (\(fnameA, _) (fnameB, _) -> fnameA `compare` fnameB) $
+        S.toList filenamesAndUuidsToTrashCopy
   return $
     fmap
       (\(fname, uuid) ->
-         let dest_filerepr =
-               FileRepr (dirToTrashCopyTo path_to_trashcopy_dir uuid) fname
-         in TrashCopyOp (FileRepr cwd fname) dest_filerepr uuid)
-      list_of_filename_uuid_to_trashcopy
+         let destFileRepr =
+               FileRepr (dirToTrashCopyTo pathToTrashCopyDir uuid) fname
+         in TrashCopyOp (FileRepr cwd fname) destFileRepr uuid)
+      listOfFilenamesAndUuidsToTrashCopy
   where
     dirToTrashCopyTo :: FilePath -> Text -> FilePath
-    dirToTrashCopyTo path_to_trashcopy_dir uuid =
-      path_to_trashcopy_dir </> (toList uuid)
+    dirToTrashCopyTo pathToTrashCopyDir uuid =
+      pathToTrashCopyDir </> (toList uuid)
 
 
 genCopyOps
@@ -58,26 +58,26 @@ genCopyOps
   -> Map Text FilePath
   -> [FilePathUUIDPair]
   -> Reader FileOpsReadState [FileOp]
-genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to_copy = do
+genCopyOps uuidToTrashCopyOp initialUuidToFilename listOfFilenameUuidToCopy = do
   cwd <- asks rsCwd
   return $ fmap
     (\(fname, uuid) ->
-       let dest_filerepr = FileRepr cwd fname
+       let destFileRepr = FileRepr cwd fname
            x = (do
              maybeToLeft
-               (\(TrashCopyOp _ new_src_filerepr _) ->
-                  CopyOp new_src_filerepr dest_filerepr)
-               (M.lookup uuid uuid_to_trashcopyop)
+               (\(TrashCopyOp _ newSrcFileRepr _) ->
+                  CopyOp newSrcFileRepr destFileRepr)
+               (M.lookup uuid uuidToTrashCopyOp)
              -- Source file is not to be trash copied.
              -- See if we can find it in the initial set of files.
              maybeToLeft
-               (\src_filename ->
-                 CopyOp (FileRepr cwd src_filename) dest_filerepr)
-               (M.lookup uuid initial_uuid_to_filename)
+               (\srcFilename ->
+                 CopyOp (FileRepr cwd srcFilename) destFileRepr)
+               (M.lookup uuid initialUuidToFilename)
              -- Need to perform database lookup
-             return $ LookupDbCopyOp dest_filerepr uuid)
+             return $ LookupDbCopyOp destFileRepr uuid)
        in either id id x)
-    list_of_filename_uuid_to_copy
+    listOfFilenameUuidToCopy
   where
     maybeToLeft :: (a -> FileOp) -> Maybe a -> Either FileOp ()
     maybeToLeft f (Just x) = Left $ f x
