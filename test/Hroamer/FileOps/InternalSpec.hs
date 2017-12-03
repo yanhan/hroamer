@@ -3,6 +3,7 @@ module Hroamer.FileOps.InternalSpec
   ) where
 
 import Control.Monad.Reader (runReader)
+import qualified Data.Map.Strict as M
 import Data.Set (fromList)
 import Foundation hiding (fromList)
 import Test.Hspec (Spec, describe, it, parallel, shouldBe)
@@ -10,10 +11,11 @@ import Test.Hspec (Spec, describe, it, parallel, shouldBe)
 import Hroamer.DataStructures
        (FileOpsReadState(FileOpsReadState), FileRepr(FileRepr))
 import Hroamer.FileOps.Internal
-       (FileOp(TrashCopyOp), dirToTrashCopyTo, genTrashCopyOps)
+       (FileOp(CopyOp, LookupDbCopyOp, TrashCopyOp), dirToTrashCopyTo,
+        genCopyOps, genTrashCopyOps)
 
 spec :: Spec
-spec = parallel $
+spec = parallel $ do
   describe "genTrashCopyOps" $
     it "should generate the list of TrashCopyOp (in sorted order) for files that the user wants to remove" $
       let cwd = "/the/blessed/era"
@@ -36,3 +38,45 @@ spec = parallel $
                      ]
           actual = runReader (genTrashCopyOps initial current) r
        in expected `shouldBe` actual
+
+  describe "genCopyOps" $ do
+    it "should generate the list of FileOp for files that need to be copied" $
+      let cwd = "/chilli/tomatoes/garlic"
+          trashCopyFilename = "onions"
+          trashCopyOpDestFileRepr = FileRepr "/fake/trash/dir"  trashCopyFilename
+          trashCopyOpUuid = "076f6f46-76f2-429a-a586-a132e4b20b3f"
+          trashCopyOp = TrashCopyOp
+                          (FileRepr cwd trashCopyFilename)
+                          trashCopyOpDestFileRepr
+                          trashCopyOpUuid
+          -- File renames in same dir
+          -- file one
+          fileOneName = "olive-oil"
+          fileOneUuid = "6019cfce-57c7-480e-a22e-8406dad2bca3"
+          fileOneNewName = "coconut-oil"
+          -- file two
+          fileTwoName = "basil_leaves"
+          fileTwoUuid = "35b1f941-dde3-479d-948b-d649648f8a6a"
+          fileTwoNewName = "parsley"
+          -- Files that we need to lookup from the db
+          lkName = "linguine"
+          lkUuid = "7c6b8a68-348a-4ce5-85dd-284ab1eea3ec"
+
+          uuidToTrashCopyOp = M.fromList [(trashCopyOpUuid, trashCopyOp)]
+          initialUuidToFilename = M.fromList [ (fileOneUuid, fileOneName)
+                                             , (fileTwoUuid, fileTwoName)
+                                             ]
+          toCopy = [ (trashCopyFilename, trashCopyOpUuid)
+                   , (fileOneNewName, fileOneUuid)
+                   , (fileTwoNewName, fileTwoUuid)
+                   , (lkName, lkUuid)
+                   ]
+          expected = [ CopyOp trashCopyOpDestFileRepr  (FileRepr cwd trashCopyFilename)
+                     , CopyOp (FileRepr cwd fileOneName)  (FileRepr cwd fileOneNewName)
+                     , CopyOp (FileRepr cwd fileTwoName)  (FileRepr cwd fileTwoNewName)
+                     , LookupDbCopyOp (FileRepr cwd lkName) lkUuid
+                     ]
+          actual = runReader
+                     (genCopyOps uuidToTrashCopyOp initialUuidToFilename toCopy)
+                     (FileOpsReadState cwd  ""  "")
+      in expected `shouldBe` actual
