@@ -96,6 +96,7 @@ test-suite hroamer-testsuite
                      , QuickCheck
   other-modules:       Hroamer.Database.InternalSpec
                      , Hroamer.DatabaseSpec
+                     , Hroamer.FileOps.InternalSpec
                      , Hroamer.ParserSpec
                      , Hroamer.PathSpec
                      , Hroamer.StateFileSpec
