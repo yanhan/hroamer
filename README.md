@@ -11,10 +11,8 @@ Inspired by roamer: https://github.com/abaldwin88/roamer
 
 Because this is the first non-trivial Haskell project I've worked on
 
-- The code does not look good at all
-- There are very little tests. More to come in future patches
+- Some of the code looks awful and there are probably a good nubmer of non idiomatic usages of Haskell. I have tried to make the code as Haskell as possible, to the best of my ability
 - Usage of cabal file may be wrong in that I didn't specify library versions
-- Possibly many non idiomatic usages of Haskell. Most of the code is essentially written in an imperative style. I have tried to make the code as Haskell as possible, to the best of my ability
 
 
 ## Building
