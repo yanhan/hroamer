@@ -57,20 +57,19 @@ genTrashCopyOps initialFilenamesAndUuids currentFilenamesAndUuids = do
 
 
 genCopyOps
-  :: Map Text FileOp
+  :: Map Text FileRepr
   -> Map Text FilePath
   -> [FilePathUUIDPair]
   -> Reader FileOpsReadState [FileOp]
-genCopyOps uuidToTrashCopyOp initialUuidToFilename listOfFilenameUuidToCopy = do
+genCopyOps uuidToTrashCopyFileRepr initialUuidToFilename listOfFilenameUuidToCopy = do
   cwd <- asks rsCwd
   return $ fmap
     (\(fname, uuid) ->
        let destFileRepr = FileRepr cwd fname
            x = (do
              maybeToLeft
-               (\(TrashCopyOp _ newSrcFileRepr _) ->
-                  CopyOp newSrcFileRepr destFileRepr)
-               (M.lookup uuid uuidToTrashCopyOp)
+               (\newSrcFileRepr -> CopyOp newSrcFileRepr destFileRepr)
+               (M.lookup uuid uuidToTrashCopyFileRepr)
              -- Source file is not to be trash copied.
              -- See if we can find it in the initial set of files.
              maybeToLeft

@@ -25,9 +25,11 @@ generateFileOps listOfFilenamesAndUuids initialFilenamesAndUuids = do
   -- At this point, UUIDs in `initialFilenamesAndUuids` are unique. Otherwise
   -- they would have violated the UNIQUE constraint on the `files.uuid` column.
   -- Hence, we can safely construct a Map indexed by UUID
-  let uuidToTrashCopyOp =
+  let uuidToTrashCopyFileRepr =
         M.fromList $
-        fmap (\op@(TrashCopyOp _ _ uuid) -> (uuid, op)) trashCopyOps
+        fmap
+          (\(TrashCopyOp _ newSrcFileRepr uuid) -> (uuid, newSrcFileRepr))
+          trashCopyOps
   let listOfFilenameUuidToCopy =
         sortBy (\(fnameA, _) (fnameB, _) -> fnameA `compare` fnameB) $
         S.toList $
@@ -37,7 +39,7 @@ generateFileOps listOfFilenamesAndUuids initialFilenamesAndUuids = do
   let initialUuidToFilename =
         M.fromList $ fmap swap initialFilenamesAndUuids
   copyOps <- genCopyOps
-               uuidToTrashCopyOp
+               uuidToTrashCopyFileRepr
                initialUuidToFilename
                listOfFilenameUuidToCopy
   return $ trashCopyOps <> copyOps
