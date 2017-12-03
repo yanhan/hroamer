@@ -61,11 +61,13 @@ library
 
   exposed-modules:     Hroamer.DataStructures
                      , Hroamer.Database
+                     , Hroamer.FileOps
                      , Hroamer.Parser
                      , Hroamer.Path
                      , Hroamer.UnsupportedPaths
                      , Hroamer.Utilities
                      , Hroamer.Database.Internal
+                     , Hroamer.FileOps.Internal
                      , Hroamer.StateFile
                      , Hroamer.UnsupportedPaths.Internal
 
