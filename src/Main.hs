@@ -2,7 +2,6 @@ module Main where
 
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_)
-import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader
        (Reader, ReaderT(ReaderT, runReaderT), ask, asks, runReader)
@@ -285,25 +284,25 @@ genCopyOps uuid_to_trashcopyop initial_uuid_to_filename list_of_filename_uuid_to
   return $ fmap
     (\(fname, uuid) ->
        let dest_filerepr = FileRepr cwd fname
-           x = runExcept
-                 (do maybeToExcept
-                       (\(TrashCopyOp _ new_src_filerepr _) ->
-                          CopyOp new_src_filerepr dest_filerepr)
-                       (M.lookup uuid uuid_to_trashcopyop)
-                   -- Source file is not to be trash copied.
-                   -- See if we can find it in the initial set of files.
-                     maybeToExcept
-                       (\src_filename ->
-                         CopyOp (FileRepr cwd src_filename) dest_filerepr)
-                       (M.lookup uuid initial_uuid_to_filename)
-                   -- Need to perform database lookup
-                     throwError $ LookupDbCopyOp dest_filerepr uuid)
+           x = do
+                 maybeToLeft
+                   (\(TrashCopyOp _ new_src_filerepr _) ->
+                      CopyOp new_src_filerepr dest_filerepr)
+                   (M.lookup uuid uuid_to_trashcopyop)
+               -- Source file is not to be trash copied.
+               -- See if we can find it in the initial set of files.
+                 maybeToLeft
+                   (\src_filename ->
+                     CopyOp (FileRepr cwd src_filename) dest_filerepr)
+                   (M.lookup uuid initial_uuid_to_filename)
+               -- Need to perform database lookup
+                 return $ LookupDbCopyOp dest_filerepr uuid
        in either id id x)
     list_of_filename_uuid_to_copy
   where
-    maybeToExcept :: (a -> FileOp) -> Maybe a -> Except FileOp ()
-    maybeToExcept f (Just x) = throwError $ f x
-    maybeToExcept _ Nothing = return ()
+    maybeToLeft :: (a -> FileOp) -> Maybe a -> Either FileOp ()
+    maybeToLeft f (Just x) = Left $ f x
+    maybeToLeft _ Nothing = Right ()
 
 
 generateFileOps
