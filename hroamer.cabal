@@ -64,11 +64,11 @@ library
                      , Hroamer.FileOps
                      , Hroamer.Parser
                      , Hroamer.Path
+                     , Hroamer.StateFile
                      , Hroamer.UnsupportedPaths
                      , Hroamer.Utilities
                      , Hroamer.Database.Internal
                      , Hroamer.FileOps.Internal
-                     , Hroamer.StateFile
                      , Hroamer.UnsupportedPaths.Internal
 
 test-suite hroamer-testsuite
