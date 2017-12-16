@@ -45,7 +45,7 @@ generateFileOps listOfFilenamesAndUuids initialFilenamesAndUuids = do
           (\(TrashCopyOp _ newSrcFileRepr uuid) -> (uuid, newSrcFileRepr))
           trashCopyOps
   let listOfFilenameUuidToCopy =
-        sortBy (\(fnameA, _) (fnameB, _) -> fnameA `compare` fnameB) $
+        sortBy (compare `on` fst) $
         S.toList $
         S.difference currentFilenamesAndUuidsSet initialFilenamesAndUuidsSet
   -- Map of UUID -> filename; for files that are in the current directory when

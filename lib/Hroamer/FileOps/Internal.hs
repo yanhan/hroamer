@@ -45,7 +45,7 @@ genTrashCopyOps initialFilenamesAndUuids currentFilenamesAndUuids = do
   let filenamesAndUuidsToTrashCopy =
         S.difference initialFilenamesAndUuids currentFilenamesAndUuids
   let listOfFilenamesAndUuidsToTrashCopy =
-        sortBy (\(fnameA, _) (fnameB, _) -> fnameA `compare` fnameB) $
+        sortBy (compare `on` fst) $
         S.toList filenamesAndUuidsToTrashCopy
   return $
     fmap
