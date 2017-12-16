@@ -8,12 +8,12 @@ import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import Data.Set (Set)
 import qualified Data.Set as S
-import Data.Text (Text, pack)
+import Data.Text (pack)
 import qualified Data.Text.IO as TIO
 import qualified Data.UUID as UUID
 import qualified Data.UUID.V4 as UUID4
 import Foundation
-import Foundation.Collection (mapM, mapM_, zip)
+import Foundation.Collection (mapM, mapM_)
 import System.Directory
        (XdgDirectory(XdgData), copyFile, getCurrentDirectory,
         getXdgDirectory, listDirectory, removeFile)
