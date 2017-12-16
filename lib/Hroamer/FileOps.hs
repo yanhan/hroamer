@@ -19,7 +19,7 @@ import System.Process (createProcess, proc, waitForProcess)
 
 import Hroamer.DataStructures
        (FileOpsReadState(rsCwd, rsPathToDb), FilePathUUIDPair,
-        FileRepr(FileRepr), filerepr_to_filepath)
+        FileRepr(FileRepr), fileReprToFilePath)
 import Hroamer.Database (FilesTableRow(..))
 import Hroamer.FileOps.Internal
        (FileOp(..), genCopyOps, genTrashCopyOps)
@@ -63,8 +63,8 @@ doFileOp :: (FilesTableRow -> IO ()) -> FileOp ->  ReaderT FileOpsReadState IO (
 
 doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) = do
   let (FileRepr destDir destFilename) = destFileRepr
-  let srcFilePath = filerepr_to_filepath srcFileRepr
-  let destFilePath = filerepr_to_filepath destFileRepr
+  let srcFilePath = fileReprToFilePath srcFileRepr
+  let destFilePath = fileReprToFilePath destFileRepr
   liftIO $ createDirectory destDir
   liftIO $ renamePath srcFilePath destFilePath
   liftIO $ TIO.putStrLn $ "trash-copy " <> (pack srcFilePath)
@@ -95,8 +95,8 @@ doFileOp dbUpdateDirAndFileName (LookupDbCopyOp destFileRepr uuid) = do
 
 doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
   let (FileRepr destDir destFilename) = destFileRepr
-  let srcFilePath = filerepr_to_filepath srcFileRepr
-  let destFilePath = filerepr_to_filepath destFileRepr
+  let srcFilePath = fileReprToFilePath srcFileRepr
+  let destFilePath = fileReprToFilePath destFileRepr
   srcExists <- liftIO $ doesPathExist srcFilePath
   srcIsDir <- liftIO $ doesDirectoryExist srcFilePath
   liftIO $
