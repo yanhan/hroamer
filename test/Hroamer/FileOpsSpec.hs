@@ -1,22 +1,57 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Hroamer.FileOpsSpec
   ( spec
   ) where
 
-import Control.Monad.Reader (runReader)
-import Foundation
-import Test.Hspec (Spec, describe, it, parallel, shouldBe)
+import Control.Monad.Reader (runReader, runReaderT)
+import Data.Map.Strict (Map, fromList, lookup)
+import qualified Data.Map.Strict as M
+import Data.Maybe (fromJust)
+import Data.Text (Text, pack)
+import qualified Data.Text.IO as TIO
+import Data.Traversable (Traversable(traverse))
+import Foundation hiding (fromList)
+import System.Directory (createDirectory, doesFileExist)
+import System.IO (writeFile)
+import System.IO.Temp (createTempDirectory)
+import System.FilePath.Posix ((</>), FilePath)
+import System.Process (createProcess, proc, waitForProcess)
+import Test.Hspec
+       (Arg, Spec, SpecWith, afterAll, beforeAll, describe, it, parallel,
+        shouldBe, shouldReturn)
 
+import qualified Hroamer.Database as HroamerDb
+import qualified Hroamer.Database.Internal as HroamerDbInt
+
+import Hroamer.Database (FilesTableRow(FilesTableRow))
 import Hroamer.DataStructures
        (FileOpsReadState(FileOpsReadState), FileRepr(FileRepr))
 import Hroamer.FileOps
-       (FileOp(CopyOp, LookupDbCopyOp, TrashCopyOp), generateFileOps)
+       (FileOp(CopyOp, LookupDbCopyOp, TrashCopyOp), doFileOp,
+        generateFileOps)
 import Hroamer.FileOps.Internal (dirToTrashCopyTo)
 
+doFileOpSpecTrashCopyKey :: Text
+doFileOpSpecTrashCopyKey = "trashCopy"
+
+createDirsForTest :: IO (Map Text FilePath)
+createDirsForTest = do
+  trashCopyTestDir <- createTempDirectory "/tmp"  "doFileOpSpecTrashCopyTestDir"
+  return $ fromList [(doFileOpSpecTrashCopyKey, trashCopyTestDir)]
+
+rmrf :: Map Text FilePath -> IO ()
+rmrf tempDirs = do
+  traverse (\dir -> do
+    let rmrfProc = proc "/bin/rm" ["-rf", toList dir]
+    (_, _, _, ph) <- createProcess rmrfProc
+    waitForProcess ph) tempDirs
+  return ()
 
 spec :: Spec
-spec = parallel $
+spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
   describe "generateFileOps" $
-    it "should generate a list of FileOp; with TrashCopyOp first, followed by everything else (sorted by filename)" $
+    it "should generate a list of FileOp; with TrashCopyOp first, followed by everything else (sorted by filename)" $ \_ ->
       let cwd = "/boiling/water"
           trashCopyDir = "/rising/turtle"
           -- files that will not be touched
@@ -81,3 +116,50 @@ spec = parallel $
                      ]
           actual = runReader (generateFileOps current initial) r
       in actual `shouldBe` expected
+
+  describe "doFileOp" $ do
+    it "for TrashCopyOp, should move the existing path to a new directory under the trash copy directory" $
+      \mapOfTempDirs -> do
+        let tempDir = fromJust $ lookup doFileOpSpecTrashCopyKey mapOfTempDirs
+            pathToDb = tempDir </> "filesdb"
+            srcDir = tempDir </> "svenson"
+            srcFile = "asks"
+            srcUuid = "e582b948-d554-46e1-8799-a24fbc0c7207"
+            srcFileRepr = FileRepr srcDir  srcFile
+            pathToTrashCopyDir = tempDir </> "nord"
+            destDir = pathToTrashCopyDir </> (toList srcUuid)
+            destFile = "runReaderT"
+            destFileRepr = FileRepr destDir  destFile
+        HroamerDb.createDbAndTables pathToDb
+        createDirectory srcDir
+        writeFile (srcDir </> srcFile) "move asks to readerT"
+        createDirectory pathToTrashCopyDir
+        HroamerDb.wrapDbConn pathToDb (\addFileDetailsToDb -> do
+            addFileDetailsToDb srcDir (srcFile, srcUuid)
+          ) HroamerDbInt.addFileDetailsToDb
+        HroamerDb.wrapDbConn
+          pathToDb
+          (\updateDirAndFilename ->
+            runReaderT
+              (doFileOp
+                updateDirAndFilename
+                (TrashCopyOp srcFileRepr destFileRepr srcUuid))
+              (FileOpsReadState destDir pathToDb pathToTrashCopyDir)
+          )
+          HroamerDb.updateDirAndFilename
+        -- assertions
+        doesFileExist (srcDir </> srcFile) `shouldReturn` False
+        doesFileExist (destDir </> destFile) `shouldReturn` True
+        -- check database state
+        HroamerDb.wrapDbConn
+          pathToDb
+          (\getRowFromUUID -> do
+            l <- getRowFromUUID srcUuid
+            case l of
+              [] -> False `shouldBe` True
+              [(FilesTableRow dir filename uuid)] -> do
+                dir `shouldBe` destDir
+                filename `shouldBe` destFile
+                uuid `shouldBe` srcUuid
+              _ -> False `shouldBe` False)
+          HroamerDb.getRowFromUUID
