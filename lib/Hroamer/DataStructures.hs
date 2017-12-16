@@ -2,7 +2,7 @@ module Hroamer.DataStructures
   ( FilePathUUIDPair
   , FileOpsReadState(..)
   , FileRepr(..)
-  , filerepr_to_filepath
+  , fileReprToFilePath
   ) where
 
 import Data.Text (Text)
@@ -15,8 +15,8 @@ type FilePathUUIDPair = (FilePath, Text)
 data FileRepr = FileRepr FilePath FilePath -- dir  file
   deriving (Eq, Show)
 
-filerepr_to_filepath :: FileRepr -> FilePath
-filerepr_to_filepath (FileRepr dir fname) = dir </> fname
+fileReprToFilePath :: FileRepr -> FilePath
+fileReprToFilePath (FileRepr dir fname) = dir </> fname
 
 data FileOpsReadState =
   FileOpsReadState { rsCwd :: FilePath
