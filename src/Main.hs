@@ -3,8 +3,7 @@ module Main where
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader
-       (Reader, ReaderT(runReaderT), ask, asks, runReader)
+import Control.Monad.Reader (ReaderT(runReaderT), runReader)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import Data.Set (Set)
@@ -16,9 +15,8 @@ import qualified Data.UUID.V4 as UUID4
 import Foundation
 import Foundation.Collection (mapM, mapM_, zip)
 import System.Directory
-       (XdgDirectory(XdgData), copyFile, createDirectory,
-        doesDirectoryExist, doesPathExist, getCurrentDirectory,
-        getXdgDirectory, listDirectory, removeFile, renamePath)
+       (XdgDirectory(XdgData), copyFile, getCurrentDirectory,
+        getXdgDirectory, listDirectory, removeFile)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
        (FilePath, (</>), takeDirectory, takeBaseName)
@@ -28,12 +26,8 @@ import System.Posix.Signals
 import System.Process (createProcess, proc, waitForProcess)
 
 import Hroamer.DataStructures
-       (FilePathUUIDPair,
-        FileOpsReadState(FileOpsReadState, rsCwd, rsPathToDb),
-        FileRepr(FileRepr), filerepr_to_filepath)
-import Hroamer.Database (FilesTableRow(..))
-import Hroamer.FileOps
-       (FileOp(CopyOp, LookupDbCopyOp, TrashCopyOp), generateFileOps)
+       (FilePathUUIDPair, FileOpsReadState(FileOpsReadState))
+import Hroamer.FileOps (doFileOp, generateFileOps)
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
@@ -173,66 +167,3 @@ processCwd cwd app_tmp_dir path_to_db = do
       in (set_system `S.difference` set_db, set_db `S.difference` set_system)
 
 
--- Assume both src and dest are in the same directory
-doFileOp :: (FilesTableRow -> IO ()) -> FileOp ->  ReaderT FileOpsReadState IO ()
-
-doFileOp dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid) = do
-  let (FileRepr dest_dir dest_filename) = dest_filerepr
-  let src_filepath = filerepr_to_filepath src_filerepr
-  let dest_filepath = filerepr_to_filepath dest_filerepr
-  liftIO $ createDirectory dest_dir
-  liftIO $ renamePath src_filepath dest_filepath
-  liftIO $ TIO.putStrLn $ "trash-copy " <> (pack src_filepath)
-  liftIO $
-    dbUpdateDirAndFileName
-      FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid}
-
--- YH TODO: This is causing us to open another connection to the db.
--- Refactor the code so that we don't have to do that.
-doFileOp dbUpdateDirAndFileName (LookupDbCopyOp destFileRepr uuid) = do
-  cwd <- asks rsCwd
-  pathToDb <- asks rsPathToDb
-  r <- ask
-  liftIO $
-    HroamerDb.wrapDbConn
-      pathToDb
-      (\dbGetRowFromUUID -> do
-        row <- dbGetRowFromUUID uuid
-        case row of
-          [] -> return ()
-          (FilesTableRow {dir = srcDir, filename = srcFilename} : _ ) ->
-            let srcFileRepr = FileRepr srcDir srcFilename
-            in runReaderT
-                 (doFileOp dbUpdateDirAndFileName (CopyOp srcFileRepr destFileRepr))
-                 r)
-      HroamerDb.getRowFromUUID
-
-
-doFileOp _ (CopyOp src_filerepr dest_filerepr) = do
-  let (FileRepr dest_dir dest_filename) = dest_filerepr
-  let src_filepath = filerepr_to_filepath src_filerepr
-  let dest_filepath = filerepr_to_filepath dest_filerepr
-  src_exists <- liftIO $ doesPathExist src_filepath
-  src_is_dir <- liftIO $ doesDirectoryExist src_filepath
-  liftIO $
-    if src_exists && src_is_dir
-      then do
-        (_, _, _, ph) <-
-          createProcess (proc "cp" ["-R", src_filepath, dest_filepath])
-        exitcode <- waitForProcess ph
-        case exitcode of
-          ExitSuccess ->
-            TIO.putStrLn $
-              "cp -R " <> (pack src_filepath) <> " " <> (pack dest_filepath)
-          _ ->
-            TIO.putStrLn $
-              "Failed to copy " <> (pack src_filepath) <> " to " <>
-              (pack dest_filepath)
-      else
-        if src_exists
-           then do
-             copyFile src_filepath dest_filepath
-             TIO.putStrLn $
-               "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
-           else
-             return ()
