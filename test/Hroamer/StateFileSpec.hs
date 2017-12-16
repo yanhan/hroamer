@@ -4,6 +4,7 @@ module Hroamer.StateFileSpec
 
 import Data.List (unlines)
 import Data.Map.Strict (Map, empty, fromList, lookup)
+import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust)
 import Data.Text (Text)
 import Foundation hiding (fromList)
@@ -26,9 +27,10 @@ createDirsForTest = do
                    ]
   return (cwd, m)
 
-rmrf :: (FilePath, a) -> IO ()
-rmrf (dir, _) = do
-  let rmrfProc = proc "/bin/rm" ["-rf", toList dir]
+rmrf :: (FilePath, Map Text FilePath) -> IO ()
+rmrf (dir, m) = do
+  let otherTempDirs = fmap (toList . snd) $ M.toList m
+  let rmrfProc = proc "/bin/rm" (["-rf", toList dir] <> otherTempDirs)
   (_, _, _, ph) <- createProcess rmrfProc
   waitForProcess ph
   return ()
