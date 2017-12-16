@@ -21,7 +21,7 @@ import qualified Hroamer.Path as Path
 create :: FilePath -> FilePath -> [FilePathUUIDPair] -> IO FilePath
 create cwd appTmpDir filesAndUuidAccurate = do
   let filesAndUuidSorted =
-        sortBy (\(fn1, _) (fn2, _) -> compare fn1 fn2) filesAndUuidAccurate
+        sortBy (compare `on` fst) filesAndUuidAccurate
   linesToWriteToFile <-
     sequence $
     fmap
