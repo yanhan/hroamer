@@ -61,16 +61,16 @@ generateFileOps listOfFilenamesAndUuids initialFilenamesAndUuids = do
 -- Assume both src and dest are in the same directory
 doFileOp :: (FilesTableRow -> IO ()) -> FileOp ->  ReaderT FileOpsReadState IO ()
 
-doFileOp dbUpdateDirAndFileName (TrashCopyOp src_filerepr dest_filerepr uuid) = do
-  let (FileRepr dest_dir dest_filename) = dest_filerepr
-  let src_filepath = filerepr_to_filepath src_filerepr
-  let dest_filepath = filerepr_to_filepath dest_filerepr
-  liftIO $ createDirectory dest_dir
-  liftIO $ renamePath src_filepath dest_filepath
-  liftIO $ TIO.putStrLn $ "trash-copy " <> (pack src_filepath)
+doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) = do
+  let (FileRepr destDir destFilename) = destFileRepr
+  let srcFilePath = filerepr_to_filepath srcFileRepr
+  let destFilePath = filerepr_to_filepath destFileRepr
+  liftIO $ createDirectory destDir
+  liftIO $ renamePath srcFilePath destFilePath
+  liftIO $ TIO.putStrLn $ "trash-copy " <> (pack srcFilePath)
   liftIO $
     dbUpdateDirAndFileName
-      FilesTableRow {dir = dest_dir, filename = dest_filename, uuid = uuid}
+      FilesTableRow {dir = destDir, filename = destFilename, uuid = uuid}
 
 -- YH TODO: This is causing us to open another connection to the db.
 -- Refactor the code so that we don't have to do that.
@@ -93,31 +93,31 @@ doFileOp dbUpdateDirAndFileName (LookupDbCopyOp destFileRepr uuid) = do
       HroamerDb.getRowFromUUID
 
 
-doFileOp _ (CopyOp src_filerepr dest_filerepr) = do
-  let (FileRepr dest_dir dest_filename) = dest_filerepr
-  let src_filepath = filerepr_to_filepath src_filerepr
-  let dest_filepath = filerepr_to_filepath dest_filerepr
-  src_exists <- liftIO $ doesPathExist src_filepath
-  src_is_dir <- liftIO $ doesDirectoryExist src_filepath
+doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
+  let (FileRepr destDir destFilename) = destFileRepr
+  let srcFilePath = filerepr_to_filepath srcFileRepr
+  let destFilePath = filerepr_to_filepath destFileRepr
+  srcExists <- liftIO $ doesPathExist srcFilePath
+  srcIsDir <- liftIO $ doesDirectoryExist srcFilePath
   liftIO $
-    if src_exists && src_is_dir
+    if srcExists && srcIsDir
       then do
         (_, _, _, ph) <-
-          createProcess (proc "cp" ["-R", src_filepath, dest_filepath])
+          createProcess (proc "cp" ["-R", srcFilePath, destFilePath])
         exitcode <- waitForProcess ph
         case exitcode of
           ExitSuccess ->
             TIO.putStrLn $
-              "cp -R " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+              "cp -R " <> (pack srcFilePath) <> " " <> (pack destFilePath)
           _ ->
             TIO.putStrLn $
-              "Failed to copy " <> (pack src_filepath) <> " to " <>
-              (pack dest_filepath)
+              "Failed to copy " <> (pack srcFilePath) <> " to " <>
+              (pack destFilePath)
       else
-        if src_exists
+        if srcExists
            then do
-             copyFile src_filepath dest_filepath
+             copyFile srcFilePath destFilePath
              TIO.putStrLn $
-               "cp " <> (pack src_filepath) <> " " <> (pack dest_filepath)
+               "cp " <> (pack srcFilePath) <> " " <> (pack destFilePath)
            else
              return ()
