@@ -165,5 +165,3 @@ processCwd cwd app_tmp_dir path_to_db = do
       let set_system = S.fromList $ fmap toList files_on_system
           set_db = S.fromList files_in_db
       in (set_system `S.difference` set_db, set_db `S.difference` set_system)
-
-
