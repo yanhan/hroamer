@@ -77,6 +77,14 @@ installSignalHandlers dirStateFilePath userDirStateFilePath =
   in mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
 
 
+letUserEditFile :: FilePath -> IO ()
+letUserEditFile user_dirstate_filepath = do
+  editor_createprocess <- Utils.make_editor_createprocess user_dirstate_filepath
+  (_, _, _, editor_process) <- createProcess editor_createprocess
+  waitForProcess editor_process
+  return ()
+
+
 main :: IO ()
 main = do
   app_data_dir <- getXdgDirectory XdgData "hroamer"
@@ -98,11 +106,7 @@ main = do
         ("user-" <> takeBaseName dirstate_filepath)
   copyFile dirstate_filepath user_dirstate_filepath
   installSignalHandlers dirstate_filepath user_dirstate_filepath
-
-  -- Launch text editor to let user edit the file
-  editor_createprocess <- Utils.make_editor_createprocess user_dirstate_filepath
-  (_, _, _, editor_process) <- createProcess editor_createprocess
-  waitForProcess editor_process
+  letUserEditFile user_dirstate_filepath
 
   -- Compare for difference between the files
   (_, _, _, cmp_process) <-
