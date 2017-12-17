@@ -3,7 +3,7 @@ module Main where
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (ReaderT(runReaderT), runReader)
+import Control.Monad.Reader (runReaderT, runReader)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import Data.Set (Set)
