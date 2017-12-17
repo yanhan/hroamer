@@ -20,36 +20,36 @@ processCwd :: FilePath
            -> FilePath
            -> FilePath
            -> IO ([FilePathUUIDPair], FilePath)
-processCwd cwd app_tmp_dir path_to_db = do
-  files__on_system <- listDirectory cwd
-  files_and_uuid__in_db <- HroamerDb.getAllFilesInDir path_to_db cwd
-  let files__in_db = fmap fst files_and_uuid__in_db
-  let (files_only_on_system, files_only_in_db) =
-        separateFilesIntoCategories files__on_system files__in_db
-  files_and_uuids__only_on_system <-
+processCwd cwd appTmpDir pathToDb = do
+  fileOnSystem <- listDirectory cwd
+  filesAndUuidInDb <- HroamerDb.getAllFilesInDir pathToDb cwd
+  let filesInDb = fmap fst filesAndUuidInDb
+  let (filesOnlyOnSystem, filesOnlyInDb) =
+        separateFilesIntoCategories fileOnSystem filesInDb
+  filesAndUuidsOnlyOnSystem <-
     mapM
       (\fname -> do
          uuid <- fmap UUID.toText UUID4.nextRandom
          return (fname, uuid))
-      (S.toList files_only_on_system)
+      (S.toList filesOnlyOnSystem)
   HroamerDb.updateDbToMatchDirState
     cwd
-    path_to_db
-    files_and_uuids__only_on_system
-    (S.toList files_only_in_db)
+    pathToDb
+    filesAndUuidsOnlyOnSystem
+    (S.toList filesOnlyInDb)
 
-  let files_and_uuids_accurate =
+  let filesAndUuidsAccurate =
         filter
-          (\(fname, _) -> fname `S.notMember` files_only_in_db)
-          files_and_uuid__in_db <>
-        files_and_uuids__only_on_system
-  dirstate_filepath <- StateFile.create cwd app_tmp_dir files_and_uuids_accurate
-  return (files_and_uuids_accurate, dirstate_filepath)
+          (\(fname, _) -> fname `S.notMember` filesOnlyInDb)
+          filesAndUuidInDb <>
+        filesAndUuidsOnlyOnSystem
+  dirStateFilePath <- StateFile.create cwd appTmpDir filesAndUuidsAccurate
+  return (filesAndUuidsAccurate, dirStateFilePath)
   where
     separateFilesIntoCategories :: [FilePath]
                                 -> [[Char]]
                                 -> (Set [Char], Set [Char])
-    separateFilesIntoCategories files_on_system files_in_db =
-      let set_system = S.fromList $ fmap toList files_on_system
-          set_db = S.fromList files_in_db
-      in (set_system `S.difference` set_db, set_db `S.difference` set_system)
+    separateFilesIntoCategories filesOnSystem filesInDb =
+      let setSystem = S.fromList $ fmap toList filesOnSystem
+          setDb = S.fromList filesInDb
+      in (setSystem `S.difference` setDb, setDb `S.difference` setSystem)
