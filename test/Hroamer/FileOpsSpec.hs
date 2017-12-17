@@ -13,7 +13,8 @@ import qualified Data.Text.IO as TIO
 import Data.Traversable (Traversable(traverse))
 import Foundation hiding (fromList)
 import System.Directory
-       (createDirectory, doesFileExist, doesPathExist)
+       (createDirectory, createDirectoryIfMissing, doesFileExist,
+        doesPathExist)
 import System.IO (readFile, writeFile)
 import System.IO.Temp (createTempDirectory)
 import System.FilePath.Posix ((</>), FilePath)
@@ -39,12 +40,17 @@ doFileOpSpecTrashCopyKey = "trashCopy"
 doFileOpSpecCopyOpFileKey :: Text
 doFileOpSpecCopyOpFileKey = "copyOpFile"
 
+doFileOpSpecCopyOpDirKey :: Text
+doFileOpSpecCopyOpDirKey = "copyOpDir"
+
 createDirsForTest :: IO (Map Text FilePath)
 createDirsForTest = do
   trashCopyTestDir <- createTempDirectory "/tmp"  "doFileOpSpecTrashCopyTestDir"
   copyOpFileTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpFileDir"
+  copyOpDirTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpDirDir"
   return $ fromList [ (doFileOpSpecTrashCopyKey, trashCopyTestDir)
                     , (doFileOpSpecCopyOpFileKey, copyOpFileTestDir)
+                    , (doFileOpSpecCopyOpDirKey, copyOpDirTestDir)
                     ]
 
 rmrf :: Map Text FilePath -> IO ()
@@ -199,4 +205,39 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
           (FileOpsReadState "" "" "")
         doesFileExist destFilePath `shouldReturn` True
         doesFileExist (srcDir </> srcFile) `shouldReturn` True
+        readFile destFilePath `shouldReturn` fileContents
+
+    it "for CopyOp for existing dir, it should copy the dir to its destination" $
+      \mapOfTempDirs -> do
+        let tempDir = fromJust $ lookup doFileOpSpecCopyOpDirKey mapOfTempDirs
+            pathToDb = tempDir </> "dbdbddb"
+            srcContainingDir = tempDir </> "ground"
+            srcDir = "truth"
+            srcFile = "is-here"
+            srcFileRepr = FileRepr srcContainingDir srcDir
+            srcUuid = "365cde5f-dd45-4854-9ca8-2417ffaba5ac"
+            srcDirPath = srcContainingDir </> srcDir
+            srcFilePath = srcDirPath </> srcFile
+            destContainingDir = tempDir </> "fiery"
+            destDir = "water"
+            destFileRepr = FileRepr destContainingDir destDir
+            destDirPath = destContainingDir </> destDir
+            destFilePath = destDirPath </> srcFile
+            fileContents = "Make some noise if you... are... ready!!!!"
+        HroamerDb.createDbAndTables pathToDb
+        createDirectoryIfMissing True srcDirPath
+        writeFile srcFilePath fileContents
+        createDirectory destContainingDir
+        HroamerDb.wrapDbConn
+          pathToDb
+          (\addFileDetailsToDb ->
+            addFileDetailsToDb srcContainingDir (srcDir, srcUuid))
+          HroamerDbInt.addFileDetailsToDb
+        doesPathExist destDirPath `shouldReturn` False
+        doesPathExist destFilePath `shouldReturn` False
+        runReaderT
+          (doFileOp undefined (CopyOp srcFileRepr destFileRepr))
+          undefined
+        doesFileExist srcFilePath `shouldReturn` True
+        doesFileExist destFilePath `shouldReturn` True
         readFile destFilePath `shouldReturn` fileContents
