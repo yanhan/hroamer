@@ -49,15 +49,13 @@ exitIfCwdIsUnderHroamerDir appDataDir cwd =
 
 
 createHroamerDirs :: FilePath -> FilePath -> FilePath -> IO ()
-createHroamerDirs app_data_dir app_tmp_dir path_to_trashcopy_dir = do
+createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir = do
   (allDirsOk, errorDList) <- runWriterT $ do
     -- WriterT (DList Text) IO Bool
-    success_creating_app_data_dir <- Path.createDirNoForce app_data_dir
-    success_creating_app_tmp_dir <- Path.createDirNoForce app_tmp_dir
-    success_creating_trashcopy_dir <- Path.createDirNoForce path_to_trashcopy_dir
-    return $
-      success_creating_app_data_dir &&
-      success_creating_app_tmp_dir && success_creating_trashcopy_dir
+    createdAppDataDir <- Path.createDirNoForce appDataDir
+    createdAppTmpDir <- Path.createDirNoForce appTmpDir
+    createdTrashCopyDir <- Path.createDirNoForce pathToTrashCopyDir
+    return $ createdAppDataDir && createdAppTmpDir && createdTrashCopyDir
   if not allDirsOk
     then do
       mapM_ TIO.putStrLn $ Data.DList.toList errorDList
