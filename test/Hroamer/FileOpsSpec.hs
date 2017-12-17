@@ -12,8 +12,9 @@ import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
 import Data.Traversable (Traversable(traverse))
 import Foundation hiding (fromList)
-import System.Directory (createDirectory, doesFileExist)
-import System.IO (writeFile)
+import System.Directory
+       (createDirectory, doesFileExist, doesPathExist)
+import System.IO (readFile, writeFile)
 import System.IO.Temp (createTempDirectory)
 import System.FilePath.Posix ((</>), FilePath)
 import System.Process (createProcess, proc, waitForProcess)
@@ -35,10 +36,16 @@ import Hroamer.FileOps.Internal (dirToTrashCopyTo)
 doFileOpSpecTrashCopyKey :: Text
 doFileOpSpecTrashCopyKey = "trashCopy"
 
+doFileOpSpecCopyOpFileKey :: Text
+doFileOpSpecCopyOpFileKey = "copyOpFile"
+
 createDirsForTest :: IO (Map Text FilePath)
 createDirsForTest = do
   trashCopyTestDir <- createTempDirectory "/tmp"  "doFileOpSpecTrashCopyTestDir"
-  return $ fromList [(doFileOpSpecTrashCopyKey, trashCopyTestDir)]
+  copyOpFileTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpFileDir"
+  return $ fromList [ (doFileOpSpecTrashCopyKey, trashCopyTestDir)
+                    , (doFileOpSpecCopyOpFileKey, copyOpFileTestDir)
+                    ]
 
 rmrf :: Map Text FilePath -> IO ()
 rmrf tempDirs = do
@@ -163,3 +170,33 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
                 uuid `shouldBe` srcUuid
               _ -> False `shouldBe` False)
           HroamerDb.getRowFromUUID
+
+    it "for CopyOp for existing file, it should copy the file to its destination" $
+      \mapOfTempDirs -> do
+        let tempDir = fromJust $ lookup doFileOpSpecCopyOpFileKey mapOfTempDirs
+            pathToDb = tempDir </> "copyOpFileDb"
+            srcDir = tempDir </> "happy"
+            srcFile = "as-a-fiddle"
+            srcFileRepr = FileRepr srcDir srcFile
+            srcUuid = "57ff0289-e5aa-4356-9dff-606a4c4ee832"
+            destDir = tempDir </> "alex"
+            destFile = "is-similar"
+            destFileRepr = FileRepr destDir destFile
+            destFilePath = destDir </> destFile
+            fileContents = "Ho! Ho! Ho! Merry Christmas!"
+            copyOp = CopyOp srcFileRepr destFileRepr
+        HroamerDb.createDbAndTables pathToDb
+        createDirectory srcDir
+        writeFile (srcDir </> srcFile) fileContents
+        HroamerDb.wrapDbConn
+          pathToDb
+          (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
+          HroamerDbInt.addFileDetailsToDb
+        createDirectory destDir
+        doesPathExist destFilePath `shouldReturn` False
+        runReaderT
+          (doFileOp undefined copyOp)
+          (FileOpsReadState "" "" "")
+        doesFileExist destFilePath `shouldReturn` True
+        doesFileExist (srcDir </> srcFile) `shouldReturn` True
+        readFile destFilePath `shouldReturn` fileContents
