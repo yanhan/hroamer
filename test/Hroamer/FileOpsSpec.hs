@@ -202,7 +202,7 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
         doesPathExist destFilePath `shouldReturn` False
         runReaderT
           (doFileOp undefined copyOp)
-          (FileOpsReadState "" "" "")
+          undefined
         doesFileExist destFilePath `shouldReturn` True
         doesFileExist (srcDir </> srcFile) `shouldReturn` True
         readFile destFilePath `shouldReturn` fileContents
