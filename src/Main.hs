@@ -68,6 +68,15 @@ ignoreIOException :: IOException -> IO ()
 ignoreIOException = const $ return ()
 
 
+installSignalHandlers :: FilePath -> FilePath -> IO ()
+installSignalHandlers dirstate_filepath user_dirstate_filepath =
+  let signals_to_handle = [keyboardSignal, softwareStop, softwareTermination]
+      handler = Catch $
+        removeFile dirstate_filepath `catch` ignoreIOException >>
+        removeFile user_dirstate_filepath `catch` ignoreIOException
+  in mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
+
+
 main :: IO ()
 main = do
   app_data_dir <- getXdgDirectory XdgData "hroamer"
@@ -88,11 +97,7 @@ main = do
         (takeDirectory dirstate_filepath) </>
         ("user-" <> takeBaseName dirstate_filepath)
   copyFile dirstate_filepath user_dirstate_filepath
-  let signals_to_handle = [keyboardSignal, softwareStop, softwareTermination]
-  let handler = Catch $
-        removeFile dirstate_filepath `catch` ignoreIOException >>
-        removeFile user_dirstate_filepath `catch` ignoreIOException
-  mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
+  installSignalHandlers dirstate_filepath user_dirstate_filepath
 
   -- Launch text editor to let user edit the file
   editor_createprocess <- Utils.make_editor_createprocess user_dirstate_filepath
