@@ -35,6 +35,18 @@ import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 import qualified Hroamer.Utilities as Utils
 
+exitIfCwdIsUnderHroamerDir :: FilePath -> FilePath -> IO ()
+exitIfCwdIsUnderHroamerDir app_data_dir cwd =
+  if Path.isWeakAncestorDir app_data_dir cwd
+    then do
+      TIO.putStrLn $
+        "Error: You tried to use hroamer to manage " <> (pack cwd) <> "\n" <>
+        "However, you are not allowed to use hroamer to manage " <>
+        (pack app_data_dir) <>
+        " and directories below it.\nExiting."
+      exitWith $ ExitFailure 1
+    else return ()
+
 
 main :: IO ()
 main = do
@@ -64,15 +76,7 @@ main = do
 
   cwd <- getCurrentDirectory
   -- Do not allow user to use hroamer to manage files that it creates
-  if Path.isWeakAncestorDir app_data_dir cwd
-    then do
-      TIO.putStrLn $
-        "Error: You tried to use hroamer to manage " <> (pack cwd) <> "\n" <>
-        "However, you are not allowed to use hroamer to manage " <>
-        (pack app_data_dir) <>
-        " and directories below it.\nExiting."
-      exitWith $ ExitFailure 1
-    else return ()
+  exitIfCwdIsUnderHroamerDir app_data_dir cwd
 
   (initial_fnames_and_uuids, dirstate_filepath) <-
     processCwd cwd app_tmp_dir path_to_db
