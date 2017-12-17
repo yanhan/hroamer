@@ -1,5 +1,5 @@
 module Hroamer.Utilities
-  ( make_editor_createprocess
+  ( makeEditorCreateProcess
   ) where
 
 import Foundation
@@ -7,8 +7,8 @@ import System.Environment (lookupEnv)
 import System.FilePath.Posix (FilePath)
 import System.Process (CreateProcess, proc, shell)
 
-make_editor_createprocess :: FilePath -> IO CreateProcess
-make_editor_createprocess file = do
+makeEditorCreateProcess :: FilePath -> IO CreateProcess
+makeEditorCreateProcess file = do
   maybe_editor_env_var <- lookupEnv "EDITOR"
   case maybe_editor_env_var of
     Just ""
