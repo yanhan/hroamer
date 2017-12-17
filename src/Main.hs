@@ -36,13 +36,13 @@ import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 import qualified Hroamer.Utilities as Utils
 
 exitIfCwdIsUnderHroamerDir :: FilePath -> FilePath -> IO ()
-exitIfCwdIsUnderHroamerDir app_data_dir cwd =
-  if Path.isWeakAncestorDir app_data_dir cwd
+exitIfCwdIsUnderHroamerDir appDataDir cwd =
+  if Path.isWeakAncestorDir appDataDir cwd
     then do
       TIO.putStrLn $
         "Error: You tried to use hroamer to manage " <> (pack cwd) <> "\n" <>
         "However, you are not allowed to use hroamer to manage " <>
-        (pack app_data_dir) <>
+        (pack appDataDir) <>
         " and directories below it.\nExiting."
       exitWith $ ExitFailure 1
     else return ()
