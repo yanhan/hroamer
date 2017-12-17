@@ -33,7 +33,6 @@ executable hroamer
                      , text
                      , time
                      , unix
-                     , uuid
 
 -- Not the best solution but we are not using Cabal 2 so this will make do
 library
@@ -58,8 +57,10 @@ library
                      , temporary
                      , text
                      , unix
+                     , uuid
 
-  exposed-modules:     Hroamer.DataStructures
+  exposed-modules:     Hroamer.Core
+                     , Hroamer.DataStructures
                      , Hroamer.Database
                      , Hroamer.FileOps
                      , Hroamer.Parser
