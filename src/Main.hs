@@ -78,10 +78,10 @@ installSignalHandlers dirStateFilePath userDirStateFilePath =
 
 
 letUserEditFile :: FilePath -> IO ()
-letUserEditFile user_dirstate_filepath = do
-  editor_createprocess <- Utils.make_editor_createprocess user_dirstate_filepath
-  (_, _, _, editor_process) <- createProcess editor_createprocess
-  waitForProcess editor_process
+letUserEditFile userDirStateFilePath = do
+  editorCreateProcess <- Utils.make_editor_createprocess userDirStateFilePath
+  (_, _, _, editorProcess) <- createProcess editorCreateProcess
+  waitForProcess editorProcess
   return ()
 
 
