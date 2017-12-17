@@ -64,6 +64,10 @@ createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir = do
     else return ()
 
 
+excHandler :: IOException -> IO ()
+excHandler = const $ return ()
+
+
 main :: IO ()
 main = do
   app_data_dir <- getXdgDirectory XdgData "hroamer"
@@ -127,9 +131,6 @@ main = do
   -- cleanup
   removeFile dirstate_filepath `catch` excHandler
   removeFile user_dirstate_filepath `catch` excHandler
-  where
-    excHandler :: IOException -> IO ()
-    excHandler = const $ return ()
 
 
 processCwd :: FilePath
