@@ -85,6 +85,17 @@ letUserEditFile userDirStateFilePath = do
   return ()
 
 
+userMadeChanges :: FilePath -> FilePath -> IO Bool
+userMadeChanges dirstate_filepath user_dirstate_filepath = do
+  (_, _, _, cmp_process) <-
+    createProcess
+      (proc "cmp" ["--silent", dirstate_filepath, user_dirstate_filepath])
+  cmp_exit_code <- waitForProcess cmp_process
+  case cmp_exit_code of
+    ExitSuccess -> return False
+    _ -> return True
+
+
 main :: IO ()
 main = do
   app_data_dir <- getXdgDirectory XdgData "hroamer"
@@ -108,37 +119,34 @@ main = do
   installSignalHandlers dirstate_filepath user_dirstate_filepath
   letUserEditFile user_dirstate_filepath
 
-  -- Compare for difference between the files
-  (_, _, _, cmp_process) <-
-    createProcess
-      (proc "cmp" ["--silent", dirstate_filepath, user_dirstate_filepath])
-  cmp_exit_code <- waitForProcess cmp_process
-  case cmp_exit_code of
-    ExitSuccess -> return ()
-    _ -> do
-      list_of_filename_and_uuid <-
-        StateFile.read user_dirstate_filepath
-      let list_of_filename = fmap fst list_of_filename_and_uuid
-      unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
-      let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
-      if unsupportedPathsDList == Data.DList.empty
-        then do
-          let r = FileOpsReadState cwd path_to_db path_to_trashcopy_dir
-          let file_op_list = runReader
-                               (generateFileOps
-                                 list_of_filename_and_uuid
-                                 initial_fnames_and_uuids)
-                               r
-          HroamerDb.wrapDbConn
-            path_to_db
-            (\f ->
-              forM_ file_op_list (\fileop -> runReaderT (doFileOp f fileop) r))
-            HroamerDb.updateDirAndFilename
-        else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
+  ifOnlyTrue (userMadeChanges dirstate_filepath user_dirstate_filepath) $ do
+    list_of_filename_and_uuid <-
+      StateFile.read user_dirstate_filepath
+    let list_of_filename = fmap fst list_of_filename_and_uuid
+    unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
+    let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
+    if unsupportedPathsDList == Data.DList.empty
+      then do
+        let r = FileOpsReadState cwd path_to_db path_to_trashcopy_dir
+        let file_op_list = runReader
+                             (generateFileOps
+                               list_of_filename_and_uuid
+                               initial_fnames_and_uuids)
+                             r
+        HroamerDb.wrapDbConn
+          path_to_db
+          (\f ->
+            forM_ file_op_list (\fileop -> runReaderT (doFileOp f fileop) r))
+          HroamerDb.updateDirAndFilename
+      else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
 
   -- cleanup
   removeFile dirstate_filepath `catch` ignoreIOException
   removeFile user_dirstate_filepath `catch` ignoreIOException
+  where
+    ifOnlyTrue :: IO Bool -> IO () -> IO ()
+    ifOnlyTrue ioBoolVal action = ioBoolVal >>=
+      \yes -> if yes then action else return ()
 
 
 processCwd :: FilePath
