@@ -10,7 +10,6 @@ import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust)
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
-import Data.Traversable (Traversable(traverse))
 import Foundation hiding (fromList)
 import System.Directory
        (createDirectory, createDirectoryIfMissing, doesFileExist,
@@ -18,7 +17,6 @@ import System.Directory
 import System.IO (readFile, writeFile)
 import System.IO.Temp (createTempDirectory)
 import System.FilePath.Posix ((</>), FilePath)
-import System.Process (createProcess, proc, waitForProcess)
 import Test.Hspec
        (Arg, Spec, SpecWith, afterAll, beforeAll, describe, it, parallel,
         shouldBe, shouldReturn)
@@ -33,6 +31,7 @@ import Hroamer.FileOps
        (FileOp(CopyOp, LookupDbCopyOp, TrashCopyOp), doFileOp,
         generateFileOps)
 import Hroamer.FileOps.Internal (dirToTrashCopyTo)
+import TestHelpers (rmrf)
 
 doFileOpSpecTrashCopyKey :: Text
 doFileOpSpecTrashCopyKey = "trashCopy"
@@ -52,14 +51,6 @@ createDirsForTest = do
                     , (doFileOpSpecCopyOpFileKey, copyOpFileTestDir)
                     , (doFileOpSpecCopyOpDirKey, copyOpDirTestDir)
                     ]
-
-rmrf :: Map Text FilePath -> IO ()
-rmrf tempDirs = do
-  traverse (\dir -> do
-    let rmrfProc = proc "/bin/rm" ["-rf", toList dir]
-    (_, _, _, ph) <- createProcess rmrfProc
-    waitForProcess ph) tempDirs
-  return ()
 
 spec :: Spec
 spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
