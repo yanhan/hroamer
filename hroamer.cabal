@@ -96,7 +96,8 @@ test-suite hroamer-testsuite
                      , temporary
                      , text
                      , QuickCheck
-  other-modules:       Hroamer.Database.InternalSpec
+  other-modules:       Hroamer.CoreSpec
+                     , Hroamer.Database.InternalSpec
                      , Hroamer.DatabaseSpec
                      , Hroamer.FileOpsSpec
                      , Hroamer.FileOps.InternalSpec
