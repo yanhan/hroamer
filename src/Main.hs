@@ -86,12 +86,12 @@ letUserEditFile userDirStateFilePath = do
 
 
 userMadeChanges :: FilePath -> FilePath -> IO Bool
-userMadeChanges dirstate_filepath user_dirstate_filepath = do
-  (_, _, _, cmp_process) <-
+userMadeChanges dirStateFilePath userDirStateFilePath = do
+  (_, _, _, cmpProcess) <-
     createProcess
-      (proc "cmp" ["--silent", dirstate_filepath, user_dirstate_filepath])
-  cmp_exit_code <- waitForProcess cmp_process
-  case cmp_exit_code of
+      (proc "cmp" ["--silent", dirStateFilePath, userDirStateFilePath])
+  cmpExitCode <- waitForProcess cmpProcess
+  case cmpExitCode of
     ExitSuccess -> return False
     _ -> return True
 
