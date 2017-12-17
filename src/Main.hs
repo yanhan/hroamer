@@ -64,8 +64,8 @@ createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir = do
     else return ()
 
 
-excHandler :: IOException -> IO ()
-excHandler = const $ return ()
+ignoreIOException :: IOException -> IO ()
+ignoreIOException = const $ return ()
 
 
 main :: IO ()
@@ -90,8 +90,8 @@ main = do
   copyFile dirstate_filepath user_dirstate_filepath
   let signals_to_handle = [keyboardSignal, softwareStop, softwareTermination]
   let handler = Catch $
-        removeFile dirstate_filepath `catch` excHandler >>
-        removeFile user_dirstate_filepath `catch` excHandler
+        removeFile dirstate_filepath `catch` ignoreIOException >>
+        removeFile user_dirstate_filepath `catch` ignoreIOException
   mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
 
   -- Launch text editor to let user edit the file
@@ -129,8 +129,8 @@ main = do
 
 
   -- cleanup
-  removeFile dirstate_filepath `catch` excHandler
-  removeFile user_dirstate_filepath `catch` excHandler
+  removeFile dirstate_filepath `catch` ignoreIOException
+  removeFile user_dirstate_filepath `catch` ignoreIOException
 
 
 processCwd :: FilePath
