@@ -48,13 +48,8 @@ exitIfCwdIsUnderHroamerDir appDataDir cwd =
     else return ()
 
 
-main :: IO ()
-main = do
-  app_data_dir <- getXdgDirectory XdgData "hroamer"
-  let app_tmp_dir = app_data_dir </> "tmp"
-  -- Directory for storing files 'deleted' using hroamer
-  let path_to_trashcopy_dir = app_data_dir </> "trash-copy"
-
+createHroamerDirs :: FilePath -> FilePath -> FilePath -> IO ()
+createHroamerDirs app_data_dir app_tmp_dir path_to_trashcopy_dir = do
   (allDirsOk, errorDList) <- runWriterT $ do
     -- WriterT (DList Text) IO Bool
     success_creating_app_data_dir <- Path.createDirNoForce app_data_dir
@@ -63,7 +58,6 @@ main = do
     return $
       success_creating_app_data_dir &&
       success_creating_app_tmp_dir && success_creating_trashcopy_dir
-
   if not allDirsOk
     then do
       mapM_ TIO.putStrLn $ Data.DList.toList errorDList
@@ -71,6 +65,14 @@ main = do
       exitWith $ ExitFailure 1
     else return ()
 
+
+main :: IO ()
+main = do
+  app_data_dir <- getXdgDirectory XdgData "hroamer"
+  let app_tmp_dir = app_data_dir </> "tmp"
+  -- Directory for storing files 'deleted' using hroamer
+  let path_to_trashcopy_dir = app_data_dir </> "trash-copy"
+  createHroamerDirs app_data_dir app_tmp_dir path_to_trashcopy_dir
   let path_to_db = app_data_dir </> "hroamer.db"
   HroamerDb.createDbAndTables path_to_db
 
