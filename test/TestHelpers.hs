@@ -3,16 +3,21 @@ module TestHelpers
   , clearDb
   , deleteTempDirForTest
   , getTotalRows
+  , rmrf
   , setupDbForTest
   ) where
 
+import Data.Map (Map)
 import Database.SQLite.Simple
        (Connection, execute_, query_, withConnection)
 import Database.SQLite.Simple.FromRow (FromRow, field, fromRow)
+import Data.Text (Text)
+import Data.Traversable (traverse)
 import Foundation
 import System.Directory (removeDirectory, removeFile)
 import System.FilePath.Posix ((</>), FilePath, takeDirectory)
 import System.IO.Temp (createTempDirectory)
+import System.Process (createProcess, proc, waitForProcess)
 
 import Hroamer.Database (createDbAndTables)
 
@@ -39,3 +44,11 @@ deleteTempDirForTest pathToDb = do
 clearDb :: FilePath -> IO ()
 clearDb pathToDb = withConnection pathToDb (\dbconn ->
   execute_ dbconn "DELETE FROM files;")
+
+rmrf :: Map Text FilePath -> IO ()
+rmrf tempDirs = do
+  traverse (\dir -> do
+    let rmrfProc = proc "/bin/rm" ["-rf", toList dir]
+    (_, _, _, ph) <- createProcess rmrfProc
+    waitForProcess ph) tempDirs
+  return ()
