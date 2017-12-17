@@ -9,14 +9,14 @@ import System.Process (CreateProcess, proc, shell)
 
 makeEditorCreateProcess :: FilePath -> IO CreateProcess
 makeEditorCreateProcess file = do
-  maybe_editor_env_var <- lookupEnv "EDITOR"
-  case maybe_editor_env_var of
+  maybeEditorEnvVar <- lookupEnv "EDITOR"
+  case maybeEditorEnvVar of
     Just ""
       -- Fallback to vim
-     -> return launch_vim
-    Just editor_env_var -> return $ shell $ editor_env_var <> " " <> file
+     -> return launchVim
+    Just editorEnvVar -> return $ shell $ editorEnvVar <> " " <> file
     Nothing
       -- Fallback to vim
-     -> return launch_vim
+     -> return launchVim
   where
-    launch_vim = proc "vim" [file]
+    launchVim = proc "vim" [file]
