@@ -69,11 +69,11 @@ ignoreIOException = const $ return ()
 
 
 installSignalHandlers :: FilePath -> FilePath -> IO ()
-installSignalHandlers dirstate_filepath user_dirstate_filepath =
+installSignalHandlers dirStateFilePath userDirStateFilePath =
   let signals_to_handle = [keyboardSignal, softwareStop, softwareTermination]
       handler = Catch $
-        removeFile dirstate_filepath `catch` ignoreIOException >>
-        removeFile user_dirstate_filepath `catch` ignoreIOException
+        removeFile dirStateFilePath `catch` ignoreIOException >>
+        removeFile userDirStateFilePath `catch` ignoreIOException
   in mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
 
 
