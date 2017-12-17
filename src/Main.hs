@@ -136,7 +136,6 @@ main = do
             HroamerDb.updateDirAndFilename
         else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
 
-
   -- cleanup
   removeFile dirstate_filepath `catch` ignoreIOException
   removeFile user_dirstate_filepath `catch` ignoreIOException
