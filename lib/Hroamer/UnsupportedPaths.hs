@@ -3,6 +3,7 @@ module Hroamer.UnsupportedPaths
   , getUnsupportedPaths
   ) where
 
+import Control.Exception (catch)
 import Control.Monad (mapM_)
 import Control.Monad.State
        (State, StateT, evalState, evalStateT, execStateT, get, lift,
@@ -15,7 +16,7 @@ import qualified Data.Set as S
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
 import Foundation hiding (singleton)
-import System.Directory (canonicalizePath)
+import System.Directory (canonicalizePath, pathIsSymbolicLink)
 import System.FilePath.Posix
        ((</>), FilePath, isAbsolute, isValid, takeDirectory)
 
@@ -25,6 +26,9 @@ import Hroamer.UnsupportedPaths.Internal
         absolutePathsErrorTitle, duplicatePathsErrorTitle,
         formatPathsForErrorMessage, invalidPathsErrorTitle,
         relativePathsErrorTitle)
+
+excHandlerReturnFalse :: IOException -> IO Bool
+excHandlerReturnFalse = const $ return False
 
 getUnsupportedPaths :: FilePath -> [FilePath] -> IO UPaths
 getUnsupportedPaths cwd files = do
@@ -36,7 +40,13 @@ getUnsupportedPaths cwd files = do
       mapM_
         (\fname -> do
            (filesSeen, uPaths) <- get
-           canonPath <- lift $ canonicalizePath $ cwd </> fname
+           let filePath = cwd </> fname
+           isSymlink <- lift $
+             pathIsSymbolicLink filePath `catch` excHandlerReturnFalse
+           canonPath <- lift $
+             if isSymlink
+                then return filePath
+                else canonicalizePath $ cwd </> fname
            let filesSeen' = insert fname filesSeen
            -- `case () of _` trick with guards is learnt from:
            -- https://wiki.haskell.org/Case
