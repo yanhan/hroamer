@@ -21,6 +21,13 @@ spec = parallel $ do
       runParser parseDirStateLine () ""  (filename <> " | " <> uuid) `shouldBe`
         (Right $ Just (filename, uuid))
 
+    it "should return (Right filename, uuid) for a line which contains a 'filename | uuid | original path'" $ do
+      let filename = "atta-boy.jpeg"
+          uuid = "7fbb76ac-1980-4bdc-8aaf-da4852c2c6f5"
+          orgPath = "/vortex/red/flag/atta-boy.jpeg"
+          line = filename <> " | " <> uuid <> " | " <> orgPath
+      runParser parseDirStateLine () "" line `shouldBe` (Right $ Just (filename, uuid))
+
     it "should return Left ParseError for a line which does not fulfil the specifications" $ do
       let filename = "special.a"
       let invalidUuid = "c0aa744f664a7157465c9ac52b87d044"

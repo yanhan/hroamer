@@ -11,7 +11,7 @@ import Data.Conduit.Binary (sourceFile)
 import Data.Maybe (fromJust)
 import Data.Text (Text, pack)
 import Foundation
-import System.FilePath.Posix (FilePath, dropTrailingPathSeparator)
+import System.FilePath.Posix ((</>), FilePath, dropTrailingPathSeparator)
 import System.IO.Temp (writeTempFile)
 import Text.Parsec (runParser)
 
@@ -31,7 +31,12 @@ create cwd appTmpDir filesAndUuidAccurate = do
     fmap
       (\(fn, uuid) -> do
          fnPerhapsWithTrailingSlash <- Path.appendSlashToDir cwd fn
-         return $ pack fnPerhapsWithTrailingSlash <> separator <> uuid)
+         return $
+           pack fnPerhapsWithTrailingSlash <>
+             separator <>
+             uuid <>
+             separator <>
+             pack (cwd </> fnPerhapsWithTrailingSlash))
       filesAndUuidSorted
   writeTempFile
     appTmpDir
