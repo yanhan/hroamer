@@ -8,6 +8,7 @@ import Test.Hspec (Spec, describe, it, parallel, shouldBe)
 import Text.Parsec (ParseError(..), runParser)
 
 import Hroamer.Parser (parseDirStateLine)
+import Hroamer.StateFile (separator)
 
 spec :: Spec
 spec = parallel $ do
@@ -15,17 +16,17 @@ spec = parallel $ do
     it "should return (Right Nothing) for a comment line" $
       runParser parseDirStateLine () ""  "\" just a comment"  `shouldBe` Right Nothing
 
-    it "should return (Right filename, uuid)) for a line which contains a filename and uuid separated by \" | \"" $ do
+    it "should return (Right filename, uuid)) for a line which contains a filename and uuid separated by a separator" $ do
       let filename = "main.c"
       let uuid = "51z9125f-351c-4610-125m-n15jfa086j4h"
-      runParser parseDirStateLine () ""  (filename <> " | " <> uuid) `shouldBe`
+      runParser parseDirStateLine () ""  (filename <> separator <> uuid) `shouldBe`
         (Right $ Just (filename, uuid))
 
     it "should return (Right filename, uuid) for a line which contains a 'filename | uuid | original path'" $ do
       let filename = "atta-boy.jpeg"
           uuid = "7fbb76ac-1980-4bdc-8aaf-da4852c2c6f5"
           orgPath = "/vortex/red/flag/atta-boy.jpeg"
-          line = filename <> " | " <> uuid <> " | " <> orgPath
+          line = filename <> separator <> uuid <> separator <> orgPath
       runParser parseDirStateLine () "" line `shouldBe` (Right $ Just (filename, uuid))
 
     it "should return Left ParseError for a line which does not fulfil the specifications" $ do
@@ -34,4 +35,4 @@ spec = parallel $ do
       either
         (const $ True `shouldBe` True)
         (const $ True `shouldBe` False)
-        (runParser parseDirStateLine () ""  (filename <> " | " <> invalidUuid))
+        (runParser parseDirStateLine () ""  (filename <> separator <> invalidUuid))
