@@ -6,7 +6,7 @@ import Data.Text (Text, pack)
 import Foundation
 import Text.Parsec
        (Parsec, alphaNum, anyChar, char, count, eof, many1, manyTill,
-        optional, string, try)
+        optional, space, try)
 
 parseDirStateLine :: Parsec Text () (Maybe (Text, Text))
 parseDirStateLine = try commentLine <|> normalLine
@@ -36,7 +36,7 @@ parseDirStateLine = try commentLine <|> normalLine
       return $ Just $ (pack l, pack s)
 
     sepBarParser :: Parsec Text () [Char]
-    sepBarParser = string " | "
+    sepBarParser = many1 space >> char '|' >> many1 space
 
     uuidParser :: Parsec Text () [Char]
     uuidParser = do
