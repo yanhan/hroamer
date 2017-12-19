@@ -8,7 +8,7 @@ import Control.Monad (sequence)
 import Data.Conduit ((.|), await, runConduitRes, yield)
 import Data.Conduit.Binary (sourceFile)
 import Data.Maybe (fromJust)
-import Data.Text (pack)
+import Data.Text (Text, pack)
 import Foundation
 import System.FilePath.Posix (FilePath, dropTrailingPathSeparator)
 import System.IO.Temp (writeTempFile)
@@ -17,6 +17,9 @@ import Text.Parsec (runParser)
 import Hroamer.DataStructures (FilePathUUIDPair)
 import qualified Hroamer.Parser as Parser
 import qualified Hroamer.Path as Path
+
+separator :: Text
+separator = " | "
 
 create :: FilePath -> FilePath -> [FilePathUUIDPair] -> IO FilePath
 create cwd appTmpDir filesAndUuidAccurate = do
@@ -27,7 +30,7 @@ create cwd appTmpDir filesAndUuidAccurate = do
     fmap
       (\(fn, uuid) -> do
          fnPerhapsWithTrailingSlash <- Path.appendSlashToDir cwd fn
-         return $ pack fnPerhapsWithTrailingSlash <> " | " <> uuid)
+         return $ pack fnPerhapsWithTrailingSlash <> separator <> uuid)
       filesAndUuidSorted
   writeTempFile
     appTmpDir
