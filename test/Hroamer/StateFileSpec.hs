@@ -58,9 +58,11 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
       let stringSeparator = toList separator
       let contents = unlines $ [
                        "\" pwd: " <> (toList cwd)
-                     , getFilename dotXhrcPair <> stringSeparator <>
+                     , getFilename dotXhrcPair <>
+                         stringSeparator <>
                          getUuid dotXhrcPair
-                     , getFilename dirToCreatePair <> "/" <>
+                     , getFilename dirToCreatePair <>
+                         "/" <>
                          stringSeparator <>
                          getUuid dirToCreatePair
                      , getFilename fileToCreatePair <>
