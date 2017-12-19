@@ -37,6 +37,11 @@ To run the tests:
     stack test
 
 
+## TODO
+
+- Don't support files with space characters in their name
+
+
 ## License
 
 [MIT License](/LICENSE), Copyright (c) 2017 Pang Yan Han
