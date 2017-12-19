@@ -2,13 +2,11 @@ module Hroamer.Parser
   ( parseDirStateLine
   ) where
 
-import Control.Applicative ((*>), (<*))
-import Data.Functor.Identity (Identity)
 import Data.Text (Text, pack)
 import Foundation
 import Text.Parsec
-       (Parsec, alphaNum, anyChar, char, count, eof, lookAhead, manyTill,
-        string, try)
+       (Parsec, alphaNum, anyChar, char, count, eof, manyTill, string,
+        try)
 
 parseDirStateLine :: Parsec Text () (Maybe (Text, Text))
 parseDirStateLine = try commentLine <|> normalLine
@@ -21,10 +19,9 @@ parseDirStateLine = try commentLine <|> normalLine
 
     normalLine :: Parsec Text () (Maybe (Text, Text))
     normalLine = do
-      l <-
-        manyTill anyChar (try . lookAhead $ (sepBarParser *> uuidParser) <* eof)
-      sepBarParser
+      l <- manyTill anyChar sepBarParser
       s <- uuidParser
+      eof
       return $ Just $ (pack l, pack s)
 
     sepBarParser :: Parsec Text () [Char]
