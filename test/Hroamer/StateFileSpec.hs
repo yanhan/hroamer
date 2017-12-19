@@ -10,7 +10,7 @@ import Data.Text (Text)
 import Foundation hiding (fromList)
 import System.Directory (createDirectory)
 import System.FilePath ((</>), FilePath)
-import System.IO (readFile, writeFile)
+import System.IO (appendFile, readFile, writeFile)
 import System.IO.Temp (createTempDirectory)
 import System.Process (createProcess, proc, waitForProcess)
 import Test.Hspec (Spec, afterAll, beforeAll, describe, it, parallel, shouldReturn)
@@ -60,14 +60,21 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
                        "\" pwd: " <> (toList cwd)
                      , getFilename dotXhrcPair <>
                          stringSeparator <>
-                         getUuid dotXhrcPair
+                         getUuid dotXhrcPair <>
+                         stringSeparator <>
+                         cwd </> getFilename dotXhrcPair
                      , getFilename dirToCreatePair <>
                          "/" <>
                          stringSeparator <>
-                         getUuid dirToCreatePair
+                         getUuid dirToCreatePair <>
+                         stringSeparator <>
+                         cwd </> getFilename dirToCreatePair <>
+                         "/"
                      , getFilename fileToCreatePair <>
                          stringSeparator <>
-                         getUuid fileToCreatePair
+                         getUuid fileToCreatePair <>
+                         stringSeparator <>
+                         cwd </> getFilename fileToCreatePair
                      ]
       fmap (<> "\n") (readFile stateFilePath) `shouldReturn` contents
 
@@ -77,9 +84,24 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
       let pairB = (".main-thing", "445685f1-5faa-4bbe-8a04-c26dd4098738")
       let pairC = ("FoolsErrand", "2a04c542-3e06-474f-a7d6-4cee6ceaa583")
       let pairD = ("itchymonitor", "eccef357-a905-4dbb-bbaf-bf559b092965")
+      -- These 2 files will be written to the state file separately and they do
+      -- not have the original file path information.
+      -- Take note that they appear after the other files in alphabetical order
+      let pairE = ("monsieur.txt", "3f97d2f3-fc00-4045-82f6-dd6f914acef5")
+      let pairF = ("parenting-is-tough.jpeg", "4589d4fe-7044-4b91-a3e3-f258107e56cb")
+      let stringSeparator = toList separator
+      let getFilename = toList . fst
+      let getUuid = toList . snd
       -- Create pairB as a dir
       createDirectory $ cwd </> (fst pairB)
       let filesAndUuidInDir = [pairA, pairB, pairC, pairD]
       let appTmpDir = fromJust $ lookup "StateFile.read" appTmpDirMap
       stateFilePath <- StateFile.create cwd appTmpDir filesAndUuidInDir
-      StateFile.read stateFilePath `shouldReturn` [pairB, pairC, pairA, pairD]
+      appendFile stateFilePath $
+        "\n" <>
+        getFilename pairE <> stringSeparator <> getUuid pairE <> "\n" <>
+        getFilename pairF <> stringSeparator <> getUuid pairF <> "\n"
+      -- Append 2 additional lines that do not have the original path to the
+      -- file
+      StateFile.read stateFilePath `shouldReturn`
+        [pairB, pairC, pairA, pairD, pairE, pairF]
