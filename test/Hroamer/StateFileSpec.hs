@@ -55,15 +55,16 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
                               ]
       let appTmpDir = fromJust $ lookup "StateFile.create" appTmpDirMap
       stateFilePath <- StateFile.create cwd appTmpDir filesAndUuidInDir
+      let stringSeparator = toList separator
       let contents = unlines $ [
                        "\" pwd: " <> (toList cwd)
-                     , getFilename dotXhrcPair <> (toList separator) <>
+                     , getFilename dotXhrcPair <> stringSeparator <>
                          getUuid dotXhrcPair
                      , getFilename dirToCreatePair <> "/" <>
-                         (toList separator) <>
+                         stringSeparator <>
                          getUuid dirToCreatePair
                      , getFilename fileToCreatePair <>
-                         (toList separator) <>
+                         stringSeparator <>
                          getUuid fileToCreatePair
                      ]
       fmap (<> "\n") (readFile stateFilePath) `shouldReturn` contents
