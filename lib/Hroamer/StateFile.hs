@@ -1,6 +1,7 @@
 module Hroamer.StateFile
   ( create
   , read
+  , separator
   ) where
 
 import Conduit (decodeUtf8C, lineC, peekForeverE, sinkList)

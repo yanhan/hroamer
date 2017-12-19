@@ -15,6 +15,7 @@ import System.IO.Temp (createTempDirectory)
 import System.Process (createProcess, proc, waitForProcess)
 import Test.Hspec (Spec, afterAll, beforeAll, describe, it, parallel, shouldReturn)
 
+import Hroamer.StateFile (separator)
 import qualified Hroamer.StateFile as StateFile
 
 createDirsForTest :: IO (FilePath, Map Text FilePath)
@@ -56,9 +57,14 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
       stateFilePath <- StateFile.create cwd appTmpDir filesAndUuidInDir
       let contents = unlines $ [
                        "\" pwd: " <> (toList cwd)
-                     , getFilename dotXhrcPair <> " | " <> getUuid dotXhrcPair
-                     , getFilename dirToCreatePair <> "/" <> " | " <> getUuid dirToCreatePair
-                     , getFilename fileToCreatePair <> " | " <> getUuid fileToCreatePair
+                     , getFilename dotXhrcPair <> (toList separator) <>
+                         getUuid dotXhrcPair
+                     , getFilename dirToCreatePair <> "/" <>
+                         (toList separator) <>
+                         getUuid dirToCreatePair
+                     , getFilename fileToCreatePair <>
+                         (toList separator) <>
+                         getUuid fileToCreatePair
                      ]
       fmap (<> "\n") (readFile stateFilePath) `shouldReturn` contents
 
