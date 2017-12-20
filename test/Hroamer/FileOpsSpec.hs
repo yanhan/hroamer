@@ -4,6 +4,7 @@ module Hroamer.FileOpsSpec
   ( spec
   ) where
 
+import Control.Monad (mapM_)
 import Control.Monad.Reader (runReader, runReaderT)
 import Data.Map.Strict (Map, fromList, lookup)
 import qualified Data.Map.Strict as M
@@ -13,10 +14,14 @@ import qualified Data.Text.IO as TIO
 import Foundation hiding (fromList)
 import System.Directory
        (createDirectory, createDirectoryIfMissing, doesFileExist,
-        doesPathExist)
-import System.IO (readFile, writeFile)
+        doesPathExist, pathIsSymbolicLink)
+import System.Exit (ExitCode(ExitSuccess))
+import System.IO (hGetContents, readFile, writeFile)
 import System.IO.Temp (createTempDirectory)
 import System.FilePath.Posix ((</>), FilePath)
+import System.Process
+       (CreateProcess(std_out), StdStream(CreatePipe), createProcess,
+        proc, waitForProcess)
 import Test.Hspec
        (Arg, Spec, SpecWith, afterAll, beforeAll, describe, it, parallel,
         shouldBe, shouldReturn)
@@ -42,14 +47,19 @@ doFileOpSpecCopyOpFileKey = "copyOpFile"
 doFileOpSpecCopyOpDirKey :: Text
 doFileOpSpecCopyOpDirKey = "copyOpDir"
 
+doFileOpSpecCopyOpSymlinkKey :: Text
+doFileOpSpecCopyOpSymlinkKey = "copyOpSymlink"
+
 createDirsForTest :: IO (Map Text FilePath)
 createDirsForTest = do
   trashCopyTestDir <- createTempDirectory "/tmp"  "doFileOpSpecTrashCopyTestDir"
   copyOpFileTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpFileDir"
   copyOpDirTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpDirDir"
+  copyOpSymlinkTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpSymlinkDir"
   return $ fromList [ (doFileOpSpecTrashCopyKey, trashCopyTestDir)
                     , (doFileOpSpecCopyOpFileKey, copyOpFileTestDir)
                     , (doFileOpSpecCopyOpDirKey, copyOpDirTestDir)
+                    , (doFileOpSpecCopyOpSymlinkKey, copyOpSymlinkTestDir)
                     ]
 
 spec :: Spec
@@ -232,3 +242,43 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
         doesFileExist srcFilePath `shouldReturn` True
         doesFileExist destFilePath `shouldReturn` True
         readFile destFilePath `shouldReturn` fileContents
+
+    it "for CopyOp for symlink, it should create a new symlink" $
+      \mapOfTempDirs -> do
+        let tempDir = fromJust $ lookup doFileOpSpecCopyOpSymlinkKey mapOfTempDirs
+            pathToDb = tempDir </> "symlinkdb"
+            srcDir = tempDir </> "heylo"
+            srcFile = "mylink"
+            srcPath = srcDir </> srcFile
+            srcUuid = "e951540f-4202-4fd1-b544-eba5b5cba0b3"
+            srcFileRepr = FileRepr srcDir srcFile
+            symlinkTarget = "/a/fairy/tale/with/some/castle"
+            destDir = tempDir </> "aiyo"
+            destFile = "pointer"
+            destPath = destDir </> destFile
+            destFileRepr = FileRepr destDir destFile
+        HroamerDb.createDbAndTables pathToDb
+        HroamerDb.wrapDbConn
+          pathToDb
+          (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
+          HroamerDbInt.addFileDetailsToDb
+        -- Create the symlink
+        mapM_ createDirectory [srcDir, destDir]
+        (_, _, _, ph) <- createProcess (proc "ln" ["-s", symlinkTarget, srcPath])
+        exitCode <- waitForProcess ph
+        case exitCode of
+          ExitSuccess -> return ()
+          _ -> False `shouldBe` True
+        pathIsSymbolicLink srcPath `shouldReturn` True
+        doesPathExist destPath `shouldReturn` False
+        runReaderT
+          (doFileOp undefined (CopyOp srcFileRepr destFileRepr))
+          undefined
+        pathIsSymbolicLink destPath `shouldReturn` True
+        (_, Just stdoutHandle, _, ph) <-
+          createProcess (proc "readlink" [destPath]){ std_out=CreatePipe }
+        exitCode <- waitForProcess ph
+        case exitCode of
+          ExitSuccess ->
+            hGetContents stdoutHandle `shouldReturn` (symlinkTarget <> "\n")
+          _ -> False `shouldBe` True

@@ -13,8 +13,9 @@ import qualified Data.Text.IO as TIO
 import Foundation
 import System.Directory
        (copyFile, createDirectory, doesDirectoryExist, doesPathExist,
-        renamePath)
+        pathIsSymbolicLink, renamePath)
 import System.Exit (ExitCode(ExitSuccess))
+import System.FilePath.Posix (FilePath)
 import System.Process (createProcess, proc, waitForProcess)
 
 import Hroamer.DataStructures
@@ -97,27 +98,41 @@ doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
   let (FileRepr destDir destFilename) = destFileRepr
   let srcFilePath = fileReprToFilePath srcFileRepr
   let destFilePath = fileReprToFilePath destFileRepr
-  srcExists <- liftIO $ doesPathExist srcFilePath
-  srcIsDir <- liftIO $ doesDirectoryExist srcFilePath
-  liftIO $
-    if srcExists && srcIsDir
-      then do
-        (_, _, _, ph) <-
-          createProcess (proc "cp" ["-R", srcFilePath, destFilePath])
-        exitcode <- waitForProcess ph
-        case exitcode of
-          ExitSuccess ->
-            TIO.putStrLn $
-              "cp -R " <> (pack srcFilePath) <> " " <> (pack destFilePath)
-          _ ->
-            TIO.putStrLn $
-              "Failed to copy " <> (pack srcFilePath) <> " to " <>
-              (pack destFilePath)
-      else
-        if srcExists
-           then do
-             copyFile srcFilePath destFilePath
-             TIO.putStrLn $
-               "cp " <> (pack srcFilePath) <> " " <> (pack destFilePath)
-           else
-             return ()
+  isSymLink <- liftIO $ pathIsSymbolicLink srcFilePath
+  if isSymLink
+    then liftIO $ do
+      -- doesPathExist and doesDirectoryExist will try to resolve symlinks,
+      -- but we do not want that. So we just assume the symlink is there and
+      -- copy it
+      (_, _, _, ph) <- createProcess (proc "cp" ["-P", srcFilePath, destFilePath])
+      exitCode <- waitForProcess ph
+      case exitCode of
+        ExitSuccess -> TIO.putStrLn $
+          "cp -P " <> pack srcFilePath <> " " <> pack destFilePath
+        _ -> TIO.putStrLn $
+          "Failed to copy " <> pack srcFilePath <> " to " <> pack destFilePath
+    else do
+      srcExists <- liftIO $ doesPathExist srcFilePath
+      srcIsDir <- liftIO $ doesDirectoryExist srcFilePath
+      liftIO $
+        if srcExists && srcIsDir
+          then do
+            (_, _, _, ph) <-
+              createProcess (proc "cp" ["-R", srcFilePath, destFilePath])
+            exitcode <- waitForProcess ph
+            case exitcode of
+              ExitSuccess ->
+                TIO.putStrLn $
+                  "cp -R " <> (pack srcFilePath) <> " " <> (pack destFilePath)
+              _ ->
+                TIO.putStrLn $
+                  "Failed to copy " <> (pack srcFilePath) <> " to " <>
+                  (pack destFilePath)
+          else
+            if srcExists
+               then do
+                 copyFile srcFilePath destFilePath
+                 TIO.putStrLn $
+                   "cp " <> (pack srcFilePath) <> " " <> (pack destFilePath)
+               else
+                 return ()
