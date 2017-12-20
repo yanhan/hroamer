@@ -42,6 +42,11 @@ To run the tests:
 - Don't support files with space characters in their name
 
 
+## Bugs
+
+- In `doFileOp` for `CopyOp`, the `doesPathExist` function resolves symlinks. But this will not work for broken symlinks, which we may still want to copy
+
+
 ## License
 
 [MIT License](/LICENSE), Copyright (c) 2017 Pang Yan Han
