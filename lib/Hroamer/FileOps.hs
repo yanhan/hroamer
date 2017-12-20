@@ -115,8 +115,8 @@ doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
       srcExists <- liftIO $ doesPathExist srcFilePath
       srcIsDir <- liftIO $ doesDirectoryExist srcFilePath
       liftIO $
-        if srcExists && srcIsDir
-          then do
+        case (srcExists, srcIsDir) of
+          (True, True) -> do
             (_, _, _, ph) <-
               createProcess (proc "cp" ["-R", srcFilePath, destFilePath])
             exitcode <- waitForProcess ph
@@ -128,11 +128,8 @@ doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
                 TIO.putStrLn $
                   "Failed to copy " <> (pack srcFilePath) <> " to " <>
                   (pack destFilePath)
-          else
-            if srcExists
-               then do
-                 copyFile srcFilePath destFilePath
-                 TIO.putStrLn $
-                   "cp " <> (pack srcFilePath) <> " " <> (pack destFilePath)
-               else
-                 return ()
+          (True, _) -> do
+             copyFile srcFilePath destFilePath
+             TIO.putStrLn $
+               "cp " <> (pack srcFilePath) <> " " <> (pack destFilePath)
+          _ -> return ()
