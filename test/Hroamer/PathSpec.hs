@@ -17,7 +17,7 @@ import Test.QuickCheck
        (Gen, Property, arbitrary, choose, forAll, listOf1, property, suchThat)
 
 import Hroamer.Path
-       (appendSlashToDir, createDirNoForce, isWeakAncestorDir)
+       (appendSlashToDir, createDirNoForce, hasSpace, isWeakAncestorDir)
 
 
 filePathComponent :: Gen [Char]
@@ -93,6 +93,24 @@ relativeAndAbsoluteMix =
   forAll
     absAndRelFilePath
     (\(absPath, relPath) -> not $ isWeakAncestorDir relPath absPath)
+
+
+genFilePathWithSpace :: Gen
+genFilePathWithSpace = do
+  where
+    filePathComponentWithSpace :: Gen [Char]
+    filePathComponentWithSpace =
+      listOf1 $ suchThat noNullCharGen ( noPathSeparator
+
+    noNullCharGen :: Gen Char
+    noNullCharGen = choose (chr 1, maxBound :: Char)
+
+    noPathSeparator :: Char -> Bool
+    noPathSeparator c = c /= pathSeparator
+
+
+hasSpaceDetectsFilePathWithSpace :: Property
+hasSpaceDetectsFilePathWithSpace = forAll genFilePathWithSpace hasSpace
 
 spec :: Spec
 spec = parallel $ do
@@ -174,3 +192,7 @@ spec = parallel $ do
         emptyDList `shouldBe` Data.DList.empty
         doesDirectoryExist nonExistentDir `shouldReturn` True
       )
+
+  describe "hasSpace" $ do
+    it "will return True for FilePath that has at least a space" $
+      hasSpaceDetectsFilePathWithSpace
