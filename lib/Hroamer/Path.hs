@@ -1,11 +1,13 @@
 module Hroamer.Path
   ( appendSlashToDir
   , createDirNoForce
+  , hasSpace
   , isWeakAncestorDir
   ) where
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Writer.Strict (WriterT, tell)
+import Data.Char (isSpace)
 import Data.DList (DList, singleton)
 import Data.Text (Text, pack)
 import Foundation hiding (singleton)
@@ -60,3 +62,6 @@ createDirNoForce app_data_dir = do
     else do
       liftIO $ createDirectory app_data_dir
       return True
+
+hasSpace :: FilePath -> Bool
+hasSpace filename = maybe False (const True) $ find isSpace filename

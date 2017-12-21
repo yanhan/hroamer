@@ -4,11 +4,11 @@ import Control.Exception (catch, IOException)
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (runReaderT, runReader)
-import Control.Monad.Writer.Strict (runWriterT)
+import Control.Monad.Writer.Strict (WriterT(runWriterT), tell)
 import qualified Data.DList
-import Data.Text (pack)
+import Data.Text (Text, intercalate, pack)
 import qualified Data.Text.IO as TIO
-import Foundation
+import Foundation hiding (intercalate)
 import Foundation.Collection (mapM_)
 import System.Directory
        (XdgDirectory(XdgData), copyFile, getCurrentDirectory,
@@ -105,6 +105,16 @@ main = do
   cwd <- getCurrentDirectory
   -- Do not allow user to use hroamer to manage files that it creates
   exitIfCwdIsUnderHroamerDir app_data_dir cwd
+  (_, startLogs) <- runWriterT $ do
+    if Path.hasSpace cwd
+       then tell $
+         ["Error: cannot manage current directory because it has space characters"]
+       else return ()
+  case startLogs of
+    (_:_) -> do
+      TIO.putStrLn $ intercalate "\n" startLogs
+      exitWith $ ExitFailure 1
+    [] -> return ()
 
   (initial_fnames_and_uuids, dirstate_filepath) <-
     processCwd cwd app_tmp_dir path_to_db

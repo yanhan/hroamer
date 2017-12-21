@@ -2,9 +2,10 @@ module Hroamer.PathSpec
   ( spec
   ) where
 
+import Control.Monad (foldM)
 import Control.Monad.Reader (Reader, ask, runReader)
 import Control.Monad.Writer.Strict (runWriterT)
-import Data.Char (chr)
+import Data.Char (chr, isSpace)
 import qualified Data.DList
 import Foundation
 import System.Directory (doesDirectoryExist)
@@ -17,7 +18,7 @@ import Test.QuickCheck
        (Gen, Property, arbitrary, choose, forAll, listOf1, property, suchThat)
 
 import Hroamer.Path
-       (appendSlashToDir, createDirNoForce, isWeakAncestorDir)
+       (appendSlashToDir, createDirNoForce, hasSpace, isWeakAncestorDir)
 
 
 filePathComponent :: Gen [Char]
@@ -93,6 +94,34 @@ relativeAndAbsoluteMix =
   forAll
     absAndRelFilePath
     (\(absPath, relPath) -> not $ isWeakAncestorDir relPath absPath)
+
+
+genAbsoluteFilePathWithSpace :: Gen [Char]
+genAbsoluteFilePathWithSpace = do
+  -- shuffle this?
+  l1 <- listOf1 filePathComponent
+  l2 <- listOf1 filePathComponentWithSpace
+  foldM (\pathSoFar pathComponent -> do
+    pathSep <- genPathSeparators
+    return $ pathSoFar <> pathSep <> pathComponent
+    ) "" (l1 <> l2)
+  where
+    filePathComponentWithSpace :: Gen [Char]
+    filePathComponentWithSpace = do
+      p1 <- listOf1 $ suchThat noNullCharGen noPathSeparator
+      p2 <- listOf1 $ suchThat noNullCharGen isSpace
+      p3 <- listOf1 $ suchThat noNullCharGen noPathSeparator
+      return $ p1 <> p2 <> p3
+
+    noNullCharGen :: Gen Char
+    noNullCharGen = choose (chr 1, maxBound :: Char)
+
+    noPathSeparator :: Char -> Bool
+    noPathSeparator c = c /= pathSeparator
+
+
+hasSpaceDetectsFilePathWithSpace :: Property
+hasSpaceDetectsFilePathWithSpace = forAll genAbsoluteFilePathWithSpace hasSpace
 
 spec :: Spec
 spec = parallel $ do
@@ -174,3 +203,8 @@ spec = parallel $ do
         emptyDList `shouldBe` Data.DList.empty
         doesDirectoryExist nonExistentDir `shouldReturn` True
       )
+
+  describe "hasSpace" $ do
+    modifyMaxSuccess (const 30) $
+      it "will return True for FilePath that has at least a space" $
+        hasSpaceDetectsFilePathWithSpace
