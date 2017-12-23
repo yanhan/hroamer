@@ -52,8 +52,8 @@ genPathSeparators = do
   return $ replicate (CountOf n) pathSeparator
 
 
-absoluteFilePath :: Gen FilePath
-absoluteFilePath = (<>) <$> genPathSeparators <*> genRelativeFilePath
+genAbsoluteFilePath :: Gen FilePath
+genAbsoluteFilePath = (<>) <$> genPathSeparators <*> genRelativeFilePath
 
 
 checkAllAncestorPaths :: FilePath -> Reader FilePath Bool
@@ -75,11 +75,11 @@ relativeFilePathProp =
 
 absoluteFilePathProp :: Property
 absoluteFilePathProp =
-  forAll absoluteFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
+  forAll genAbsoluteFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
 
 
 absAndRelFilePath :: Gen (FilePath, FilePath)
-absAndRelFilePath = fmap (,) absoluteFilePath <*> genRelativeFilePath
+absAndRelFilePath = fmap (,) genAbsoluteFilePath <*> genRelativeFilePath
 
 
 absoluteAndRelativeMix :: Property
