@@ -100,14 +100,14 @@ genAbsoluteFilePathWithSpace :: Gen [Char]
 genAbsoluteFilePathWithSpace = do
   -- shuffle this?
   l1 <- listOf1 genFilePathComponent
-  l2 <- listOf1 filePathComponentWithSpace
+  l2 <- listOf1 genFilePathComponentWithSpace
   foldM (\pathSoFar pathComponent -> do
     pathSep <- genPathSeparators
     return $ pathSoFar <> pathSep <> pathComponent
     ) "" (l1 <> l2)
   where
-    filePathComponentWithSpace :: Gen [Char]
-    filePathComponentWithSpace = do
+    genFilePathComponentWithSpace :: Gen [Char]
+    genFilePathComponentWithSpace = do
       p1 <- listOf1 $ suchThat genCharNoNulls isNotPathSeparator
       p2 <- listOf1 $ suchThat genCharNoNulls isSpace
       p3 <- listOf1 $ suchThat genCharNoNulls isNotPathSeparator
