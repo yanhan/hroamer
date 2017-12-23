@@ -30,8 +30,8 @@ genFilePathComponent :: Gen [Char]
 genFilePathComponent = listOf1 $ suchThat genCharNoNulls isNotPathSeparator
 
 
-relativeFilePath :: Gen FilePath
-relativeFilePath = do
+genRelativeFilePath :: Gen FilePath
+genRelativeFilePath = do
   l <- listOf1 genFilePathComponent
   let nrPathSeparatorBlocks = length l - 1
   case l of
@@ -53,7 +53,7 @@ genPathSeparators = do
 
 
 absoluteFilePath :: Gen FilePath
-absoluteFilePath = (<>) <$> genPathSeparators <*> relativeFilePath
+absoluteFilePath = (<>) <$> genPathSeparators <*> genRelativeFilePath
 
 
 checkAllAncestorPaths :: FilePath -> Reader FilePath Bool
@@ -70,7 +70,7 @@ checkAllAncestorPaths possibleAncestorFilePath = do
 
 relativeFilePathProp :: Property
 relativeFilePathProp =
-  forAll relativeFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
+  forAll genRelativeFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
 
 
 absoluteFilePathProp :: Property
@@ -79,7 +79,7 @@ absoluteFilePathProp =
 
 
 absAndRelFilePath :: Gen (FilePath, FilePath)
-absAndRelFilePath = fmap (,) absoluteFilePath <*> relativeFilePath
+absAndRelFilePath = fmap (,) absoluteFilePath <*> genRelativeFilePath
 
 
 absoluteAndRelativeMix :: Property
