@@ -26,13 +26,13 @@ genCharNoNulls = choose (chr 1, maxBound :: Char)
 isNotPathSeparator :: Char -> Bool
 isNotPathSeparator c = c /= pathSeparator
 
-filePathComponent :: Gen [Char]
-filePathComponent = listOf1 $ suchThat genCharNoNulls isNotPathSeparator
+genFilePathComponent :: Gen [Char]
+genFilePathComponent = listOf1 $ suchThat genCharNoNulls isNotPathSeparator
 
 
 relativeFilePath :: Gen FilePath
 relativeFilePath = do
-  l <- listOf1 filePathComponent
+  l <- listOf1 genFilePathComponent
   let nrPathSeparatorBlocks = length l - 1
   case l of
     [] -> return []
@@ -99,7 +99,7 @@ relativeAndAbsoluteMix =
 genAbsoluteFilePathWithSpace :: Gen [Char]
 genAbsoluteFilePathWithSpace = do
   -- shuffle this?
-  l1 <- listOf1 filePathComponent
+  l1 <- listOf1 genFilePathComponent
   l2 <- listOf1 filePathComponentWithSpace
   foldM (\pathSoFar pathComponent -> do
     pathSep <- genPathSeparators
