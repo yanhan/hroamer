@@ -31,16 +31,17 @@ import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 import qualified Hroamer.Utilities as Utils
 
-exitIfCwdIsUnderHroamerDir :: FilePath -> FilePath -> IO ()
-exitIfCwdIsUnderHroamerDir appDataDir cwd =
+checkIfCwdIsUnderHroamerDir :: FilePath -> FilePath -> WriterT [Text] IO ()
+checkIfCwdIsUnderHroamerDir appDataDir cwd =
   if Path.isWeakAncestorDir appDataDir cwd
     then do
-      TIO.putStrLn $
-        "Error: You tried to use hroamer to manage " <> (pack cwd) <> "\n" <>
-        "However, you are not allowed to use hroamer to manage " <>
-        (pack appDataDir) <>
-        " and directories below it.\nExiting."
-      exitWith $ ExitFailure 1
+      tell $
+        [
+          "Error: You tried to use hroamer to manage " <> (pack cwd) <> "\n" <>
+          "However, you are not allowed to use hroamer to manage " <>
+          (pack appDataDir) <>
+          " and directories below it.\nExiting."
+        ]
     else return ()
 
 
@@ -103,13 +104,13 @@ main = do
   HroamerDb.createDbAndTables path_to_db
 
   cwd <- getCurrentDirectory
-  -- Do not allow user to use hroamer to manage files that it creates
-  exitIfCwdIsUnderHroamerDir app_data_dir cwd
   (_, startLogs) <- runWriterT $ do
     if Path.hasSpace cwd
        then tell $
          ["Error: cannot manage current directory because it has space characters"]
        else return ()
+    -- Do not allow user to use hroamer to manage files that it creates
+    checkIfCwdIsUnderHroamerDir app_data_dir cwd
   case startLogs of
     (_:_) -> do
       TIO.putStrLn $ intercalate "\n" startLogs
