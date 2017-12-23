@@ -98,7 +98,7 @@ relativeAndAbsoluteMix =
 
 genAbsoluteFilePathWithSpace :: Gen [Char]
 genAbsoluteFilePathWithSpace = do
-  -- shuffle this?
+  -- TODO: shuffle this?
   l1 <- listOf1 genFilePathComponent
   l2 <- listOf1 genFilePathComponentWithSpace
   foldM (\pathSoFar pathComponent -> do
