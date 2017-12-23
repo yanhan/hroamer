@@ -20,14 +20,14 @@ import Test.QuickCheck
 import Hroamer.Path
        (appendSlashToDir, createDirNoForce, hasSpace, isWeakAncestorDir)
 
-noNullCharGen :: Gen Char
-noNullCharGen = choose (chr 1, maxBound :: Char)
+genCharNoNulls :: Gen Char
+genCharNoNulls = choose (chr 1, maxBound :: Char)
 
 isNotPathSeparator :: Char -> Bool
 isNotPathSeparator c = c /= pathSeparator
 
 filePathComponent :: Gen [Char]
-filePathComponent = listOf1 $ suchThat noNullCharGen isNotPathSeparator
+filePathComponent = listOf1 $ suchThat genCharNoNulls isNotPathSeparator
 
 
 relativeFilePath :: Gen FilePath
@@ -108,9 +108,9 @@ genAbsoluteFilePathWithSpace = do
   where
     filePathComponentWithSpace :: Gen [Char]
     filePathComponentWithSpace = do
-      p1 <- listOf1 $ suchThat noNullCharGen isNotPathSeparator
-      p2 <- listOf1 $ suchThat noNullCharGen isSpace
-      p3 <- listOf1 $ suchThat noNullCharGen isNotPathSeparator
+      p1 <- listOf1 $ suchThat genCharNoNulls isNotPathSeparator
+      p2 <- listOf1 $ suchThat genCharNoNulls isSpace
+      p3 <- listOf1 $ suchThat genCharNoNulls isNotPathSeparator
       return $ p1 <> p2 <> p3
 
 
