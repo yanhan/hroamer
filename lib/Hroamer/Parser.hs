@@ -28,13 +28,6 @@ parseDirStateLine = try commentLine <|> normalLine
       eof
       return $ Just $ (pack l, pack s)
 
-    normalLineWithoutOrgPath :: Parsec Text () (Maybe (Text, Text))
-    normalLineWithoutOrgPath = do
-      l <- manyTill anyChar sepBarParser
-      s <- uuidParser
-      eof
-      return $ Just $ (pack l, pack s)
-
     sepBarParser :: Parsec Text () [Char]
     sepBarParser = many1 space >> char '|' >> many1 space
 
