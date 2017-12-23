@@ -12,6 +12,7 @@ import System.Directory (listDirectory)
 import System.FilePath.Posix (FilePath)
 
 import Hroamer.DataStructures (FilePathUUIDPair)
+import Hroamer.Path (hasSpace)
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.StateFile as StateFile
@@ -21,7 +22,7 @@ processCwd :: FilePath
            -> FilePath
            -> IO ([FilePathUUIDPair], FilePath)
 processCwd cwd appTmpDir pathToDb = do
-  filesOnSystem <- listDirectory cwd
+  filesOnSystem <- fmap (fmap (filter (not . hasSpace))) listDirectory cwd
   filesAndUuidInDb <- HroamerDb.getAllFilesInDir pathToDb cwd
   let filesInDb = fmap fst filesAndUuidInDb
   let (filesOnlyOnSystem, filesOnlyInDb) =
