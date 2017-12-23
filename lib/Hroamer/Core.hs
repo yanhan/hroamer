@@ -21,11 +21,11 @@ processCwd :: FilePath
            -> FilePath
            -> IO ([FilePathUUIDPair], FilePath)
 processCwd cwd appTmpDir pathToDb = do
-  fileOnSystem <- listDirectory cwd
+  filesOnSystem <- listDirectory cwd
   filesAndUuidInDb <- HroamerDb.getAllFilesInDir pathToDb cwd
   let filesInDb = fmap fst filesAndUuidInDb
   let (filesOnlyOnSystem, filesOnlyInDb) =
-        separateFilesIntoCategories fileOnSystem filesInDb
+        separateFilesIntoCategories filesOnSystem filesInDb
   filesAndUuidsOnlyOnSystem <-
     mapM
       (\fname -> do
