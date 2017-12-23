@@ -23,11 +23,11 @@ import Hroamer.Path
 noNullCharGen :: Gen Char
 noNullCharGen = choose (chr 1, maxBound :: Char)
 
-noPathSeparator :: Char -> Bool
-noPathSeparator c = c /= pathSeparator
+isNotPathSeparator :: Char -> Bool
+isNotPathSeparator c = c /= pathSeparator
 
 filePathComponent :: Gen [Char]
-filePathComponent = listOf1 $ suchThat noNullCharGen noPathSeparator
+filePathComponent = listOf1 $ suchThat noNullCharGen isNotPathSeparator
 
 
 relativeFilePath :: Gen FilePath
@@ -108,9 +108,9 @@ genAbsoluteFilePathWithSpace = do
   where
     filePathComponentWithSpace :: Gen [Char]
     filePathComponentWithSpace = do
-      p1 <- listOf1 $ suchThat noNullCharGen noPathSeparator
+      p1 <- listOf1 $ suchThat noNullCharGen isNotPathSeparator
       p2 <- listOf1 $ suchThat noNullCharGen isSpace
-      p3 <- listOf1 $ suchThat noNullCharGen noPathSeparator
+      p3 <- listOf1 $ suchThat noNullCharGen isNotPathSeparator
       return $ p1 <> p2 <> p3
 
 
