@@ -11,7 +11,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (Reader, ReaderT(runReaderT), ask, asks)
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
-import Data.Text (pack)
+import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
 import Foundation
 import System.Directory
@@ -71,8 +71,8 @@ doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) =
     createDirectory destDir
     trashCopy destDir destFilename `catch` \(exc::IOException) ->
       TIO.putStrLn $
-        "Failed to trash-copy " <>
-        (pack srcFilePath) <>
+        "Failed to " <>
+        trashCopyMessage <>
         " because " <>
         (pack . toList $ show exc) <>
         ". Continuing..."
@@ -80,11 +80,14 @@ doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) =
     srcFilePath :: FilePath
     srcFilePath = fileReprToFilePath srcFileRepr
 
+    trashCopyMessage :: Text
+    trashCopyMessage = "trash-copy " <> pack srcFilePath
+
     trashCopy :: FilePath -> FilePath -> IO ()
     trashCopy destDir destFilename = do
       let destFilePath = fileReprToFilePath destFileRepr
       renamePath srcFilePath destFilePath
-      TIO.putStrLn $ "trash-copy " <> (pack srcFilePath)
+      TIO.putStrLn trashCopyMessage
       dbUpdateDirAndFileName
         FilesTableRow {dir = destDir, filename = destFilename, uuid = uuid}
 
