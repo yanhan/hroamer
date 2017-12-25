@@ -116,9 +116,9 @@ doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
   let (FileRepr destDir destFilename) = destFileRepr
   let srcFilePath = fileReprToFilePath srcFileRepr
   let destFilePath = fileReprToFilePath destFileRepr
-  isSymLink <- liftIO $ pathIsSymbolicLink srcFilePath `catch`
+  isSymlink <- liftIO $ pathIsSymbolicLink srcFilePath `catch`
     \(e::IOException) -> return False
-  if isSymLink
+  if isSymlink
     then liftIO $ do
       -- doesPathExist and doesDirectoryExist will try to resolve symlinks,
       -- but we do not want that. So we just assume the symlink is there and
