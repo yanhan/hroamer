@@ -73,9 +73,9 @@ doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) =
       TIO.putStrLn $
         "Failed to " <>
         trashCopyMessage <>
-        " because " <>
+        " because\n  " <>
         (pack . toList $ show exc) <>
-        ". Continuing..."
+        "\n  Continuing..."
   where
     srcFilePath :: FilePath
     srcFilePath = fileReprToFilePath srcFileRepr
