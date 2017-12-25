@@ -42,7 +42,7 @@ doFileOpSpecTrashCopyKey :: Text
 doFileOpSpecTrashCopyKey = "trashCopy"
 
 doFileOpSpecTrashCopySourceMissingKey :: Text
-doFileOpSpecTrashCopySourceMissingKey = "trashCopy"
+doFileOpSpecTrashCopySourceMissingKey = "trashCopySourceMissing"
 
 doFileOpSpecCopyOpFileKey :: Text
 doFileOpSpecCopyOpFileKey = "copyOpFile"
