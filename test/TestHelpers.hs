@@ -10,7 +10,7 @@ module TestHelpers
   , setupDbForTest
   ) where
 
-import Data.Char (chr)
+import Data.Char (chr, isSpace)
 import Data.Map (Map)
 import Database.SQLite.Simple
        (Connection, execute_, query_, withConnection)
@@ -67,4 +67,4 @@ genCharNotNull = choose (chr 1, maxBound :: Char)
 
 genValidFilePathChar :: Gen Char
 genValidFilePathChar = suchThat genCharNotNull $
-  (\ch -> foldr (\f acc -> acc && f ch) True [isNotPathSeparator])
+  (\ch -> foldr (\f acc -> acc && f ch) True [isNotPathSeparator, not . isSpace])
