@@ -15,6 +15,7 @@ import Test.QuickCheck
 
 import Hroamer.Parser (parseDirStateLine)
 import Hroamer.StateFile (separator)
+import TestHelpers (genCharNotNull)
 
 isNotPathSeparator :: Char -> Bool
 isNotPathSeparator = (/= pathSeparator)
@@ -22,17 +23,12 @@ isNotPathSeparator = (/= pathSeparator)
 isNotNull :: Char -> Bool
 isNotNull = (/= '\0')
 
-genChar :: Gen Char
-genChar = choose (minBound :: Char, maxBound)
-
 genSpace :: Gen Char
-genSpace = suchThat genChar isSpace
+genSpace = suchThat genCharNotNull isSpace
 
 genValidFilePathChar :: Gen Char
-genValidFilePathChar = suchThat genChar $
-  (\ch ->
-    foldr (\f acc -> acc && f ch) True
-      [isNotNull, isNotPathSeparator, not . isSpace])
+genValidFilePathChar = suchThat genCharNotNull $
+  (\ch -> foldr (\f acc -> acc && f ch) True [isNotNull, isNotPathSeparator])
 
 genFilenameWithNonTrailingSpace :: Gen Text
 genFilenameWithNonTrailingSpace = do
