@@ -2,7 +2,6 @@ module Hroamer.ParserSpec
   ( spec
   ) where
 
-import Data.Char (isSpace)
 import Data.Either (either, isLeft)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
@@ -15,6 +14,7 @@ import Test.QuickCheck
        (Gen, Property, choose, forAll, listOf1, shuffle, suchThat,
         vectorOf)
 
+import Hroamer.Char (isNotSpace)
 import Hroamer.Parser (parseDirStateLine)
 import Hroamer.StateFile (separator)
 import TestHelpers (genCharNotNull, genSpace, genValidFilePathChar)
@@ -31,9 +31,6 @@ genFilenameWithTrailingSpaces = do
   n <- choose (1, 5)
   spaces <- vectorOf n genSpace
   fmap (pack . (<> spaces)) $ listOf1 genValidFilePathChar
-
-isNotSpace :: Char -> Bool
-isNotSpace = not . isSpace
 
 spec :: Spec
 spec = parallel $ do

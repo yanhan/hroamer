@@ -2,13 +2,14 @@ module Hroamer.Parser
   ( parseDirStateLine
   ) where
 
-import Data.Char (isSpace)
 import Data.Text (Text, pack)
 import Foundation
 import Text.Parsec
        (Parsec, alphaNum, anyChar, char, count, eof, many1, manyTill,
         optional, space, try)
 import Text.Parsec.Char (satisfy)
+
+import Hroamer.Char (isNotSpace)
 
 parseDirStateLine :: Parsec Text () (Maybe (Text, Text))
 parseDirStateLine = try commentLine <|> normalLine
@@ -20,7 +21,7 @@ parseDirStateLine = try commentLine <|> normalLine
       return Nothing
 
     notSpace :: Parsec Text () Char
-    notSpace = satisfy $ not . isSpace
+    notSpace = satisfy isNotSpace
 
     normalLine :: Parsec Text () (Maybe (Text, Text))
     normalLine = do

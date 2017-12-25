@@ -59,7 +59,8 @@ library
                      , unix
                      , uuid
 
-  exposed-modules:     Hroamer.Core
+  exposed-modules:     Hroamer.Char
+                     , Hroamer.Core
                      , Hroamer.DataStructures
                      , Hroamer.Database
                      , Hroamer.FileOps

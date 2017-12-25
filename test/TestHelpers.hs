@@ -27,6 +27,7 @@ import System.IO.Temp (createTempDirectory)
 import System.Process (createProcess, proc, waitForProcess)
 import Test.QuickCheck (Gen, choose, listOf1, suchThat)
 
+import Hroamer.Char (isNotSpace)
 import Hroamer.Database (createDbAndTables)
 
 type RowCount = Int
@@ -69,7 +70,7 @@ genCharNotNull = choose (chr 1, maxBound :: Char)
 
 genValidFilePathChar :: Gen Char
 genValidFilePathChar = suchThat genCharNotNull $
-  (\ch -> foldr (\f acc -> acc && f ch) True [isNotPathSeparator, not . isSpace])
+  (\ch -> foldr (\f acc -> acc && f ch) True [isNotPathSeparator, isNotSpace])
 
 genFilePathComponent :: Gen FilePath
 genFilePathComponent = listOf1 genValidFilePathChar
