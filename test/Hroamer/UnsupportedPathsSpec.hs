@@ -31,11 +31,10 @@ getUnsupportedPathsSymLinkKey = "getUnsupportedPathsSymLinkKey"
 
 createTempDirs :: IO (Map Text FilePath)
 createTempDirs = do
-  tempDir <- createTempDirectory "/tmp"  "UnsupportedPathsSpec"
-  let getUnsupportedPathsSymLinkDir = tempDir </> "dont-canonicalize-symlinks"
-  createDirectory getUnsupportedPathsSymLinkDir
+  dontCanonicalizeSymlinksDir <-
+    createTempDirectory "/tmp"  "dontCanonicalizeSymlinksDir"
   return $
-    fromList [(getUnsupportedPathsSymLinkKey, getUnsupportedPathsSymLinkDir)]
+    fromList [(getUnsupportedPathsSymLinkKey, dontCanonicalizeSymlinksDir)]
 
 createSymlink :: [Char] -> [Char] -> IO ()
 createSymlink target linkName = do
