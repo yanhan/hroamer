@@ -43,6 +43,9 @@ doFileOpSpecTrashCopyKey = "trashCopy"
 doFileOpSpecTrashCopySourceMissingKey :: Text
 doFileOpSpecTrashCopySourceMissingKey = "trashCopySourceMissing"
 
+doFileOpSpecCopyOpSourceMissing :: Text
+doFileOpSpecCopyOpSourceMissing = "copyOpSourceMissing"
+
 doFileOpSpecCopyOpFileKey :: Text
 doFileOpSpecCopyOpFileKey = "copyOpFile"
 
@@ -57,11 +60,14 @@ createDirsForTest = do
   trashCopyTestDir <- createTempDirectory "/tmp"  "doFileOpSpecTrashCopyTestDir"
   trashCopySourceMissingTestDir <-
     createTempDirectory "/tmp"  "doFileOpSpecTrashCopySourceMissingDir"
+  copyOpSourceMissingTestDir <-
+    createTempDirectory "/tmp"  "doFileOpSpecCopyOpSourceMissing"
   copyOpFileTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpFileDir"
   copyOpDirTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpDirDir"
   copyOpSymlinkTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpSymlinkDir"
   return $ fromList [ (doFileOpSpecTrashCopyKey, trashCopyTestDir)
                     , (doFileOpSpecTrashCopySourceMissingKey, trashCopySourceMissingTestDir)
+                    , (doFileOpSpecCopyOpSourceMissing, copyOpSourceMissingTestDir)
                     , (doFileOpSpecCopyOpFileKey, copyOpFileTestDir)
                     , (doFileOpSpecCopyOpDirKey, copyOpDirTestDir)
                     , (doFileOpSpecCopyOpSymlinkKey, copyOpSymlinkTestDir)
@@ -210,6 +216,30 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
             [(srcFile, srcUuid)]
 
     describe "for CopyOp" $ do
+      it "should quietly handle exception raised by pathIsSymbolicLink when the source file is missing" $
+        \mapOfTempDirs -> do
+          let tempDir = fromJust $
+                lookup doFileOpSpecCopyOpSourceMissing mapOfTempDirs
+              pathToDb = tempDir </> "db"
+              srcDir = tempDir </> "fiery"
+              srcFile = "mia"
+              srcUuid = "fce9e325-831d-45b3-a514-771a23e467dc"
+              destDir = tempDir </> "toothpaste"
+              destFile = "ok"
+              srcFileRepr = FileRepr srcDir srcFile
+              destFileRepr = FileRepr destDir destFile
+          createDirectory srcDir
+          HroamerDb.createDbAndTables pathToDb
+          HroamerDb.wrapDbConn
+            pathToDb
+            (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
+            HroamerDbInt.addFileDetailsToDb
+          runReaderT
+            (doFileOp undefined (CopyOp srcFileRepr destFileRepr))
+            undefined
+          HroamerDb.getAllFilesInDir pathToDb srcDir `shouldReturn`
+            [(srcFile, srcUuid)]
+
       it "for existing file, it should copy the file to its destination" $
         \mapOfTempDirs -> do
           let tempDir = fromJust $ lookup doFileOpSpecCopyOpFileKey mapOfTempDirs
