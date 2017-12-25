@@ -76,13 +76,6 @@ absAndRelFilePath :: Gen (FilePath, FilePath)
 absAndRelFilePath = fmap (,) genAbsoluteFilePath <*> genRelativeFilePath
 
 
-absoluteAndRelativeMix :: Property
-absoluteAndRelativeMix =
-  forAll
-    absAndRelFilePath
-    (\(absPath, relPath) -> not $ isWeakAncestorDir absPath relPath)
-
-
 relativeAndAbsoluteMix :: Property
 relativeAndAbsoluteMix =
   forAll
@@ -150,7 +143,9 @@ spec = parallel $ do
       absoluteFilePathProp
 
     it "should return False when ancestor dir is absolute path and path of interest is relative path [QuickCheck]" $
-      absoluteAndRelativeMix
+      forAll
+        absAndRelFilePath
+        (\(absPath, relPath) -> not $ isWeakAncestorDir absPath relPath)
 
     it "should return False when ancestor dir is relative path and path of interest is absolute path [QuickCheck]" $
       relativeAndAbsoluteMix
