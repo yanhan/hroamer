@@ -41,6 +41,9 @@ import TestHelpers (rmrf)
 doFileOpSpecTrashCopyKey :: Text
 doFileOpSpecTrashCopyKey = "trashCopy"
 
+doFileOpSpecTrashCopySourceMissingKey :: Text
+doFileOpSpecTrashCopySourceMissingKey = "trashCopy"
+
 doFileOpSpecCopyOpFileKey :: Text
 doFileOpSpecCopyOpFileKey = "copyOpFile"
 
@@ -53,10 +56,13 @@ doFileOpSpecCopyOpSymlinkKey = "copyOpSymlink"
 createDirsForTest :: IO (Map Text FilePath)
 createDirsForTest = do
   trashCopyTestDir <- createTempDirectory "/tmp"  "doFileOpSpecTrashCopyTestDir"
+  trashCopySourceMissingTestDir <-
+    createTempDirectory "/tmp"  "doFileOpSpecTrashCopySourceMissingDir"
   copyOpFileTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpFileDir"
   copyOpDirTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpDirDir"
   copyOpSymlinkTestDir <- createTempDirectory "/tmp"  "doFileOpSpecCopyOpSymlinkDir"
   return $ fromList [ (doFileOpSpecTrashCopyKey, trashCopyTestDir)
+                    , (doFileOpSpecTrashCopySourceMissingKey, trashCopySourceMissingTestDir)
                     , (doFileOpSpecCopyOpFileKey, copyOpFileTestDir)
                     , (doFileOpSpecCopyOpDirKey, copyOpDirTestDir)
                     , (doFileOpSpecCopyOpSymlinkKey, copyOpSymlinkTestDir)
@@ -177,6 +183,31 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
                 uuid `shouldBe` srcUuid
               _ -> False `shouldBe` False)
           HroamerDb.getRowFromUUID
+
+    it "for TrashCopyOp, should handle exception (instead of crashing) when source is missing" $
+      \mapOfTempDirs -> do
+        let tempDir = fromJust $
+              lookup doFileOpSpecTrashCopySourceMissingKey mapOfTempDirs
+            pathToDb = tempDir </> "db"
+            srcDir = tempDir </> "groggy"
+            srcFile = "captain"
+            srcFileRepr = FileRepr srcDir srcFile
+            srcUuid = "55147bce-d68c-4762-9166-a0faae4c338d"
+            destDir = tempDir </> "toxic"
+            destFile = "ducky"
+            destFileRepr = FileRepr destDir destFile
+        HroamerDb.createDbAndTables pathToDb
+        HroamerDb.wrapDbConn
+          pathToDb
+          (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
+          HroamerDbInt.addFileDetailsToDb
+        createDirectory srcDir
+        runReaderT
+          (doFileOp undefined (TrashCopyOp srcFileRepr destFileRepr srcUuid))
+          undefined
+        -- check that database state is the same
+        HroamerDb.getAllFilesInDir pathToDb srcDir `shouldReturn`
+          [(srcFile, srcUuid)]
 
     it "for CopyOp for existing file, it should copy the file to its destination" $
       \mapOfTempDirs -> do
