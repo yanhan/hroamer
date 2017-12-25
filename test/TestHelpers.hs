@@ -2,7 +2,7 @@ module TestHelpers
   ( RowCount
   , clearDb
   , deleteTempDirForTest
-  , genCharNoNulls
+  , genCharNotNull
   , getTotalRows
   , rmrf
   , setupDbForTest
@@ -56,5 +56,5 @@ rmrf tempDirs = do
     waitForProcess ph) tempDirs
   return ()
 
-genCharNoNulls :: Gen Char
-genCharNoNulls = choose (chr 1, maxBound :: Char)
+genCharNotNull :: Gen Char
+genCharNotNull = choose (chr 1, maxBound :: Char)
