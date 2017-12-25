@@ -9,8 +9,7 @@ import Control.Monad.Reader (runReader, runReaderT)
 import Data.Map.Strict (Map, fromList, lookup)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust)
-import Data.Text (Text, pack)
-import qualified Data.Text.IO as TIO
+import Data.Text (Text)
 import Foundation hiding (fromList)
 import System.Directory
        (createDirectory, createDirectoryIfMissing, doesFileExist,
