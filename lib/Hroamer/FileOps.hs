@@ -1,9 +1,12 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Hroamer.FileOps
   ( FileOp(..)
   , doFileOp
   , generateFileOps
   ) where
 
+import Control.Exception (IOException, catch)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (Reader, ReaderT(runReaderT), ask, asks)
 import qualified Data.Map.Strict as M
@@ -65,13 +68,25 @@ doFileOp :: (FilesTableRow -> IO ()) -> FileOp -> ReaderT FileOpsReadState IO ()
 doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) =
   liftIO $ do
     let (FileRepr destDir destFilename) = destFileRepr
-        srcFilePath = fileReprToFilePath srcFileRepr
-        destFilePath = fileReprToFilePath destFileRepr
     createDirectory destDir
-    renamePath srcFilePath destFilePath
-    TIO.putStrLn $ "trash-copy " <> (pack srcFilePath)
-    dbUpdateDirAndFileName
-      FilesTableRow {dir = destDir, filename = destFilename, uuid = uuid}
+    trashCopy destDir destFilename `catch` \(exc::IOException) ->
+      TIO.putStrLn $
+        "Failed to trash-copy " <>
+        (pack srcFilePath) <>
+        " because " <>
+        (pack . toList $ show exc) <>
+        ". Continuing..."
+  where
+    srcFilePath :: FilePath
+    srcFilePath = fileReprToFilePath srcFileRepr
+
+    trashCopy :: FilePath -> FilePath -> IO ()
+    trashCopy destDir destFilename = do
+      let destFilePath = fileReprToFilePath destFileRepr
+      renamePath srcFilePath destFilePath
+      TIO.putStrLn $ "trash-copy " <> (pack srcFilePath)
+      dbUpdateDirAndFileName
+        FilesTableRow {dir = destDir, filename = destFilename, uuid = uuid}
 
 -- YH TODO: This is causing us to open another connection to the db.
 -- Refactor the code so that we don't have to do that.
