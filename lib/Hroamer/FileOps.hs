@@ -141,7 +141,7 @@ doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
             case exitcode of
               ExitSuccess ->
                 TIO.putStrLn $
-                  "cp -R " <> (pack srcFilePath) <> " " <> (pack destFilePath)
+                  "cp -R " <> pack srcFilePath <> " " <> pack destFilePath
               _ ->
                 TIO.putStrLn $ failedToCopyMessage srcFilePath destFilePath
           (True, _) ->
