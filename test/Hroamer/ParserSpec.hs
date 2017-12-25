@@ -6,7 +6,6 @@ import Data.Char (isSpace)
 import Data.Either (either, isLeft)
 import Data.Text (Text, pack, unpack)
 import Foundation
-import System.FilePath.Posix (pathSeparator)
 import Test.Hspec
        (Spec, describe, it, parallel, shouldBe, shouldSatisfy)
 import Text.Parsec (ParseError(..), runParser)
@@ -15,20 +14,10 @@ import Test.QuickCheck
 
 import Hroamer.Parser (parseDirStateLine)
 import Hroamer.StateFile (separator)
-import TestHelpers (genCharNotNull)
-
-isNotPathSeparator :: Char -> Bool
-isNotPathSeparator = (/= pathSeparator)
-
-isNotNull :: Char -> Bool
-isNotNull = (/= '\0')
+import TestHelpers (genCharNotNull, genValidFilePathChar)
 
 genSpace :: Gen Char
 genSpace = suchThat genCharNotNull isSpace
-
-genValidFilePathChar :: Gen Char
-genValidFilePathChar = suchThat genCharNotNull $
-  (\ch -> foldr (\f acc -> acc && f ch) True [isNotNull, isNotPathSeparator])
 
 genFilenameWithNonTrailingSpace :: Gen Text
 genFilenameWithNonTrailingSpace = do
