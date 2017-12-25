@@ -62,11 +62,6 @@ checkAllAncestorPaths possibleAncestorFilePath = do
     else return False
 
 
-relativeFilePathProp :: Property
-relativeFilePathProp =
-  forAll genRelativeFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
-
-
 absAndRelFilePath :: Gen (FilePath, FilePath)
 absAndRelFilePath = fmap (,) genAbsoluteFilePath <*> genRelativeFilePath
 
@@ -125,7 +120,7 @@ spec = parallel $ do
       isWeakAncestorDir "///usr/bin"  "//usr/bin/gcc" `shouldBe` True
 
     modifyMaxSuccess (const 30) $ it "QuickCheck relative filepath tests" $
-      relativeFilePathProp
+      forAll genRelativeFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
 
     modifyMaxSuccess (const 30) $ it "QuickCheck absolute filepath tests" $
       forAll genAbsoluteFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
