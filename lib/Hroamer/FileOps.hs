@@ -147,8 +147,15 @@ doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
                 TIO.putStrLn $
                   "Failed to copy " <> (pack srcFilePath) <> " to " <>
                   (pack destFilePath)
-          (True, _) -> do
-             copyFile srcFilePath destFilePath
-             TIO.putStrLn $
-               "cp " <> (pack srcFilePath) <> " " <> (pack destFilePath)
+          (True, _) ->
+            copyPlainFile srcFilePath destFilePath `catch`
+              (\(e::IOException) -> do
+                TIO.putStrLn $
+                  "Failed to copy " <> pack srcFilePath <> " to " <>
+                    pack destFilePath)
           _ -> return ()
+  where
+    copyPlainFile :: FilePath -> FilePath -> IO ()
+    copyPlainFile srcFilePath destFilePath = do
+      copyFile srcFilePath destFilePath
+      TIO.putStrLn $ "cp " <> (pack srcFilePath) <> " " <> (pack destFilePath)
