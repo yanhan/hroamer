@@ -62,7 +62,6 @@ generateFileOps listOfFilenamesAndUuids initialFilenamesAndUuids = do
                listOfFilenameUuidToCopy
   return $ trashCopyOps <> copyOps
 
--- Assume both src and dest are in the same directory
 doFileOp :: (FilesTableRow -> IO ()) -> FileOp -> ReaderT FileOpsReadState IO ()
 
 doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) =

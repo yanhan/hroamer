@@ -18,21 +18,19 @@ import qualified Data.Text.IO as TIO
 import Foundation hiding (singleton)
 import System.Directory (canonicalizePath, pathIsSymbolicLink)
 import System.FilePath.Posix
-       ((</>), FilePath, isAbsolute, isValid, takeDirectory)
+       ((</>), FilePath, isValid, takeDirectory)
 
 import Hroamer.UnsupportedPaths.Internal
-       (UPaths(UPaths, duplicatePaths, absPaths, filesNotInCwd,
-               invalidPaths),
-        absolutePathsErrorTitle, duplicatePathsErrorTitle,
-        formatPathsForErrorMessage, invalidPathsErrorTitle,
-        relativePathsErrorTitle)
+       (UPaths(UPaths, duplicatePaths, invalidPaths),
+        duplicatePathsErrorTitle, formatPathsForErrorMessage,
+        invalidPathsErrorTitle)
 
 excHandlerReturnFalse :: IOException -> IO Bool
 excHandlerReturnFalse = const $ return False
 
 getUnsupportedPaths :: FilePath -> [FilePath] -> IO UPaths
 getUnsupportedPaths cwd files = do
-  (_, uPaths) <- execStateT sta (empty, (UPaths empty empty empty empty))
+  (_, uPaths) <- execStateT sta (empty, (UPaths empty empty))
   return uPaths
   where
     sta :: StateT (Set FilePath, UPaths) IO ()
@@ -58,19 +56,10 @@ getUnsupportedPaths cwd files = do
                    ( filesSeen
                    , uPaths
                      {duplicatePaths = insert fname (duplicatePaths uPaths)})
-               | isAbsolute fname ->
-                 put
-                   ( filesSeen'
-                   , uPaths {absPaths = insert fname (absPaths uPaths)})
                | not $ isValid canonPath ->
                  put
                    ( filesSeen'
                    , uPaths {invalidPaths = insert fname (invalidPaths uPaths)})
-               | takeDirectory canonPath /= cwd ->
-                 put
-                   ( filesSeen'
-                   , uPaths
-                     {filesNotInCwd = insert fname (filesNotInCwd uPaths)})
                | otherwise -> put (filesSeen', uPaths))
         files
 
@@ -98,9 +87,5 @@ getErrors cwd uPaths
     getErrorsInternal = do
       getOneError
         (duplicatePaths uPaths) duplicatePathsErrorTitle
-      getOneError
-        (absPaths uPaths) absolutePathsErrorTitle
-      getOneError
-        (filesNotInCwd uPaths) (relativePathsErrorTitle $ pack cwd)
       getOneError
         (invalidPaths uPaths) invalidPathsErrorTitle
