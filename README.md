@@ -11,7 +11,7 @@ Inspired by roamer: https://github.com/abaldwin88/roamer
 
 Because this is the first non-trivial Haskell project I've worked on
 
-- Some of the code looks awful and there are probably a good nubmer of non idiomatic usages of Haskell. I have tried to make the code as Haskell as possible, to the best of my ability
+- Some of the code looks awful and there are probably a good number of non idiomatic usages of Haskell. I have tried to make the code as Haskell as possible, to the best of my ability
 - Usage of cabal file may be wrong in that I didn't specify library versions
 
 
