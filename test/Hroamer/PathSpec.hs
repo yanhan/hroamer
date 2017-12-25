@@ -22,7 +22,7 @@ import Hroamer.Path
        (appendSlashToDir, createDirNoForce, hasSpace, isWeakAncestorDir)
 import TestHelpers
        (genCharNotNull, genFilePathComponent, genSpace,
-        isNotPathSeparator)
+        genValidFilePathChar, isNotPathSeparator)
 
 genRelativeFilePath :: Gen FilePath
 genRelativeFilePath = do
@@ -102,9 +102,9 @@ genAbsoluteFilePathWithSpace = do
   where
     genFilePathComponentWithSpace :: Gen [Char]
     genFilePathComponentWithSpace = do
-      p1 <- listOf1 $ suchThat genCharNotNull isNotPathSeparator
+      p1 <- listOf1 genValidFilePathChar
       p2 <- listOf1 genSpace
-      p3 <- listOf1 $ suchThat genCharNotNull isNotPathSeparator
+      p3 <- listOf1 genValidFilePathChar
       return $ p1 <> p2 <> p3
 
 
