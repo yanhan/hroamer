@@ -2,11 +2,13 @@ module Hroamer.Parser
   ( parseDirStateLine
   ) where
 
+import Data.Char (isSpace)
 import Data.Text (Text, pack)
 import Foundation
 import Text.Parsec
        (Parsec, alphaNum, anyChar, char, count, eof, many1, manyTill,
         optional, space, try)
+import Text.Parsec.Char (satisfy)
 
 parseDirStateLine :: Parsec Text () (Maybe (Text, Text))
 parseDirStateLine = try commentLine <|> normalLine
@@ -17,14 +19,18 @@ parseDirStateLine = try commentLine <|> normalLine
       manyTill anyChar eof
       return Nothing
 
+    notSpace :: Parsec Text () Char
+    notSpace = satisfy $ not . isSpace
+
     normalLine :: Parsec Text () (Maybe (Text, Text))
     normalLine = do
-      l <- manyTill anyChar sepBarParser
+      l <- many1 notSpace
+      sepBarParser
       s <- uuidParser
       optional $ do
         sepBarParser
         -- The original path to the file, we just consume and discard
-        many1 anyChar
+        many1 notSpace
       eof
       return $ Just $ (pack l, pack s)
 

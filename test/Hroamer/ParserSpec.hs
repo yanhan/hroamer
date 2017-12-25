@@ -2,13 +2,44 @@ module Hroamer.ParserSpec
   ( spec
   ) where
 
-import Data.Either (either)
+import Data.Char (isSpace)
+import Data.Either (either, isLeft)
+import Data.Text (Text, pack, unpack)
 import Foundation
-import Test.Hspec (Spec, describe, it, parallel, shouldBe)
+import System.FilePath.Posix (pathSeparator)
+import Test.Hspec
+       (Spec, describe, it, parallel, shouldBe, shouldSatisfy)
 import Text.Parsec (ParseError(..), runParser)
+import Test.QuickCheck
+       (Gen, Property, choose, forAll, listOf1, shuffle, suchThat)
 
 import Hroamer.Parser (parseDirStateLine)
 import Hroamer.StateFile (separator)
+
+isNotPathSeparator :: Char -> Bool
+isNotPathSeparator = (/= pathSeparator)
+
+isNotNull :: Char -> Bool
+isNotNull = (/= '\0')
+
+genChar :: Gen Char
+genChar = choose (minBound :: Char, maxBound)
+
+genSpace :: Gen Char
+genSpace = suchThat genChar isSpace
+
+genValidFilePathChar :: Gen Char
+genValidFilePathChar = suchThat genChar $
+  (\ch ->
+    foldr (\f acc -> acc && f ch) True
+      [isNotNull, isNotPathSeparator, not . isSpace])
+
+genFilenameWithNonTrailingSpace :: Gen Text
+genFilenameWithNonTrailingSpace = do
+  space <- genSpace
+  otherChars <- listOf1 genValidFilePathChar
+  let (beforeSpace, afterSpace) = splitAt (length otherChars - 1) otherChars
+  fmap (pack . (<> afterSpace)) $ shuffle $ beforeSpace <> [space]
 
 spec :: Spec
 spec = parallel $ do
@@ -36,3 +67,14 @@ spec = parallel $ do
         (const $ True `shouldBe` True)
         (const $ True `shouldBe` False)
         (runParser parseDirStateLine () ""  (filename <> separator <> invalidUuid))
+
+    it "should return Left ParseError for a line that has a filename with non-trailing space" $
+      forAll genFilenameWithNonTrailingSpace $ \filenameWithNonTrailingSpace ->
+        let uuid = "af76c156-e643-45a5-953c-43676ba7e57c"
+            orgPath = "/linguine/sushi/curry"
+            line = filenameWithNonTrailingSpace <>
+                     separator <>
+                     uuid <>
+                     separator <>
+                     orgPath
+        in runParser parseDirStateLine () "" line `shouldSatisfy` isLeft
