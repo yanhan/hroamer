@@ -62,12 +62,9 @@ rmrf tempDirs = do
 isNotPathSeparator :: Char -> Bool
 isNotPathSeparator = (/= pathSeparator)
 
-isNotNull :: Char -> Bool
-isNotNull = (/= '\0')
-
 genCharNotNull :: Gen Char
 genCharNotNull = choose (chr 1, maxBound :: Char)
 
 genValidFilePathChar :: Gen Char
 genValidFilePathChar = suchThat genCharNotNull $
-  (\ch -> foldr (\f acc -> acc && f ch) True [isNotNull, isNotPathSeparator])
+  (\ch -> foldr (\f acc -> acc && f ch) True [isNotPathSeparator])
