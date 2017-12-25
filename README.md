@@ -39,8 +39,6 @@ To run the tests:
 
 ## TODO
 
-- Don't support files with space characters in their name
-
 
 ## License
 
