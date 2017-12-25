@@ -67,11 +67,6 @@ relativeFilePathProp =
   forAll genRelativeFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
 
 
-absoluteFilePathProp :: Property
-absoluteFilePathProp =
-  forAll genAbsoluteFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
-
-
 absAndRelFilePath :: Gen (FilePath, FilePath)
 absAndRelFilePath = fmap (,) genAbsoluteFilePath <*> genRelativeFilePath
 
@@ -133,7 +128,7 @@ spec = parallel $ do
       relativeFilePathProp
 
     modifyMaxSuccess (const 30) $ it "QuickCheck absolute filepath tests" $
-      absoluteFilePathProp
+      forAll genAbsoluteFilePath (\fp -> runReader (checkAllAncestorPaths fp) fp)
 
     it "should return False when ancestor dir is absolute path and path of interest is relative path [QuickCheck]" $
       forAll
