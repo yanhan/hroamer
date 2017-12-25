@@ -5,12 +5,15 @@ module Hroamer.ParserSpec
 import Data.Char (isSpace)
 import Data.Either (either, isLeft)
 import Data.Text (Text, pack, unpack)
+import qualified Data.Text as T
 import Foundation
 import Test.Hspec
        (Spec, describe, it, parallel, shouldBe, shouldSatisfy)
+import Test.Hspec.Core.QuickCheck (modifyMaxSuccess)
 import Text.Parsec (ParseError(..), runParser)
 import Test.QuickCheck
-       (Gen, Property, choose, forAll, listOf1, shuffle, suchThat)
+       (Gen, Property, choose, forAll, listOf1, shuffle, suchThat,
+        vectorOf)
 
 import Hroamer.Parser (parseDirStateLine)
 import Hroamer.StateFile (separator)
@@ -22,6 +25,15 @@ genFilenameWithNonTrailingSpace = do
   otherChars <- listOf1 genValidFilePathChar
   let (beforeSpace, afterSpace) = splitAt (length otherChars - 1) otherChars
   fmap (pack . (<> afterSpace)) $ shuffle $ beforeSpace <> [space]
+
+genFilenameWithTrailingSpaces :: Gen Text
+genFilenameWithTrailingSpaces = do
+  n <- choose (1, 5)
+  spaces <- vectorOf n genSpace
+  fmap (pack . (<> spaces)) $ listOf1 genValidFilePathChar
+
+isNotSpace :: Char -> Bool
+isNotSpace = not . isSpace
 
 spec :: Spec
 spec = parallel $ do
@@ -60,3 +72,16 @@ spec = parallel $ do
                      separator <>
                      orgPath
         in runParser parseDirStateLine () "" line `shouldSatisfy` isLeft
+
+    modifyMaxSuccess (const 30) $ it "should ignore trailing spaces in a filename" $
+      forAll genFilenameWithTrailingSpaces $ \filenameWithTrailingSpaces ->
+        let uuid = "589875aa-1996-4488-a4e6-a26fd6313fb7"
+            orgPath = "/dark/sausage/brine"
+            line = filenameWithTrailingSpaces <>
+                     separator <>
+                     uuid <>
+                     separator <>
+                     orgPath
+            expectedResult = Right . Just $
+              (T.takeWhile isNotSpace filenameWithTrailingSpaces, uuid)
+        in runParser parseDirStateLine () "" line `shouldBe` expectedResult
