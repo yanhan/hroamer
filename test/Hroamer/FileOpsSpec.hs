@@ -30,7 +30,8 @@ import qualified Hroamer.Database.Internal as HroamerDbInt
 
 import Hroamer.Database (FilesTableRow(FilesTableRow))
 import Hroamer.DataStructures
-       (FileOpsReadState(FileOpsReadState), FileRepr(FileRepr))
+       (AbsFilePath(AbsFilePath), FileOpsReadState(FileOpsReadState),
+        FileRepr(FileRepr))
 import Hroamer.FileOps
        (FileOp(CopyOp, LookupDbCopyOp, TrashCopyOp), doFileOp,
         generateFileOps)
@@ -82,38 +83,38 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
           -- files that will not be touched
           safeOneFilename = "avocado"
           safeOneUuid = "012fe19a-b303-4b1d-bf4d-4422e938f7d4"
-          safeOne = (cwd </> safeOneFilename, safeOneUuid)
+          safeOne = (AbsFilePath $ cwd </> safeOneFilename, safeOneUuid)
           safeTwoFilename = "barley"
           safeTwoUuid = "43012c07-6279-4a52-9369-25a422bd2df0"
-          safeTwo = (cwd </> safeTwoFilename, safeTwoUuid)
+          safeTwo = (AbsFilePath $ cwd </> safeTwoFilename, safeTwoUuid)
           -- files that will be removed
           --
           -- first file
           toRemoveOneFilename = "crabs"
           toRemoveOneUuid = "c8055958-fffb-40d2-89f6-73b6625667b7"
-          toRemoveOne = (cwd </> toRemoveOneFilename, toRemoveOneUuid)
+          toRemoveOne = (AbsFilePath $ cwd </> toRemoveOneFilename, toRemoveOneUuid)
           -- second file
           toRemoveTwoFilename = "allspark"
           toRemoveTwoUuid = "9f7f3317-0f0f-4d4d-887d-18446353c909"
-          toRemoveTwo = (cwd </> toRemoveTwoFilename, toRemoveTwoUuid)
+          toRemoveTwo = (AbsFilePath $ cwd </> toRemoveTwoFilename, toRemoveTwoUuid)
           -- files that will be copied
           --
           -- first new file
           toCopyOneFilename = "courgette"
           toCopyOneUuid = safeTwoUuid
-          toCopyOne = (cwd </> toCopyOneFilename, toCopyOneUuid)
+          toCopyOne = (AbsFilePath $ cwd </> toCopyOneFilename, toCopyOneUuid)
           -- second new file
           toCopyTwoFilename = "dill"
           toCopyTwoUuid = safeTwoUuid
-          toCopyTwo = (cwd </> toCopyTwoFilename, toCopyTwoUuid)
+          toCopyTwo = (AbsFilePath $ cwd </> toCopyTwoFilename, toCopyTwoUuid)
           -- files that will be renamed
           toRenameFilename = "aubergine"
           toRenameUuid = toRemoveTwoUuid
-          toRename = (cwd </> toRenameFilename, toRenameUuid)
+          toRename = (AbsFilePath $ cwd </> toRenameFilename, toRenameUuid)
           -- file that has to be looked up
           toLookupFilename = "egg"
           toLookupUuid = "c95581e7-0b48-4b68-b780-13a0e20c979c"
-          toLookup = (cwd </> toLookupFilename, toLookupUuid)
+          toLookup = (AbsFilePath $ cwd </> toLookupFilename, toLookupUuid)
           --
           initial = [toRemoveOne, toRemoveTwo, safeOne, safeTwo]
           current = [toLookup, toCopyOne, toRename, safeOne, safeTwo, toCopyTwo]

@@ -17,8 +17,8 @@ import System.FilePath.Posix
        ((</>), FilePath, takeDirectory, takeFileName)
 
 import Hroamer.DataStructures
-       (FileRepr(FileRepr), FileOpsReadState(rsCwd, rsTrashCopyDir),
-        FilePathUUIDPair)
+       (AbsFilePath(toFilePath), AbsFilePathUUIDPair, FileRepr(FileRepr),
+        FileOpsReadState(rsCwd, rsTrashCopyDir))
 
 data FileOp
   = CopyOp { srcFileRepr :: FileRepr
@@ -37,8 +37,8 @@ dirToTrashCopyTo pathToTrashCopyDir uuid =
 
 
 genTrashCopyOps
-  :: Set FilePathUUIDPair
-  -> Set FilePathUUIDPair
+  :: Set AbsFilePathUUIDPair
+  -> Set AbsFilePathUUIDPair
   -> Reader FileOpsReadState [FileOp]
 genTrashCopyOps initialPathsAndUuids currentPathsAndUuids = do
   cwd <- asks rsCwd
@@ -50,8 +50,9 @@ genTrashCopyOps initialPathsAndUuids currentPathsAndUuids = do
         S.toList pathsAndUuidsToTrashCopy
   return $
     fmap
-      (\(filePath, uuid) ->
-         let srcDir = takeDirectory filePath
+      (\(absFilePath, uuid) ->
+         let filePath = toFilePath absFilePath
+             srcDir = takeDirectory filePath
              filename = takeFileName filePath
              destFileRepr =
                FileRepr (dirToTrashCopyTo pathToTrashCopyDir uuid) filename
@@ -61,14 +62,15 @@ genTrashCopyOps initialPathsAndUuids currentPathsAndUuids = do
 
 genCopyOps
   :: Map Text FileRepr
-  -> Map Text FilePath
-  -> [FilePathUUIDPair]
+  -> Map Text AbsFilePath
+  -> [AbsFilePathUUIDPair]
   -> Reader FileOpsReadState [FileOp]
 genCopyOps uuidToTrashCopyFileRepr initialUuidToPath listOfPathUuidToCopy = do
   cwd <- asks rsCwd
   return $ fmap
-    (\(filePath, uuid) ->
-       let destDir = takeDirectory filePath
+    (\(absFilePath, uuid) ->
+       let filePath = toFilePath absFilePath
+           destDir = takeDirectory filePath
            filename = takeFileName filePath
            destFileRepr = FileRepr destDir filename
            x = (do
@@ -78,8 +80,9 @@ genCopyOps uuidToTrashCopyFileRepr initialUuidToPath listOfPathUuidToCopy = do
              -- Source file is not to be trash copied.
              -- See if we can find it in the initial set of files.
              maybeToLeft
-               (\srcPath ->
-                 let srcDir = takeDirectory srcPath
+               (\absSrcPath ->
+                 let srcPath = toFilePath absSrcPath
+                     srcDir = takeDirectory srcPath
                      srcFilename = takeFileName srcPath
                  in CopyOp (FileRepr srcDir srcFilename) destFileRepr)
                (M.lookup uuid initialUuidToPath)

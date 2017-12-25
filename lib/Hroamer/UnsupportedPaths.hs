@@ -20,6 +20,7 @@ import System.Directory (canonicalizePath, pathIsSymbolicLink)
 import System.FilePath.Posix
        ((</>), FilePath, isValid, takeDirectory)
 
+import Hroamer.DataStructures (AbsFilePath(toFilePath))
 import Hroamer.UnsupportedPaths.Internal
        (UPaths(UPaths, duplicatePaths, invalidPaths),
         duplicatePathsErrorTitle, formatPathsForErrorMessage,
@@ -28,17 +29,18 @@ import Hroamer.UnsupportedPaths.Internal
 excHandlerReturnFalse :: IOException -> IO Bool
 excHandlerReturnFalse = const $ return False
 
-getUnsupportedPaths :: [FilePath] -> IO UPaths
-getUnsupportedPaths files = do
+getUnsupportedPaths :: [AbsFilePath] -> IO UPaths
+getUnsupportedPaths absFilePaths = do
   (_, uPaths) <- execStateT sta (empty, (UPaths empty empty))
   return uPaths
   where
     sta :: StateT (Set FilePath, UPaths) IO ()
     sta =
       mapM_
-        (\filePath -> do
+        (\absFilePath -> do
            (filesSeen, uPaths) <- get
-           let filesSeen' = insert filePath filesSeen
+           let filePath = toFilePath absFilePath
+               filesSeen' = insert filePath filesSeen
            -- `case () of _` trick with guards is learnt from:
            -- https://wiki.haskell.org/Case
            -- https://stackoverflow.com/a/40836465
@@ -52,9 +54,10 @@ getUnsupportedPaths files = do
                | not $ isValid filePath ->
                  put
                    ( filesSeen'
-                   , uPaths {invalidPaths = insert filePath (invalidPaths uPaths)})
+                   , uPaths {
+                       invalidPaths = insert filePath (invalidPaths uPaths)})
                | otherwise -> put (filesSeen', uPaths))
-        files
+        absFilePaths
 
 getErrors :: FilePath -> UPaths -> DList Text
 getErrors cwd uPaths

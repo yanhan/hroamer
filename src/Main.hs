@@ -22,7 +22,8 @@ import System.Posix.Signals
 import System.Process (createProcess, proc, waitForProcess)
 
 import Hroamer.Core (processCwd)
-import Hroamer.DataStructures (FileOpsReadState(FileOpsReadState))
+import Hroamer.DataStructures
+       (AbsFilePath(AbsFilePath), FileOpsReadState(FileOpsReadState))
 import Hroamer.FileOps (doFileOp, generateFileOps)
 
 import qualified Hroamer.Database as HroamerDb
@@ -137,7 +138,7 @@ main = do
       then do
         let r = FileOpsReadState cwd path_to_db path_to_trashcopy_dir
             initialPathsAndUuids = fmap (\(filename, uuid) ->
-              (cwd </> filename, uuid))
+              (AbsFilePath (cwd </> filename), uuid))
               initial_fnames_and_uuids
         let file_op_list = runReader
                              (generateFileOps

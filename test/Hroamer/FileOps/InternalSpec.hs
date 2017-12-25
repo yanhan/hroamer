@@ -10,7 +10,8 @@ import System.FilePath.Posix ((</>))
 import Test.Hspec (Spec, describe, it, parallel, shouldBe)
 
 import Hroamer.DataStructures
-       (FileOpsReadState(FileOpsReadState), FileRepr(FileRepr))
+       (AbsFilePath(AbsFilePath), FileOpsReadState(FileOpsReadState),
+        FileRepr(FileRepr))
 import Hroamer.FileOps.Internal
        (FileOp(CopyOp, LookupDbCopyOp, TrashCopyOp), dirToTrashCopyTo,
         genCopyOps, genTrashCopyOps)
@@ -22,16 +23,20 @@ spec = parallel $ do
       let cwd = "/the/blessed/era"
           pathToTrashCopyDir = "/things/die/here"
           r = FileOpsReadState cwd  ""  pathToTrashCopyDir
-          toStay = (cwd </> "roost.png", "83ac96e0-117b-470e-a534-c98a880d30e8")
+          toStay = ( AbsFilePath $ cwd </> "roost.png"
+                   , "83ac96e0-117b-470e-a534-c98a880d30e8"
+                   )
           toRemoveOneFilename = "sre-guidelines.txt"
-          toRemoveOne = ( cwd </> toRemoveOneFilename
+          toRemoveOne = ( AbsFilePath $ cwd </> toRemoveOneFilename
                         , "d9f6ba2e-634a-4b19-89d5-b1bfca2c67cf"
                         )
           toRemoveTwoFilename = "config.h"
-          toRemoveTwo = ( cwd </> toRemoveTwoFilename
+          toRemoveTwo = ( AbsFilePath $ cwd </> toRemoveTwoFilename
                         , "9ddb81e2-c25f-43e9-9d77-c64d20c577fa"
                         )
-          newStuff = (cwd </> "combustion", "28532de4-db73-47a7-b8a1-ee02bf42a73d")
+          newStuff = ( AbsFilePath $ cwd </> "combustion"
+                     , "28532de4-db73-47a7-b8a1-ee02bf42a73d"
+                     )
           initial = fromList [toStay, toRemoveOne, toRemoveTwo]
           current = fromList [toStay, newStuff]
           expected = [ TrashCopyOp
@@ -70,13 +75,13 @@ spec = parallel $ do
           lkUuid = "7c6b8a68-348a-4ce5-85dd-284ab1eea3ec"
 
           uuidToTrashCopyOp = M.fromList [(trashCopyOpUuid, trashCopyOpDestFileRepr)]
-          initialUuidToPath = M.fromList [ (fileOneUuid, cwd </> fileOneName)
-                                         , (fileTwoUuid, cwd </> fileTwoName)
+          initialUuidToPath = M.fromList [ (fileOneUuid, AbsFilePath $ cwd </> fileOneName)
+                                         , (fileTwoUuid, AbsFilePath $ cwd </> fileTwoName)
                                          ]
-          toCopy = [ (cwd </> trashCopyFilename, trashCopyOpUuid)
-                   , (cwd </> fileOneNewName, fileOneUuid)
-                   , (cwd </> fileTwoNewName, fileTwoUuid)
-                   , (cwd </> lkName, lkUuid)
+          toCopy = [ (AbsFilePath $ cwd </> trashCopyFilename, trashCopyOpUuid)
+                   , (AbsFilePath $ cwd </> fileOneNewName, fileOneUuid)
+                   , (AbsFilePath $ cwd </> fileTwoNewName, fileTwoUuid)
+                   , (AbsFilePath $ cwd </> lkName, lkUuid)
                    ]
           expected = [ CopyOp trashCopyOpDestFileRepr  (FileRepr cwd trashCopyFilename)
                      , CopyOp (FileRepr cwd fileOneName)  (FileRepr cwd fileOneNewName)

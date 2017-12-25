@@ -1,5 +1,9 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Hroamer.DataStructures
-  ( FilePathUUIDPair
+  ( AbsFilePath(..)
+  , AbsFilePathUUIDPair
+  , FilePathUUIDPair
   , FileOpsReadState(..)
   , FileRepr(..)
   , fileReprToFilePath
@@ -8,6 +12,12 @@ module Hroamer.DataStructures
 import Data.Text (Text)
 import Foundation
 import System.FilePath.Posix ((</>), FilePath)
+
+-- newtype wrapper for FilePath that are absolute paths
+newtype AbsFilePath = AbsFilePath { toFilePath :: FilePath }
+  deriving (Eq, IsString, Ord)
+
+type AbsFilePathUUIDPair = (AbsFilePath, Text)
 
 type FilePathUUIDPair = (FilePath, Text)
 

@@ -22,8 +22,9 @@ import System.FilePath.Posix (FilePath)
 import System.Process (createProcess, proc, waitForProcess)
 
 import Hroamer.DataStructures
-       (FileOpsReadState(rsCwd, rsPathToDb), FilePathUUIDPair,
-        FileRepr(FileRepr), fileReprToFilePath)
+       (AbsFilePath(AbsFilePath), AbsFilePathUUIDPair,
+        FileOpsReadState(rsCwd, rsPathToDb), FileRepr(FileRepr),
+        fileReprToFilePath)
 import Hroamer.Database (FilesTableRow(..))
 import Hroamer.FileOps.Internal
        (FileOp(..), genCopyOps, genTrashCopyOps)
@@ -31,8 +32,8 @@ import Hroamer.FileOps.Internal
 import qualified Hroamer.Database as HroamerDb
 
 generateFileOps
-  :: [FilePathUUIDPair]
-  -> [FilePathUUIDPair]
+  :: [AbsFilePathUUIDPair]
+  -> [AbsFilePathUUIDPair]
   -> Reader FileOpsReadState [FileOp]
 generateFileOps listOfPathsAndUuids initialPathsAndUuids = do
   let initialPathsAndUuidsSet = S.fromList initialPathsAndUuids

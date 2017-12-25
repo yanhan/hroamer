@@ -22,6 +22,8 @@ import System.FilePath.Posix
         dropTrailingPathSeparator, isAbsolute, isRelative, pathSeparator,
         takeDirectory)
 
+import Hroamer.DataStructures (AbsFilePath(AbsFilePath))
+
 excHandlerReturnFalse :: IOException -> IO Bool
 excHandlerReturnFalse = const $ return False
 
@@ -74,18 +76,18 @@ createDirNoForce app_data_dir = do
 hasSpace :: FilePath -> Bool
 hasSpace filename = maybe False (const True) $ find isSpace filename
 
-resolvePath :: FilePath -> ReaderT FilePath IO FilePath
+resolvePath :: FilePath -> ReaderT FilePath IO AbsFilePath
 resolvePath filename
   | isAbsolute filename || filenameHasPathSeparator filename =
-      lift $ canonicalizePath filename
+      lift $ fmap AbsFilePath $ canonicalizePath filename
   | otherwise = do
       cwd <- ask
       let filePath = cwd </> filename
       isSymlink <- lift $ pathIsSymbolicLink filePath `catch`
         excHandlerReturnFalse
       if isSymlink
-         then return filePath
-         else lift $ canonicalizePath filePath
+         then return $ AbsFilePath filePath
+         else lift $ fmap AbsFilePath $ canonicalizePath filePath
   where
     filenameHasPathSeparator :: FilePath -> Bool
     filenameHasPathSeparator filename =
