@@ -1,7 +1,7 @@
 module Main where
 
 import Control.Exception (catch, IOException)
-import Control.Monad (forM_)
+import Control.Monad (forM_, join, mapM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (runReaderT, runReader)
 import Control.Monad.Writer.Strict (WriterT(runWriterT), tell)
@@ -127,18 +127,22 @@ main = do
   letUserEditFile user_dirstate_filepath
 
   ifOnlyTrue (userMadeChanges dirstate_filepath user_dirstate_filepath) $ do
-    list_of_filename_and_uuid <-
-      StateFile.read user_dirstate_filepath
-    let list_of_filename = fmap fst list_of_filename_and_uuid
-    unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_filename
+    list_of_paths_and_uuid <- join $ mapM (\(path, uuid) -> do
+      resolvedPath <- runReaderT (Path.resolvePath path) cwd
+      return (resolvedPath, uuid)) <$> StateFile.read user_dirstate_filepath
+    let list_of_paths = fmap fst list_of_paths_and_uuid
+    unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths list_of_paths
     let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
     if unsupportedPathsDList == Data.DList.empty
       then do
         let r = FileOpsReadState cwd path_to_db path_to_trashcopy_dir
+            initialPathsAndUuids = fmap (\(filename, uuid) ->
+              (cwd </> filename, uuid))
+              initial_fnames_and_uuids
         let file_op_list = runReader
                              (generateFileOps
-                               list_of_filename_and_uuid
-                               initial_fnames_and_uuids)
+                               list_of_paths_and_uuid
+                               initialPathsAndUuids)
                              r
         HroamerDb.wrapDbConn
           path_to_db

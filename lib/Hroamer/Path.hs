@@ -3,19 +3,27 @@ module Hroamer.Path
   , createDirNoForce
   , hasSpace
   , isWeakAncestorDir
+  , resolvePath
   ) where
 
+import Control.Exception (catch)
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (ReaderT, ask, lift)
 import Control.Monad.Writer.Strict (WriterT, tell)
 import Data.Char (isSpace)
 import Data.DList (DList, singleton)
 import Data.Text (Text, pack)
 import Foundation hiding (singleton)
 import System.Directory
-       (createDirectory, doesDirectoryExist, doesPathExist)
+       (canonicalizePath, createDirectory, doesDirectoryExist,
+        doesPathExist, pathIsSymbolicLink)
 import System.FilePath.Posix
        (FilePath, (</>), addTrailingPathSeparator,
-        dropTrailingPathSeparator, takeDirectory)
+        dropTrailingPathSeparator, isAbsolute, isRelative, pathSeparator,
+        takeDirectory)
+
+excHandlerReturnFalse :: IOException -> IO Bool
+excHandlerReturnFalse = const $ return False
 
 isWeakAncestorDir :: FilePath -> FilePath -> Bool
 isWeakAncestorDir suspected_ancestor dir_of_interest =
@@ -65,3 +73,23 @@ createDirNoForce app_data_dir = do
 
 hasSpace :: FilePath -> Bool
 hasSpace filename = maybe False (const True) $ find isSpace filename
+
+resolvePath :: FilePath -> ReaderT FilePath IO FilePath
+resolvePath filename
+  | isAbsolute filename || filenameHasPathSeparator filename =
+      lift $ canonicalizePath filename
+  | otherwise = do
+      cwd <- ask
+      let filePath = cwd </> filename
+      isSymlink <- lift $ pathIsSymbolicLink filePath `catch`
+        excHandlerReturnFalse
+      if isSymlink
+         then return filePath
+         else lift $ canonicalizePath filePath
+  where
+    filenameHasPathSeparator :: FilePath -> Bool
+    filenameHasPathSeparator filename =
+      maybe False (const True) $ find isPathSeparator filename
+
+    isPathSeparator :: Char -> Bool
+    isPathSeparator = (== pathSeparator)

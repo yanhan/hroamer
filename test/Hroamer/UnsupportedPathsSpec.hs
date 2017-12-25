@@ -62,7 +62,7 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
       let duplicatePaths = S.fromList ["funny.mp4", "../../fireball"]
       let invalidPaths = S.fromList ["we\0k"]
       let expectedUPaths = UPaths duplicatePaths invalidPaths
-      getUnsupportedPaths "/bin" paths `shouldReturn` expectedUPaths
+      getUnsupportedPaths paths `shouldReturn` expectedUPaths
 
     it "will not canonicalize the file path of symlinks" $ \mapOfTempDirs -> do
       let cwd = fromJust $ lookup dontCanonicalizeSymlinksKey mapOfTempDirs

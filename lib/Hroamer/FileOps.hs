@@ -34,13 +34,13 @@ generateFileOps
   :: [FilePathUUIDPair]
   -> [FilePathUUIDPair]
   -> Reader FileOpsReadState [FileOp]
-generateFileOps listOfFilenamesAndUuids initialFilenamesAndUuids = do
-  let initialFilenamesAndUuidsSet = S.fromList initialFilenamesAndUuids
-  let currentFilenamesAndUuidsSet = S.fromList listOfFilenamesAndUuids
+generateFileOps listOfPathsAndUuids initialPathsAndUuids = do
+  let initialPathsAndUuidsSet = S.fromList initialPathsAndUuids
+  let currentPathsAndUuidsSet = S.fromList listOfPathsAndUuids
   trashCopyOps <- genTrashCopyOps
-                    initialFilenamesAndUuidsSet
-                    currentFilenamesAndUuidsSet
-  -- At this point, UUIDs in `initialFilenamesAndUuids` are unique. Otherwise
+                    initialPathsAndUuidsSet
+                    currentPathsAndUuidsSet
+  -- At this point, UUIDs in `initialPathsAndUuids` are unique. Otherwise
   -- they would have violated the UNIQUE constraint on the `files.uuid` column.
   -- Hence, we can safely construct a Map indexed by UUID
   let uuidToTrashCopyFileRepr =
@@ -48,18 +48,18 @@ generateFileOps listOfFilenamesAndUuids initialFilenamesAndUuids = do
         fmap
           (\(TrashCopyOp _ newSrcFileRepr uuid) -> (uuid, newSrcFileRepr))
           trashCopyOps
-  let listOfFilenameUuidToCopy =
+  let listOfPathsAndUuidsToCopy =
         sortBy (compare `on` fst) $
         S.toList $
-        S.difference currentFilenamesAndUuidsSet initialFilenamesAndUuidsSet
-  -- Map of UUID -> filename; for files that are in the current directory when
-  -- the program started.
-  let initialUuidToFilename =
-        M.fromList $ fmap swap initialFilenamesAndUuids
+        S.difference currentPathsAndUuidsSet initialPathsAndUuidsSet
+  -- Map of UUID -> path to file; for files that are in the current directory
+  -- when the program started.
+  let initialUuidToPath =
+        M.fromList $ fmap swap initialPathsAndUuids
   copyOps <- genCopyOps
                uuidToTrashCopyFileRepr
-               initialUuidToFilename
-               listOfFilenameUuidToCopy
+               initialUuidToPath
+               listOfPathsAndUuidsToCopy
   return $ trashCopyOps <> copyOps
 
 doFileOp :: (FilesTableRow -> IO ()) -> FileOp -> ReaderT FileOpsReadState IO ()

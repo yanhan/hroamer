@@ -6,6 +6,7 @@ import Control.Monad.Reader (runReader)
 import qualified Data.Map.Strict as M
 import Data.Set (fromList)
 import Foundation hiding (fromList)
+import System.FilePath.Posix ((</>))
 import Test.Hspec (Spec, describe, it, parallel, shouldBe)
 
 import Hroamer.DataStructures
@@ -21,19 +22,29 @@ spec = parallel $ do
       let cwd = "/the/blessed/era"
           pathToTrashCopyDir = "/things/die/here"
           r = FileOpsReadState cwd  ""  pathToTrashCopyDir
-          toStay = ("roost.png", "83ac96e0-117b-470e-a534-c98a880d30e8")
-          toRemoveOne = ("sre-guidelines.txt", "d9f6ba2e-634a-4b19-89d5-b1bfca2c67cf")
-          toRemoveTwo = ("config.h", "9ddb81e2-c25f-43e9-9d77-c64d20c577fa")
-          newStuff = ("combustion", "28532de4-db73-47a7-b8a1-ee02bf42a73d")
+          toStay = (cwd </> "roost.png", "83ac96e0-117b-470e-a534-c98a880d30e8")
+          toRemoveOneFilename = "sre-guidelines.txt"
+          toRemoveOne = ( cwd </> toRemoveOneFilename
+                        , "d9f6ba2e-634a-4b19-89d5-b1bfca2c67cf"
+                        )
+          toRemoveTwoFilename = "config.h"
+          toRemoveTwo = ( cwd </> toRemoveTwoFilename
+                        , "9ddb81e2-c25f-43e9-9d77-c64d20c577fa"
+                        )
+          newStuff = (cwd </> "combustion", "28532de4-db73-47a7-b8a1-ee02bf42a73d")
           initial = fromList [toStay, toRemoveOne, toRemoveTwo]
           current = fromList [toStay, newStuff]
           expected = [ TrashCopyOp
-                         (FileRepr cwd $ fst toRemoveTwo)
-                         (FileRepr (dirToTrashCopyTo pathToTrashCopyDir $ snd toRemoveTwo) (fst toRemoveTwo))
+                         (FileRepr cwd toRemoveTwoFilename)
+                         (FileRepr
+                           (dirToTrashCopyTo pathToTrashCopyDir $ snd toRemoveTwo)
+                           toRemoveTwoFilename)
                          (snd toRemoveTwo)
                      , TrashCopyOp
-                         (FileRepr cwd $ fst toRemoveOne)
-                         (FileRepr (dirToTrashCopyTo pathToTrashCopyDir $ snd toRemoveOne) (fst toRemoveOne))
+                         (FileRepr cwd toRemoveOneFilename)
+                         (FileRepr
+                           (dirToTrashCopyTo pathToTrashCopyDir $ snd toRemoveOne)
+                           toRemoveOneFilename)
                          (snd toRemoveOne)
                      ]
           actual = runReader (genTrashCopyOps initial current) r
@@ -59,13 +70,13 @@ spec = parallel $ do
           lkUuid = "7c6b8a68-348a-4ce5-85dd-284ab1eea3ec"
 
           uuidToTrashCopyOp = M.fromList [(trashCopyOpUuid, trashCopyOpDestFileRepr)]
-          initialUuidToFilename = M.fromList [ (fileOneUuid, fileOneName)
-                                             , (fileTwoUuid, fileTwoName)
-                                             ]
-          toCopy = [ (trashCopyFilename, trashCopyOpUuid)
-                   , (fileOneNewName, fileOneUuid)
-                   , (fileTwoNewName, fileTwoUuid)
-                   , (lkName, lkUuid)
+          initialUuidToPath = M.fromList [ (fileOneUuid, cwd </> fileOneName)
+                                         , (fileTwoUuid, cwd </> fileTwoName)
+                                         ]
+          toCopy = [ (cwd </> trashCopyFilename, trashCopyOpUuid)
+                   , (cwd </> fileOneNewName, fileOneUuid)
+                   , (cwd </> fileTwoNewName, fileTwoUuid)
+                   , (cwd </> lkName, lkUuid)
                    ]
           expected = [ CopyOp trashCopyOpDestFileRepr  (FileRepr cwd trashCopyFilename)
                      , CopyOp (FileRepr cwd fileOneName)  (FileRepr cwd fileOneNewName)
@@ -73,6 +84,6 @@ spec = parallel $ do
                      , LookupDbCopyOp (FileRepr cwd lkName) lkUuid
                      ]
           actual = runReader
-                     (genCopyOps uuidToTrashCopyOp initialUuidToFilename toCopy)
+                     (genCopyOps uuidToTrashCopyOp initialUuidToPath toCopy)
                      (FileOpsReadState cwd  ""  "")
       in expected `shouldBe` actual

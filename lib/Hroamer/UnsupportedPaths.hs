@@ -28,38 +28,31 @@ import Hroamer.UnsupportedPaths.Internal
 excHandlerReturnFalse :: IOException -> IO Bool
 excHandlerReturnFalse = const $ return False
 
-getUnsupportedPaths :: FilePath -> [FilePath] -> IO UPaths
-getUnsupportedPaths cwd files = do
+getUnsupportedPaths :: [FilePath] -> IO UPaths
+getUnsupportedPaths files = do
   (_, uPaths) <- execStateT sta (empty, (UPaths empty empty))
   return uPaths
   where
     sta :: StateT (Set FilePath, UPaths) IO ()
     sta =
       mapM_
-        (\fname -> do
+        (\filePath -> do
            (filesSeen, uPaths) <- get
-           let filePath = cwd </> fname
-           isSymlink <- lift $
-             pathIsSymbolicLink filePath `catch` excHandlerReturnFalse
-           canonPath <- lift $
-             if isSymlink
-                then return filePath
-                else canonicalizePath $ cwd </> fname
-           let filesSeen' = insert fname filesSeen
+           let filesSeen' = insert filePath filesSeen
            -- `case () of _` trick with guards is learnt from:
            -- https://wiki.haskell.org/Case
            -- https://stackoverflow.com/a/40836465
            case () of
              _
-               | member fname filesSeen ->
+               | member filePath filesSeen ->
                  put
                    ( filesSeen
                    , uPaths
-                     {duplicatePaths = insert fname (duplicatePaths uPaths)})
-               | not $ isValid canonPath ->
+                     {duplicatePaths = insert filePath (duplicatePaths uPaths)})
+               | not $ isValid filePath ->
                  put
                    ( filesSeen'
-                   , uPaths {invalidPaths = insert fname (invalidPaths uPaths)})
+                   , uPaths {invalidPaths = insert filePath (invalidPaths uPaths)})
                | otherwise -> put (filesSeen', uPaths))
         files
 
