@@ -137,178 +137,180 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
       in actual `shouldBe` expected
 
   describe "doFileOp" $ do
-    it "for TrashCopyOp, should move the existing path to a new directory under the trash copy directory" $
-      \mapOfTempDirs -> do
-        let tempDir = fromJust $ lookup doFileOpSpecTrashCopyKey mapOfTempDirs
-            pathToDb = tempDir </> "filesdb"
-            srcDir = tempDir </> "svenson"
-            srcFile = "asks"
-            srcUuid = "e582b948-d554-46e1-8799-a24fbc0c7207"
-            srcFileRepr = FileRepr srcDir  srcFile
-            pathToTrashCopyDir = tempDir </> "nord"
-            destDir = pathToTrashCopyDir </> (toList srcUuid)
-            destFile = "runReaderT"
-            destFileRepr = FileRepr destDir  destFile
-        HroamerDb.createDbAndTables pathToDb
-        createDirectory srcDir
-        writeFile (srcDir </> srcFile) "move asks to readerT"
-        createDirectory pathToTrashCopyDir
-        HroamerDb.wrapDbConn pathToDb (\addFileDetailsToDb -> do
-            addFileDetailsToDb srcDir (srcFile, srcUuid)
-          ) HroamerDbInt.addFileDetailsToDb
-        HroamerDb.wrapDbConn
-          pathToDb
-          (\updateDirAndFilename ->
-            runReaderT
-              (doFileOp
-                updateDirAndFilename
-                (TrashCopyOp srcFileRepr destFileRepr srcUuid))
-              (FileOpsReadState destDir pathToDb pathToTrashCopyDir)
-          )
-          HroamerDb.updateDirAndFilename
-        -- assertions
-        doesFileExist (srcDir </> srcFile) `shouldReturn` False
-        doesFileExist (destDir </> destFile) `shouldReturn` True
-        -- check database state
-        HroamerDb.wrapDbConn
-          pathToDb
-          (\getRowFromUUID -> do
-            l <- getRowFromUUID srcUuid
-            case l of
-              [] -> False `shouldBe` True
-              [(FilesTableRow dir filename uuid)] -> do
-                dir `shouldBe` destDir
-                filename `shouldBe` destFile
-                uuid `shouldBe` srcUuid
-              _ -> False `shouldBe` False)
-          HroamerDb.getRowFromUUID
+    describe "for TrashCopyOp" $ do
+      it "should move the existing path to a new directory under the trash copy directory" $
+        \mapOfTempDirs -> do
+          let tempDir = fromJust $ lookup doFileOpSpecTrashCopyKey mapOfTempDirs
+              pathToDb = tempDir </> "filesdb"
+              srcDir = tempDir </> "svenson"
+              srcFile = "asks"
+              srcUuid = "e582b948-d554-46e1-8799-a24fbc0c7207"
+              srcFileRepr = FileRepr srcDir  srcFile
+              pathToTrashCopyDir = tempDir </> "nord"
+              destDir = pathToTrashCopyDir </> (toList srcUuid)
+              destFile = "runReaderT"
+              destFileRepr = FileRepr destDir  destFile
+          HroamerDb.createDbAndTables pathToDb
+          createDirectory srcDir
+          writeFile (srcDir </> srcFile) "move asks to readerT"
+          createDirectory pathToTrashCopyDir
+          HroamerDb.wrapDbConn pathToDb (\addFileDetailsToDb -> do
+              addFileDetailsToDb srcDir (srcFile, srcUuid)
+            ) HroamerDbInt.addFileDetailsToDb
+          HroamerDb.wrapDbConn
+            pathToDb
+            (\updateDirAndFilename ->
+              runReaderT
+                (doFileOp
+                  updateDirAndFilename
+                  (TrashCopyOp srcFileRepr destFileRepr srcUuid))
+                (FileOpsReadState destDir pathToDb pathToTrashCopyDir)
+            )
+            HroamerDb.updateDirAndFilename
+          -- assertions
+          doesFileExist (srcDir </> srcFile) `shouldReturn` False
+          doesFileExist (destDir </> destFile) `shouldReturn` True
+          -- check database state
+          HroamerDb.wrapDbConn
+            pathToDb
+            (\getRowFromUUID -> do
+              l <- getRowFromUUID srcUuid
+              case l of
+                [] -> False `shouldBe` True
+                [(FilesTableRow dir filename uuid)] -> do
+                  dir `shouldBe` destDir
+                  filename `shouldBe` destFile
+                  uuid `shouldBe` srcUuid
+                _ -> False `shouldBe` False)
+            HroamerDb.getRowFromUUID
 
-    it "for TrashCopyOp, should handle exception (instead of crashing) when source is missing" $
-      \mapOfTempDirs -> do
-        let tempDir = fromJust $
-              lookup doFileOpSpecTrashCopySourceMissingKey mapOfTempDirs
-            pathToDb = tempDir </> "db"
-            srcDir = tempDir </> "groggy"
-            srcFile = "captain"
-            srcFileRepr = FileRepr srcDir srcFile
-            srcUuid = "55147bce-d68c-4762-9166-a0faae4c338d"
-            destDir = tempDir </> "toxic"
-            destFile = "ducky"
-            destFileRepr = FileRepr destDir destFile
-        HroamerDb.createDbAndTables pathToDb
-        HroamerDb.wrapDbConn
-          pathToDb
-          (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
-          HroamerDbInt.addFileDetailsToDb
-        createDirectory srcDir
-        runReaderT
-          (doFileOp undefined (TrashCopyOp srcFileRepr destFileRepr srcUuid))
-          undefined
-        -- check that database state is the same
-        HroamerDb.getAllFilesInDir pathToDb srcDir `shouldReturn`
-          [(srcFile, srcUuid)]
+      it "should handle exception (instead of crashing) when source is missing" $
+        \mapOfTempDirs -> do
+          let tempDir = fromJust $
+                lookup doFileOpSpecTrashCopySourceMissingKey mapOfTempDirs
+              pathToDb = tempDir </> "db"
+              srcDir = tempDir </> "groggy"
+              srcFile = "captain"
+              srcFileRepr = FileRepr srcDir srcFile
+              srcUuid = "55147bce-d68c-4762-9166-a0faae4c338d"
+              destDir = tempDir </> "toxic"
+              destFile = "ducky"
+              destFileRepr = FileRepr destDir destFile
+          HroamerDb.createDbAndTables pathToDb
+          HroamerDb.wrapDbConn
+            pathToDb
+            (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
+            HroamerDbInt.addFileDetailsToDb
+          createDirectory srcDir
+          runReaderT
+            (doFileOp undefined (TrashCopyOp srcFileRepr destFileRepr srcUuid))
+            undefined
+          -- check that database state is the same
+          HroamerDb.getAllFilesInDir pathToDb srcDir `shouldReturn`
+            [(srcFile, srcUuid)]
 
-    it "for CopyOp for existing file, it should copy the file to its destination" $
-      \mapOfTempDirs -> do
-        let tempDir = fromJust $ lookup doFileOpSpecCopyOpFileKey mapOfTempDirs
-            pathToDb = tempDir </> "copyOpFileDb"
-            srcDir = tempDir </> "happy"
-            srcFile = "as-a-fiddle"
-            srcFileRepr = FileRepr srcDir srcFile
-            srcUuid = "57ff0289-e5aa-4356-9dff-606a4c4ee832"
-            destDir = tempDir </> "alex"
-            destFile = "is-similar"
-            destFileRepr = FileRepr destDir destFile
-            destFilePath = destDir </> destFile
-            fileContents = "Ho! Ho! Ho! Merry Christmas!"
-            copyOp = CopyOp srcFileRepr destFileRepr
-        HroamerDb.createDbAndTables pathToDb
-        createDirectory srcDir
-        writeFile (srcDir </> srcFile) fileContents
-        HroamerDb.wrapDbConn
-          pathToDb
-          (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
-          HroamerDbInt.addFileDetailsToDb
-        createDirectory destDir
-        doesPathExist destFilePath `shouldReturn` False
-        runReaderT
-          (doFileOp undefined copyOp)
-          undefined
-        doesFileExist destFilePath `shouldReturn` True
-        doesFileExist (srcDir </> srcFile) `shouldReturn` True
-        readFile destFilePath `shouldReturn` fileContents
+    describe "for CopyOp" $ do
+      it "for existing file, it should copy the file to its destination" $
+        \mapOfTempDirs -> do
+          let tempDir = fromJust $ lookup doFileOpSpecCopyOpFileKey mapOfTempDirs
+              pathToDb = tempDir </> "copyOpFileDb"
+              srcDir = tempDir </> "happy"
+              srcFile = "as-a-fiddle"
+              srcFileRepr = FileRepr srcDir srcFile
+              srcUuid = "57ff0289-e5aa-4356-9dff-606a4c4ee832"
+              destDir = tempDir </> "alex"
+              destFile = "is-similar"
+              destFileRepr = FileRepr destDir destFile
+              destFilePath = destDir </> destFile
+              fileContents = "Ho! Ho! Ho! Merry Christmas!"
+              copyOp = CopyOp srcFileRepr destFileRepr
+          HroamerDb.createDbAndTables pathToDb
+          createDirectory srcDir
+          writeFile (srcDir </> srcFile) fileContents
+          HroamerDb.wrapDbConn
+            pathToDb
+            (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
+            HroamerDbInt.addFileDetailsToDb
+          createDirectory destDir
+          doesPathExist destFilePath `shouldReturn` False
+          runReaderT
+            (doFileOp undefined copyOp)
+            undefined
+          doesFileExist destFilePath `shouldReturn` True
+          doesFileExist (srcDir </> srcFile) `shouldReturn` True
+          readFile destFilePath `shouldReturn` fileContents
 
-    it "for CopyOp for existing dir, it should copy the dir to its destination" $
-      \mapOfTempDirs -> do
-        let tempDir = fromJust $ lookup doFileOpSpecCopyOpDirKey mapOfTempDirs
-            pathToDb = tempDir </> "dbdbddb"
-            srcContainingDir = tempDir </> "ground"
-            srcDir = "truth"
-            srcFile = "is-here"
-            srcFileRepr = FileRepr srcContainingDir srcDir
-            srcUuid = "365cde5f-dd45-4854-9ca8-2417ffaba5ac"
-            srcDirPath = srcContainingDir </> srcDir
-            srcFilePath = srcDirPath </> srcFile
-            destContainingDir = tempDir </> "fiery"
-            destDir = "water"
-            destFileRepr = FileRepr destContainingDir destDir
-            destDirPath = destContainingDir </> destDir
-            destFilePath = destDirPath </> srcFile
-            fileContents = "Make some noise if you... are... ready!!!!"
-        HroamerDb.createDbAndTables pathToDb
-        createDirectoryIfMissing True srcDirPath
-        writeFile srcFilePath fileContents
-        createDirectory destContainingDir
-        HroamerDb.wrapDbConn
-          pathToDb
-          (\addFileDetailsToDb ->
-            addFileDetailsToDb srcContainingDir (srcDir, srcUuid))
-          HroamerDbInt.addFileDetailsToDb
-        doesPathExist destDirPath `shouldReturn` False
-        doesPathExist destFilePath `shouldReturn` False
-        runReaderT
-          (doFileOp undefined (CopyOp srcFileRepr destFileRepr))
-          undefined
-        doesFileExist srcFilePath `shouldReturn` True
-        doesFileExist destFilePath `shouldReturn` True
-        readFile destFilePath `shouldReturn` fileContents
+      it "for existing dir, it should copy the dir to its destination" $
+        \mapOfTempDirs -> do
+          let tempDir = fromJust $ lookup doFileOpSpecCopyOpDirKey mapOfTempDirs
+              pathToDb = tempDir </> "dbdbddb"
+              srcContainingDir = tempDir </> "ground"
+              srcDir = "truth"
+              srcFile = "is-here"
+              srcFileRepr = FileRepr srcContainingDir srcDir
+              srcUuid = "365cde5f-dd45-4854-9ca8-2417ffaba5ac"
+              srcDirPath = srcContainingDir </> srcDir
+              srcFilePath = srcDirPath </> srcFile
+              destContainingDir = tempDir </> "fiery"
+              destDir = "water"
+              destFileRepr = FileRepr destContainingDir destDir
+              destDirPath = destContainingDir </> destDir
+              destFilePath = destDirPath </> srcFile
+              fileContents = "Make some noise if you... are... ready!!!!"
+          HroamerDb.createDbAndTables pathToDb
+          createDirectoryIfMissing True srcDirPath
+          writeFile srcFilePath fileContents
+          createDirectory destContainingDir
+          HroamerDb.wrapDbConn
+            pathToDb
+            (\addFileDetailsToDb ->
+              addFileDetailsToDb srcContainingDir (srcDir, srcUuid))
+            HroamerDbInt.addFileDetailsToDb
+          doesPathExist destDirPath `shouldReturn` False
+          doesPathExist destFilePath `shouldReturn` False
+          runReaderT
+            (doFileOp undefined (CopyOp srcFileRepr destFileRepr))
+            undefined
+          doesFileExist srcFilePath `shouldReturn` True
+          doesFileExist destFilePath `shouldReturn` True
+          readFile destFilePath `shouldReturn` fileContents
 
-    it "for CopyOp for symlink, it should create a new symlink" $
-      \mapOfTempDirs -> do
-        let tempDir = fromJust $ lookup doFileOpSpecCopyOpSymlinkKey mapOfTempDirs
-            pathToDb = tempDir </> "symlinkdb"
-            srcDir = tempDir </> "heylo"
-            srcFile = "mylink"
-            srcPath = srcDir </> srcFile
-            srcUuid = "e951540f-4202-4fd1-b544-eba5b5cba0b3"
-            srcFileRepr = FileRepr srcDir srcFile
-            symlinkTarget = "/a/fairy/tale/with/some/castle"
-            destDir = tempDir </> "aiyo"
-            destFile = "pointer"
-            destPath = destDir </> destFile
-            destFileRepr = FileRepr destDir destFile
-        HroamerDb.createDbAndTables pathToDb
-        HroamerDb.wrapDbConn
-          pathToDb
-          (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
-          HroamerDbInt.addFileDetailsToDb
-        -- Create the symlink
-        mapM_ createDirectory [srcDir, destDir]
-        (_, _, _, ph) <- createProcess (proc "ln" ["-s", symlinkTarget, srcPath])
-        exitCode <- waitForProcess ph
-        case exitCode of
-          ExitSuccess -> return ()
-          _ -> False `shouldBe` True
-        pathIsSymbolicLink srcPath `shouldReturn` True
-        doesPathExist destPath `shouldReturn` False
-        runReaderT
-          (doFileOp undefined (CopyOp srcFileRepr destFileRepr))
-          undefined
-        pathIsSymbolicLink destPath `shouldReturn` True
-        (_, Just stdoutHandle, _, ph) <-
-          createProcess (proc "readlink" [destPath]){ std_out=CreatePipe }
-        exitCode <- waitForProcess ph
-        case exitCode of
-          ExitSuccess ->
-            hGetContents stdoutHandle `shouldReturn` (symlinkTarget <> "\n")
-          _ -> False `shouldBe` True
+      it "for symlink, it should create a new symlink" $
+        \mapOfTempDirs -> do
+          let tempDir = fromJust $ lookup doFileOpSpecCopyOpSymlinkKey mapOfTempDirs
+              pathToDb = tempDir </> "symlinkdb"
+              srcDir = tempDir </> "heylo"
+              srcFile = "mylink"
+              srcPath = srcDir </> srcFile
+              srcUuid = "e951540f-4202-4fd1-b544-eba5b5cba0b3"
+              srcFileRepr = FileRepr srcDir srcFile
+              symlinkTarget = "/a/fairy/tale/with/some/castle"
+              destDir = tempDir </> "aiyo"
+              destFile = "pointer"
+              destPath = destDir </> destFile
+              destFileRepr = FileRepr destDir destFile
+          HroamerDb.createDbAndTables pathToDb
+          HroamerDb.wrapDbConn
+            pathToDb
+            (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
+            HroamerDbInt.addFileDetailsToDb
+          -- Create the symlink
+          mapM_ createDirectory [srcDir, destDir]
+          (_, _, _, ph) <- createProcess (proc "ln" ["-s", symlinkTarget, srcPath])
+          exitCode <- waitForProcess ph
+          case exitCode of
+            ExitSuccess -> return ()
+            _ -> False `shouldBe` True
+          pathIsSymbolicLink srcPath `shouldReturn` True
+          doesPathExist destPath `shouldReturn` False
+          runReaderT
+            (doFileOp undefined (CopyOp srcFileRepr destFileRepr))
+            undefined
+          pathIsSymbolicLink destPath `shouldReturn` True
+          (_, Just stdoutHandle, _, ph) <-
+            createProcess (proc "readlink" [destPath]){ std_out=CreatePipe }
+          exitCode <- waitForProcess ph
+          case exitCode of
+            ExitSuccess ->
+              hGetContents stdoutHandle `shouldReturn` (symlinkTarget <> "\n")
+            _ -> False `shouldBe` True
