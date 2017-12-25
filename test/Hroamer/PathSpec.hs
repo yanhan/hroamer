@@ -90,7 +90,7 @@ relativeAndAbsoluteMix =
     (\(absPath, relPath) -> not $ isWeakAncestorDir relPath absPath)
 
 
-genAbsoluteFilePathWithSpace :: Gen [Char]
+genAbsoluteFilePathWithSpace :: Gen FilePath
 genAbsoluteFilePathWithSpace = do
   l1 <- listOf1 genFilePathComponent
   l2 <- listOf1 genFilePathComponentWithSpace
@@ -100,7 +100,7 @@ genAbsoluteFilePathWithSpace = do
     return $ pathSoFar <> pathSep <> pathComponent
     ) "" filePathComponents
   where
-    genFilePathComponentWithSpace :: Gen [Char]
+    genFilePathComponentWithSpace :: Gen FilePath
     genFilePathComponentWithSpace = do
       p1 <- listOf1 genValidFilePathChar
       p2 <- listOf1 genSpace
