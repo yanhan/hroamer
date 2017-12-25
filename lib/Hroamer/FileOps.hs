@@ -65,8 +65,8 @@ doFileOp :: (FilesTableRow -> IO ()) -> FileOp -> ReaderT FileOpsReadState IO ()
 doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) =
   liftIO $ do
     let (FileRepr destDir destFilename) = destFileRepr
-    let srcFilePath = fileReprToFilePath srcFileRepr
-    let destFilePath = fileReprToFilePath destFileRepr
+        srcFilePath = fileReprToFilePath srcFileRepr
+        destFilePath = fileReprToFilePath destFileRepr
     createDirectory destDir
     renamePath srcFilePath destFilePath
     TIO.putStrLn $ "trash-copy " <> (pack srcFilePath)
