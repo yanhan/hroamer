@@ -5,7 +5,7 @@ module Hroamer.PathSpec
 import Control.Monad (foldM)
 import Control.Monad.Reader (Reader, ask, runReader)
 import Control.Monad.Writer.Strict (runWriterT)
-import Data.Char (chr, isSpace)
+import Data.Char (isSpace)
 import qualified Data.DList
 import Foundation
 import System.Directory (doesDirectoryExist)
@@ -19,9 +19,7 @@ import Test.QuickCheck
 
 import Hroamer.Path
        (appendSlashToDir, createDirNoForce, hasSpace, isWeakAncestorDir)
-
-genCharNoNulls :: Gen Char
-genCharNoNulls = choose (chr 1, maxBound :: Char)
+import TestHelpers (genCharNoNulls)
 
 isNotPathSeparator :: Char -> Bool
 isNotPathSeparator c = c /= pathSeparator

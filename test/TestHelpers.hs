@@ -2,11 +2,13 @@ module TestHelpers
   ( RowCount
   , clearDb
   , deleteTempDirForTest
+  , genCharNoNulls
   , getTotalRows
   , rmrf
   , setupDbForTest
   ) where
 
+import Data.Char (chr)
 import Data.Map (Map)
 import Database.SQLite.Simple
        (Connection, execute_, query_, withConnection)
@@ -18,6 +20,7 @@ import System.Directory (removeDirectory, removeFile)
 import System.FilePath.Posix ((</>), FilePath, takeDirectory)
 import System.IO.Temp (createTempDirectory)
 import System.Process (createProcess, proc, waitForProcess)
+import Test.QuickCheck (Gen, choose)
 
 import Hroamer.Database (createDbAndTables)
 
@@ -52,3 +55,6 @@ rmrf tempDirs = do
     (_, _, _, ph) <- createProcess rmrfProc
     waitForProcess ph) tempDirs
   return ()
+
+genCharNoNulls :: Gen Char
+genCharNoNulls = choose (chr 1, maxBound :: Char)
