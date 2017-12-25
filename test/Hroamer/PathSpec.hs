@@ -107,10 +107,6 @@ genAbsoluteFilePathWithSpace = do
       p3 <- listOf1 genValidFilePathChar
       return $ p1 <> p2 <> p3
 
-
-hasSpaceDetectsFilePathWithSpace :: Property
-hasSpaceDetectsFilePathWithSpace = forAll genAbsoluteFilePathWithSpace hasSpace
-
 spec :: Spec
 spec = parallel $ do
   describe "isWeakAncestorDir" $ do
@@ -195,4 +191,4 @@ spec = parallel $ do
   describe "hasSpace" $ do
     modifyMaxSuccess (const 30) $
       it "will return True for FilePath that has at least a space" $
-        hasSpaceDetectsFilePathWithSpace
+        forAll genAbsoluteFilePathWithSpace hasSpace
