@@ -128,8 +128,7 @@ doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
       case exitCode of
         ExitSuccess -> TIO.putStrLn $
           "cp -P " <> pack srcFilePath <> " " <> pack destFilePath
-        _ -> TIO.putStrLn $
-          "Failed to copy " <> pack srcFilePath <> " to " <> pack destFilePath
+        _ -> TIO.putStrLn $ failedToCopyMessage srcFilePath destFilePath
     else do
       srcExists <- liftIO $ doesPathExist srcFilePath
       srcIsDir <- liftIO $ doesDirectoryExist srcFilePath
@@ -144,17 +143,17 @@ doFileOp _ (CopyOp srcFileRepr destFileRepr) = do
                 TIO.putStrLn $
                   "cp -R " <> (pack srcFilePath) <> " " <> (pack destFilePath)
               _ ->
-                TIO.putStrLn $
-                  "Failed to copy " <> (pack srcFilePath) <> " to " <>
-                  (pack destFilePath)
+                TIO.putStrLn $ failedToCopyMessage srcFilePath destFilePath
           (True, _) ->
             copyPlainFile srcFilePath destFilePath `catch`
-              (\(e::IOException) -> do
-                TIO.putStrLn $
-                  "Failed to copy " <> pack srcFilePath <> " to " <>
-                    pack destFilePath)
+              \(e::IOException) -> TIO.putStrLn $
+                failedToCopyMessage srcFilePath destFilePath
           _ -> return ()
   where
+    failedToCopyMessage :: FilePath -> FilePath -> Text
+    failedToCopyMessage srcFilePath destFilePath =
+      "Failed to copy " <> pack srcFilePath <> " to " <> pack destFilePath
+
     copyPlainFile :: FilePath -> FilePath -> IO ()
     copyPlainFile srcFilePath destFilePath = do
       copyFile srcFilePath destFilePath
