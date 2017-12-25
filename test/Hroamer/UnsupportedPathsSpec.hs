@@ -26,15 +26,15 @@ import Hroamer.UnsupportedPaths.Internal
         relativePathsErrorTitle)
 import TestHelpers (rmrf)
 
-getUnsupportedPathsSymLinkKey :: Text
-getUnsupportedPathsSymLinkKey = "getUnsupportedPathsSymLinkKey"
+dontCanonicalizeSymlinksKey :: Text
+dontCanonicalizeSymlinksKey = "dontCanonicalizeSymlinksKey"
 
 createTempDirs :: IO (Map Text FilePath)
 createTempDirs = do
   dontCanonicalizeSymlinksDir <-
     createTempDirectory "/tmp"  "dontCanonicalizeSymlinksDir"
   return $
-    fromList [(getUnsupportedPathsSymLinkKey, dontCanonicalizeSymlinksDir)]
+    fromList [(dontCanonicalizeSymlinksKey, dontCanonicalizeSymlinksDir)]
 
 createSymlink :: [Char] -> [Char] -> IO ()
 createSymlink target linkName = do
@@ -68,7 +68,7 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
       getUnsupportedPaths "/bin" paths `shouldReturn` expectedUPaths
 
     it "will not canonicalize the file path of symlinks" $ \mapOfTempDirs -> do
-      let cwd = fromJust $ lookup getUnsupportedPathsSymLinkKey mapOfTempDirs
+      let cwd = fromJust $ lookup dontCanonicalizeSymlinksKey mapOfTempDirs
           symlinkOneFilename = "s3"
           symlinkOnePath = cwd </> symlinkOneFilename
           symlinkTwoFilename = "hoisting"
