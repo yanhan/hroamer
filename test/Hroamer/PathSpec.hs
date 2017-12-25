@@ -76,13 +76,6 @@ absAndRelFilePath :: Gen (FilePath, FilePath)
 absAndRelFilePath = fmap (,) genAbsoluteFilePath <*> genRelativeFilePath
 
 
-relativeAndAbsoluteMix :: Property
-relativeAndAbsoluteMix =
-  forAll
-    absAndRelFilePath
-    (\(absPath, relPath) -> not $ isWeakAncestorDir relPath absPath)
-
-
 genAbsoluteFilePathWithSpace :: Gen FilePath
 genAbsoluteFilePathWithSpace = do
   l1 <- listOf1 genFilePathComponent
@@ -148,7 +141,9 @@ spec = parallel $ do
         (\(absPath, relPath) -> not $ isWeakAncestorDir absPath relPath)
 
     it "should return False when ancestor dir is relative path and path of interest is absolute path [QuickCheck]" $
-      relativeAndAbsoluteMix
+      forAll
+        absAndRelFilePath
+        (\(absPath, relPath) -> not $ isWeakAncestorDir relPath absPath)
 
   describe "appendSlashToDir" $ do
     it "will append a slash to an existing dir if the slash is missing" $
