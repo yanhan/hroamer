@@ -15,7 +15,8 @@ import Test.Hspec
        (Spec, describe, it, parallel, shouldBe, shouldNotBe, shouldReturn)
 import Test.Hspec.Core.QuickCheck (modifyMaxSuccess)
 import Test.QuickCheck
-       (Gen, Property, arbitrary, choose, forAll, listOf1, property, suchThat)
+       (Gen, Property, arbitrary, choose, forAll, listOf1, property,
+        shuffle, suchThat)
 
 import Hroamer.Path
        (appendSlashToDir, createDirNoForce, hasSpace, isWeakAncestorDir)
@@ -90,13 +91,13 @@ relativeAndAbsoluteMix =
 
 genAbsoluteFilePathWithSpace :: Gen [Char]
 genAbsoluteFilePathWithSpace = do
-  -- TODO: shuffle this?
   l1 <- listOf1 genFilePathComponent
   l2 <- listOf1 genFilePathComponentWithSpace
+  filePathComponents <- shuffle $ l1 <> l2
   foldM (\pathSoFar pathComponent -> do
     pathSep <- genPathSeparators
     return $ pathSoFar <> pathSep <> pathComponent
-    ) "" (l1 <> l2)
+    ) "" filePathComponents
   where
     genFilePathComponentWithSpace :: Gen [Char]
     genFilePathComponentWithSpace = do
