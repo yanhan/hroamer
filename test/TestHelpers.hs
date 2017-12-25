@@ -4,6 +4,7 @@ module TestHelpers
   , deleteTempDirForTest
   , genCharNotNull
   , genFilePathComponent
+  , genSpace
   , genValidFilePathChar
   , getTotalRows
   , isNotPathSeparator
@@ -72,3 +73,6 @@ genValidFilePathChar = suchThat genCharNotNull $
 
 genFilePathComponent :: Gen FilePath
 genFilePathComponent = listOf1 genValidFilePathChar
+
+genSpace :: Gen Char
+genSpace = suchThat genCharNotNull isSpace

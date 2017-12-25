@@ -14,10 +14,7 @@ import Test.QuickCheck
 
 import Hroamer.Parser (parseDirStateLine)
 import Hroamer.StateFile (separator)
-import TestHelpers (genCharNotNull, genValidFilePathChar)
-
-genSpace :: Gen Char
-genSpace = suchThat genCharNotNull isSpace
+import TestHelpers (genCharNotNull, genSpace, genValidFilePathChar)
 
 genFilenameWithNonTrailingSpace :: Gen Text
 genFilenameWithNonTrailingSpace = do
