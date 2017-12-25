@@ -71,4 +71,4 @@ genValidFilePathChar = suchThat genCharNotNull $
   (\ch -> foldr (\f acc -> acc && f ch) True [isNotPathSeparator, not . isSpace])
 
 genFilePathComponent :: Gen [Char]
-genFilePathComponent = listOf1 $ suchThat genCharNotNull isNotPathSeparator
+genFilePathComponent = listOf1 genValidFilePathChar
