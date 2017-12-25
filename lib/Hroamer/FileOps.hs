@@ -62,14 +62,14 @@ generateFileOps listOfFilenamesAndUuids initialFilenamesAndUuids = do
 -- Assume both src and dest are in the same directory
 doFileOp :: (FilesTableRow -> IO ()) -> FileOp -> ReaderT FileOpsReadState IO ()
 
-doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) = do
-  let (FileRepr destDir destFilename) = destFileRepr
-  let srcFilePath = fileReprToFilePath srcFileRepr
-  let destFilePath = fileReprToFilePath destFileRepr
-  liftIO $ createDirectory destDir
-  liftIO $ renamePath srcFilePath destFilePath
-  liftIO $ TIO.putStrLn $ "trash-copy " <> (pack srcFilePath)
-  liftIO $
+doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) =
+  liftIO $ do
+    let (FileRepr destDir destFilename) = destFileRepr
+    let srcFilePath = fileReprToFilePath srcFileRepr
+    let destFilePath = fileReprToFilePath destFileRepr
+    createDirectory destDir
+    renamePath srcFilePath destFilePath
+    TIO.putStrLn $ "trash-copy " <> (pack srcFilePath)
     dbUpdateDirAndFileName
       FilesTableRow {dir = destDir, filename = destFilename, uuid = uuid}
 
