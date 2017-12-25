@@ -5,6 +5,7 @@ module TestHelpers
   , genCharNotNull
   , genValidFilePathChar
   , getTotalRows
+  , isNotPathSeparator
   , rmrf
   , setupDbForTest
   ) where
