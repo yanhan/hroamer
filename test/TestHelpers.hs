@@ -3,6 +3,7 @@ module TestHelpers
   , clearDb
   , deleteTempDirForTest
   , genCharNotNull
+  , genFilePathComponent
   , genValidFilePathChar
   , getTotalRows
   , isNotPathSeparator
@@ -23,7 +24,7 @@ import System.FilePath.Posix
        ((</>), FilePath, pathSeparator, takeDirectory)
 import System.IO.Temp (createTempDirectory)
 import System.Process (createProcess, proc, waitForProcess)
-import Test.QuickCheck (Gen, choose, suchThat)
+import Test.QuickCheck (Gen, choose, listOf1, suchThat)
 
 import Hroamer.Database (createDbAndTables)
 
@@ -68,3 +69,6 @@ genCharNotNull = choose (chr 1, maxBound :: Char)
 genValidFilePathChar :: Gen Char
 genValidFilePathChar = suchThat genCharNotNull $
   (\ch -> foldr (\f acc -> acc && f ch) True [isNotPathSeparator, not . isSpace])
+
+genFilePathComponent :: Gen [Char]
+genFilePathComponent = listOf1 $ suchThat genCharNotNull isNotPathSeparator

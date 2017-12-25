@@ -19,11 +19,8 @@ import Test.QuickCheck
 
 import Hroamer.Path
        (appendSlashToDir, createDirNoForce, hasSpace, isWeakAncestorDir)
-import TestHelpers (genCharNotNull, isNotPathSeparator)
-
-genFilePathComponent :: Gen [Char]
-genFilePathComponent = listOf1 $ suchThat genCharNotNull isNotPathSeparator
-
+import TestHelpers
+       (genCharNotNull, genFilePathComponent, isNotPathSeparator)
 
 genRelativeFilePath :: Gen FilePath
 genRelativeFilePath = do
