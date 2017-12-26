@@ -3,26 +3,65 @@ module Hroamer.PathSpec
   ) where
 
 import Control.Monad (foldM)
-import Control.Monad.Reader (Reader, ask, runReader)
+import Control.Monad.Reader (Reader, ask, runReader, runReaderT)
 import Control.Monad.Writer.Strict (runWriterT)
 import Data.Char (isSpace)
 import qualified Data.DList
+import Data.Map.Strict (Map, lookup)
+import qualified Data.Map.Strict as M
+import Data.Maybe (fromJust)
+import Data.Text (Text)
 import Foundation
-import System.Directory (doesDirectoryExist)
+import System.Directory
+       (createDirectory, doesDirectoryExist, getCurrentDirectory,
+        pathIsSymbolicLink)
 import System.FilePath ((</>), FilePath, pathSeparator, takeDirectory)
-import System.IO.Temp (withSystemTempDirectory)
+import System.IO (writeFile)
+import System.IO.Temp (createTempDirectory, withSystemTempDirectory)
+import System.Process (createProcess, proc, waitForProcess)
 import Test.Hspec
-       (Spec, describe, it, parallel, shouldBe, shouldNotBe, shouldReturn)
+       (Spec, afterAll, beforeAll, describe, it, parallel, shouldBe,
+        shouldNotBe, shouldReturn)
 import Test.Hspec.Core.QuickCheck (modifyMaxSuccess)
 import Test.QuickCheck
        (Gen, Property, arbitrary, choose, forAll, listOf1, property,
         shuffle, suchThat)
 
+import Hroamer.DataStructures (AbsFilePath(AbsFilePath))
 import Hroamer.Path
-       (appendSlashToDir, createDirNoForce, hasSpace, isWeakAncestorDir)
+       (appendSlashToDir, createDirNoForce, hasSpace, isWeakAncestorDir,
+        resolvePath)
 import TestHelpers
        (genCharNotNull, genFilePathComponent, genSpace,
-        genValidFilePathChar, isNotPathSeparator)
+        genValidFilePathChar, isNotPathSeparator, rmrf)
+
+resolvePathSpecResolveAbsPathSymlinkKey :: Text
+resolvePathSpecResolveAbsPathSymlinkKey = "resolvePathSpecResolveAbsPathSymlink"
+
+resolvePathSpecResolveSymlinkInCwdKey :: Text
+resolvePathSpecResolveSymlinkInCwdKey = "resolvePathSpecResolveSymlinkInCwd"
+
+resolvePathSpecFileInCwdKey :: Text
+resolvePathSpecFileInCwdKey = "resolvePathSpecFileInCwd"
+
+createTempDirs :: IO (Map Text FilePath)
+createTempDirs = do
+  resolvePathSpecResolveAbsPathSymlinkDir <-
+    createTempDirectory "/tmp"  "resolvePathSpecResolveAbsPathSymlink"
+  resolvePathSpecResolveSymlinkInCwdDir <-
+    createTempDirectory "/tmp" "resolvePathSpecResolveSymlinkInCwd"
+  resolvePathSpecFileInCwdDir <-
+    createTempDirectory "/tmp" "resolvePathSpecFileInCwd"
+  return $ M.fromList [ ( resolvePathSpecResolveAbsPathSymlinkKey
+                        , resolvePathSpecResolveAbsPathSymlinkDir
+                        )
+                      , ( resolvePathSpecResolveSymlinkInCwdKey
+                        , resolvePathSpecResolveSymlinkInCwdDir
+                        )
+                      , ( resolvePathSpecFileInCwdKey
+                        , resolvePathSpecFileInCwdDir
+                        )
+                      ]
 
 genRelativeFilePath :: Gen FilePath
 genRelativeFilePath = do
@@ -172,3 +211,66 @@ spec = parallel $ do
     modifyMaxSuccess (const 30) $
       it "will return True for FilePath that has at least a space" $
         forAll genAbsoluteFilePathWithSpace hasSpace
+
+  describe "resolvePath" $ beforeAll createTempDirs $ afterAll rmrf $ do
+    it "will not modify an absolute path which is not a symlink" $ \_ ->
+      let filePath = "/usr/bin/yes"
+      in runReaderT (resolvePath filePath) undefined `shouldReturn`
+           AbsFilePath filePath
+
+    it "will resolve an absolute path which is a symlink" $ \mapOfTempDirs -> do
+      let tempDir = fromJust $
+            lookup resolvePathSpecResolveAbsPathSymlinkKey mapOfTempDirs
+          cwd = tempDir </> "quantify"
+          symlink = cwd </> "stars"
+          actualFile = cwd </> "mrbeee"
+      createDirectory cwd
+      writeFile actualFile "coming soon"
+      (_, _, _, ph) <- createProcess (proc "ln" ["-s", actualFile, symlink])
+      waitForProcess ph
+      pathIsSymbolicLink symlink `shouldReturn` True
+      runReaderT (resolvePath symlink) undefined `shouldReturn`
+        AbsFilePath actualFile
+
+    it "will resolve a relative path which exists" $ \_ -> do
+      cwd <- getCurrentDirectory
+      let getLevelsToDirs path n =
+            if path == "/"
+               then n
+               else getLevelsToDirs (takeDirectory path) (n + 1)
+          levels = 1 + getLevelsToDirs cwd 0
+          filePath = (mconcat $ replicate levels "../") </> "/bin/rm"
+      runReaderT (resolvePath filePath) undefined `shouldReturn`
+         AbsFilePath "/bin/rm"
+
+    it "will only prepend the current directory to a relative path which does not exist" $ \_ -> do
+      cwd <- getCurrentDirectory
+      let filePath = "I/hope/that/this/does/not/exist/on/your/computer3Z"
+      runReaderT (resolvePath filePath) undefined `shouldReturn`
+        (AbsFilePath $ cwd </> filePath)
+
+    it "will not resolve a symlink in the current directory" $ \mapOfTempDirs -> do
+      let tempDir = fromJust $
+            lookup resolvePathSpecResolveSymlinkInCwdKey mapOfTempDirs
+          cwd = tempDir </> "lid"
+          symlinkName = "bittree"
+          symlinkPath = cwd </> symlinkName
+          actualFile = cwd </> "eclipse"
+      createDirectory cwd
+      writeFile actualFile "The moon covers the sun"
+      (_, _, _, ph) <- createProcess (proc "ln" ["-s", actualFile, symlinkPath])
+      waitForProcess ph
+      pathIsSymbolicLink symlinkPath `shouldReturn` True
+      runReaderT (resolvePath symlinkName) cwd `shouldReturn`
+        AbsFilePath symlinkPath
+
+    it "will resolve a path in the current directory by returning the same path" $
+      \mapOfTempDirs -> do
+        let tempDir = fromJust $
+              lookup resolvePathSpecFileInCwdKey mapOfTempDirs
+            cwd = tempDir </> "spinner"
+            filePath = cwd </> "uno"
+        createDirectory cwd
+        writeFile filePath "numero"
+        runReaderT (resolvePath filePath) cwd `shouldReturn`
+          AbsFilePath filePath

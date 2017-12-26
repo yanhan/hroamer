@@ -15,7 +15,7 @@ import System.FilePath.Posix ((</>), FilePath)
 
 -- newtype wrapper for FilePath that are absolute paths
 newtype AbsFilePath = AbsFilePath { toFilePath :: FilePath }
-  deriving (Eq, IsString, Ord)
+  deriving (Eq, IsString, Ord, Show)
 
 type AbsFilePathUUIDPair = (AbsFilePath, Text)
 
