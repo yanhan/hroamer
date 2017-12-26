@@ -73,22 +73,6 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
       let expectedUPaths = UPaths duplicatePaths invalidPaths
       getUnsupportedPaths paths `shouldReturn` expectedUPaths
 
-    it "will not canonicalize the file path of symlinks" $ \mapOfTempDirs -> do
-      let cwd = fromJust $ lookup dontCanonicalizeSymlinksKey mapOfTempDirs
-          symlinkOneFilename = "s3"
-          symlinkOnePath = cwd </> symlinkOneFilename
-          symlinkTwoFilename = "hoisting"
-          symlinkTwoPath = cwd </> symlinkTwoFilename
-          paths = [ "normal.hs"
-                  , symlinkOneFilename
-                  , symlinkTwoFilename
-                  ]
-      createSymlink "/wtf/is/this" (toList symlinkOnePath)
-      createSymlink "../../woo" (toList symlinkTwoPath)
-      doesPathExist symlinkOnePath
-      doesPathExist symlinkTwoPath
-      True `shouldBe` True
-
   describe "getErrors" $ do
     it "when there are multiple categories of errors, it will construct a message that separates each category by an empty line and sort the filenames in each category of error" $ \_ -> do
       let duplicatePaths = ["main.c", "jobs.txt"]
