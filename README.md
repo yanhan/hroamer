@@ -39,8 +39,6 @@ To run the tests:
 
 ## TODO
 
-- Don't let user override an ancestor dir of the current dir
-
 
 ## License
 

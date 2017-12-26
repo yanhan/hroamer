@@ -2,6 +2,7 @@ module Hroamer.UnsupportedPathsSpec
   ( spec
   ) where
 
+import Control.Monad.Reader (runReaderT)
 import qualified Data.DList as DList
 import qualified Data.List as List
 import qualified Data.Set as S
@@ -12,7 +13,7 @@ import Data.Text (Text, pack)
 import Foundation hiding (fromList)
 import System.Directory (createDirectory, doesPathExist)
 import System.Exit (ExitCode(ExitSuccess))
-import System.FilePath.Posix ((</>), FilePath)
+import System.FilePath.Posix ((</>), FilePath, takeDirectory)
 import System.IO.Temp (createTempDirectory)
 import System.Process (createProcess, proc, waitForProcess)
 import Test.Hspec
@@ -22,7 +23,7 @@ import Test.Hspec
 import Hroamer.DataStructures (AbsFilePath(AbsFilePath))
 import Hroamer.UnsupportedPaths (getErrors, getUnsupportedPaths)
 import Hroamer.UnsupportedPaths.Internal
-       (UPaths(UPaths), duplicatePathsErrorTitle,
+       (UPaths(UPaths), ancestorPathsErrorTitle, duplicatePathsErrorTitle,
         formatPathsForErrorMessage, invalidPathsErrorTitle)
 import TestHelpers (rmrf)
 
@@ -46,8 +47,10 @@ createSymlink target linkName = do
 spec :: Spec
 spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
   describe "getUnsupportedPaths" $ do
-    it "will construct a UPaths data structure with duplicate and invalid paths" $ \_ -> do
+    it "will construct a UPaths data structure ancestor, duplicate and invalid paths" $ \_ -> do
       let cwd = "/medium/large/small"
+          cwdParent = takeDirectory cwd
+          cwdGrandParent = takeDirectory cwdParent
           anotherDir = "/snoring/loudly"
           paths =
             [ AbsFilePath "/medium/large/chop"
@@ -64,30 +67,47 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
             , AbsFilePath $ anotherDir </> "hashing"
             , AbsFilePath $ anotherDir </> "cupcakes"
             , AbsFilePath $ anotherDir </> "cupcakes"
+            -- ancestor paths
+            , AbsFilePath cwd
+            , AbsFilePath cwdParent
+            , AbsFilePath cwdGrandParent
+            -- this one does not get flagged as a duplicate due to the order of
+            -- processing. But that is ok
+            , AbsFilePath cwdParent
             ]
+          ancestorPaths = S.fromList [ cwd
+                                     , cwdParent
+                                     , cwdGrandParent
+                                     ]
       let duplicatePaths = S.fromList [ cwd </> "funny.mp4"
                                       , "/medium/fireball"
                                       , anotherDir </> "cupcakes"
                                       ]
       let invalidPaths = S.fromList [cwd </> "we\0k"]
-      let expectedUPaths = UPaths duplicatePaths invalidPaths
-      getUnsupportedPaths paths `shouldReturn` expectedUPaths
+      let expectedUPaths = UPaths ancestorPaths duplicatePaths invalidPaths
+      runReaderT (getUnsupportedPaths paths) cwd `shouldReturn` expectedUPaths
 
   describe "getErrors" $ do
     it "when there are multiple categories of errors, it will construct a message that separates each category by an empty line and sort the filenames in each category of error" $ \_ -> do
       let cwd = "/home/thomas"
           homeland = "/var/opt/socks"
           bigboat = "/big/boat/on/lake"
+      let ancestorPaths = [ takeDirectory $ takeDirectory cwd
+                          , takeDirectory cwd
+                          ]
       let duplicatePaths = [ cwd </> "main.c"
                            , cwd </> "jobs.txt"
                            , homeland </> "fiftyfifty"]
       let invalidPaths = [cwd </> "saturd\0y", bigboat </> "w\0inning"]
       let upaths =
             UPaths
+              (S.fromList ancestorPaths)
               (S.fromList duplicatePaths)
               (S.fromList invalidPaths)
       DList.toList (getErrors cwd upaths) `shouldBe`
-        [duplicatePathsErrorTitle] <>
+        [ancestorPathsErrorTitle] <>
+        formatPathsForErrorMessage ancestorPaths <>
+        ["", duplicatePathsErrorTitle] <>
         formatPathsForErrorMessage duplicatePaths <>
         ["", invalidPathsErrorTitle] <>
         formatPathsForErrorMessage invalidPaths
@@ -100,11 +120,11 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
                            , cwd </> "../cute-cats.png"
                            , highway </> "drift"
                            ]
-      let upaths = UPaths (S.fromList duplicatePaths) empty
+      let upaths = UPaths empty (S.fromList duplicatePaths) empty
       DList.toList (getErrors cwd upaths) `shouldBe`
         [duplicatePathsErrorTitle] <>
         formatPathsForErrorMessage duplicatePaths
 
     it "will return an empty DList if there are no errors" $ \_ ->
-      getErrors "/opt/local/x" (UPaths empty empty) `shouldBe`
+      getErrors "/opt/local/x" (UPaths empty empty empty) `shouldBe`
         DList.empty

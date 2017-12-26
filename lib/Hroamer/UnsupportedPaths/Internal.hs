@@ -1,5 +1,6 @@
 module Hroamer.UnsupportedPaths.Internal
   ( UPaths(..)
+  , ancestorPathsErrorTitle
   , duplicatePathsErrorTitle
   , formatPathsForErrorMessage
   , invalidPathsErrorTitle
@@ -13,9 +14,13 @@ import System.FilePath.Posix (FilePath)
 
 -- Types of paths that are not supported by hroamer
 data UPaths = UPaths
-  { duplicatePaths :: Set FilePath
+  { ancestorPaths :: Set FilePath
+  , duplicatePaths :: Set FilePath
   , invalidPaths :: Set FilePath
   } deriving (Eq, Show)
+
+ancestorPathsErrorTitle :: Text
+ancestorPathsErrorTitle = "Error - the following destinations are ancestor dirs of the current directory:"
 
 duplicatePathsErrorTitle :: Text
 duplicatePathsErrorTitle = "Error: the following filenames are duplicated:"

@@ -132,7 +132,8 @@ main = do
       resolvedPath <- runReaderT (Path.resolvePath path) cwd
       return (resolvedPath, uuid)) <$> StateFile.read user_dirstate_filepath
     let list_of_paths = fmap fst list_of_paths_and_uuid
-    unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths list_of_paths
+    unsupportedPaths <-
+      runReaderT (UnsupportedPaths.getUnsupportedPaths list_of_paths) cwd
     let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
     if unsupportedPathsDList == Data.DList.empty
       then do

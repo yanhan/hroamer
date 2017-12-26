@@ -5,6 +5,8 @@ module Hroamer.UnsupportedPaths
 
 import Control.Exception (catch)
 import Control.Monad (mapM_)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.State
        (State, StateT, evalState, evalStateT, execStateT, get, lift,
         modify, put)
@@ -21,21 +23,25 @@ import System.FilePath.Posix
        ((</>), FilePath, isValid, takeDirectory)
 
 import Hroamer.DataStructures (AbsFilePath(toFilePath))
+import Hroamer.Path (isWeakAncestorDir)
 import Hroamer.UnsupportedPaths.Internal
-       (UPaths(UPaths, duplicatePaths, invalidPaths),
-        duplicatePathsErrorTitle, formatPathsForErrorMessage,
-        invalidPathsErrorTitle)
+       (UPaths(UPaths, ancestorPaths, duplicatePaths, invalidPaths),
+        ancestorPathsErrorTitle, duplicatePathsErrorTitle,
+        formatPathsForErrorMessage, invalidPathsErrorTitle)
 
 excHandlerReturnFalse :: IOException -> IO Bool
 excHandlerReturnFalse = const $ return False
 
-getUnsupportedPaths :: [AbsFilePath] -> IO UPaths
+getUnsupportedPaths :: [AbsFilePath] -> ReaderT FilePath IO UPaths
 getUnsupportedPaths absFilePaths = do
-  (_, uPaths) <- execStateT sta (empty, (UPaths empty empty))
+  r <- ask
+  (_, uPaths) <- liftIO $
+    execStateT (runReaderT sta r) (empty, (UPaths empty empty empty))
   return uPaths
   where
-    sta :: StateT (Set FilePath, UPaths) IO ()
-    sta =
+    sta :: ReaderT FilePath (StateT (Set FilePath, UPaths) IO) ()
+    sta = do
+      cwd <- ask
       mapM_
         (\absFilePath -> do
            (filesSeen, uPaths) <- get
@@ -46,6 +52,12 @@ getUnsupportedPaths absFilePaths = do
            -- https://stackoverflow.com/a/40836465
            case () of
              _
+               | isWeakAncestorDir filePath cwd ->
+                   put ( filesSeen'
+                       , uPaths {
+                           ancestorPaths = insert filePath (ancestorPaths uPaths)
+                         }
+                       )
                | member filePath filesSeen ->
                  put
                    ( filesSeen
@@ -81,6 +93,8 @@ getErrors cwd uPaths
         else return ()
     getErrorsInternal :: WriterT (DList Text) (State Int) ()
     getErrorsInternal = do
+      getOneError
+        (ancestorPaths uPaths) ancestorPathsErrorTitle
       getOneError
         (duplicatePaths uPaths) duplicatePathsErrorTitle
       getOneError
