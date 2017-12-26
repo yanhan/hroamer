@@ -61,6 +61,8 @@ spec = parallel $ do
   describe "genCopyOps" $ do
     it "should generate the list of FileOp for files that need to be copied" $
       let cwd = "/chilli/tomatoes/garlic"
+          cwdParent = "/chilli/tomatoes"
+          anotherDir = "/pay/me"
           trashCopyFilename = "onions"
           trashCopyOpDestFileRepr = FileRepr "/fake/trash/dir"  trashCopyFilename
           trashCopyOpUuid = "076f6f46-76f2-429a-a586-a132e4b20b3f"
@@ -76,20 +78,30 @@ spec = parallel $ do
           -- Files that we need to lookup from the db
           lkName = "linguine"
           lkUuid = "7c6b8a68-348a-4ce5-85dd-284ab1eea3ec"
+          ---- From anotherDir
+          lkNameTwo = "bolognese"
+          lkTwoUuid = "82d4a5cf-6394-44c1-8439-6e034619b6b8"
+          ---- From cwdParent (parent dir of the cwd)
+          lkNameThree = "pounds"
+          lkThreeUuid = "5ce2201b-ac56-459a-ae85-9da3bf9a313a"
 
           uuidToTrashCopyOp = M.fromList [(trashCopyOpUuid, trashCopyOpDestFileRepr)]
           initialUuidToPath = M.fromList [ (fileOneUuid, AbsFilePath $ cwd </> fileOneName)
                                          , (fileTwoUuid, AbsFilePath $ cwd </> fileTwoName)
                                          ]
-          toCopy = [ (AbsFilePath $ cwd </> trashCopyFilename, trashCopyOpUuid)
+          toCopy = [ (AbsFilePath $ cwdParent </> lkNameThree, lkThreeUuid)
+                   , (AbsFilePath $ cwd </> trashCopyFilename, trashCopyOpUuid)
                    , (AbsFilePath $ cwd </> fileOneNewName, fileOneUuid)
                    , (AbsFilePath $ cwd </> fileTwoNewName, fileTwoUuid)
                    , (AbsFilePath $ cwd </> lkName, lkUuid)
+                   , (AbsFilePath $ anotherDir </> lkNameTwo, lkTwoUuid)
                    ]
-          expected = [ CopyOp trashCopyOpDestFileRepr  (FileRepr cwd trashCopyFilename)
+          expected = [ LookupDbCopyOp (FileRepr cwdParent lkNameThree) lkThreeUuid
+                     , CopyOp trashCopyOpDestFileRepr  (FileRepr cwd trashCopyFilename)
                      , CopyOp (FileRepr cwd fileOneName)  (FileRepr cwd fileOneNewName)
                      , CopyOp (FileRepr cwd fileTwoName)  (FileRepr cwd fileTwoNewName)
                      , LookupDbCopyOp (FileRepr cwd lkName) lkUuid
+                     , LookupDbCopyOp (FileRepr anotherDir lkNameTwo) lkTwoUuid
                      ]
           actual = genCopyOps uuidToTrashCopyOp initialUuidToPath toCopy
       in expected `shouldBe` actual
