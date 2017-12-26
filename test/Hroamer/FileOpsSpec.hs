@@ -292,27 +292,77 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
               srcFile = "as-a-fiddle"
               srcFileRepr = FileRepr srcDir srcFile
               srcUuid = "57ff0289-e5aa-4356-9dff-606a4c4ee832"
-              destDir = tempDir </> "alex"
-              destFile = "is-similar"
-              destFileRepr = FileRepr destDir destFile
-              destFilePath = destDir </> destFile
+              destDirOne = tempDir </> "alex"
+              destFileOne = "is-similar"
+              destFileOneRepr = FileRepr destDirOne destFileOne
+              destFileOnePath = destDirOne </> destFileOne
               fileContents = "Ho! Ho! Ho! Merry Christmas!"
-              copyOp = CopyOp srcFileRepr destFileRepr
+              copyOpOne = CopyOp srcFileRepr destFileOneRepr
+              -- copy from cwd to another dir
+              destDirTwo = tempDir </> "watch-later"
+              destFileTwo = "tiling"
+              destFileTwoRepr = FileRepr destDirTwo destFileTwo
+              destFileTwoPath = destDirTwo </> destFileTwo
+              copyOpTwo = CopyOp srcFileRepr destFileTwoRepr
+              -- copy from another dir to cwd
+              srcDirTwo = tempDir </> "jumping"
+              srcFileTwo = "lookup"
+              srcFileTwoPath = srcDirTwo </> srcFileTwo
+              srcFileTwoRepr = FileRepr srcDirTwo srcFileTwo
+              srcFileTwoUuid = "0bfaf388-3eac-42e1-b7a4-5dc54342e703"
+              srcFileTwoContents = "gogogogo"
+              destDirThree = srcDir
+              destFileThree = "tomatoes"
+              destFileThreePath = destDirThree </> destFileThree
+              destFileThreeRepr = FileRepr destDirThree destFileThree
+              copyOpThree = CopyOp srcFileTwoRepr destFileThreeRepr
+              -- copy from another dir to another dir
+              srcDirThree = destDirTwo
+              srcFileThree = "christmas_tree"
+              srcFileThreePath = srcDirThree </> srcFileThree
+              srcFileThreeContents = "hard work! dedication!"
+              srcFileThreeRepr = FileRepr srcDirThree srcFileThree
+              srcFileThreeUuid = "68fc3212-6ef1-4351-8a2d-5231e8b7a856"
+              destDirFour = srcDirTwo
+              destFileFour = "green-spectacles.doc"
+              destFileFourPath = destDirFour </> destFileFour
+              destFileFourRepr = FileRepr destDirFour destFileFour
+              copyOpFour = CopyOp srcFileThreeRepr destFileFourRepr
           HroamerDb.createDbAndTables pathToDb
-          createDirectory srcDir
+          mapM_ createDirectory [srcDir, srcDirTwo, destDirTwo]
           writeFile (srcDir </> srcFile) fileContents
+          writeFile srcFileTwoPath srcFileTwoContents
+          writeFile srcFileThreePath srcFileThreeContents
           HroamerDb.wrapDbConn
             pathToDb
-            (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
+            (\addFileDetailsToDb -> do
+              addFileDetailsToDb srcDir (srcFile, srcUuid)
+              addFileDetailsToDb srcDirTwo (srcFileTwo, srcFileTwoUuid)
+              addFileDetailsToDb srcDirThree (srcFileThree, srcFileThreeUuid))
             HroamerDbInt.addFileDetailsToDb
-          createDirectory destDir
-          doesPathExist destFilePath `shouldReturn` False
+          createDirectory destDirOne
+          doesPathExist destFileOnePath `shouldReturn` False
           runReaderT
-            (doFileOp undefined copyOp)
+            (doFileOp undefined copyOpOne)
             undefined
-          doesFileExist destFilePath `shouldReturn` True
+          doesFileExist destFileOnePath `shouldReturn` True
           doesFileExist (srcDir </> srcFile) `shouldReturn` True
-          readFile destFilePath `shouldReturn` fileContents
+          readFile destFileOnePath `shouldReturn` fileContents
+          -- copy from cwd to another dir
+          doesPathExist destFileTwoPath `shouldReturn` False
+          runReaderT (doFileOp undefined copyOpTwo) undefined
+          doesFileExist destFileTwoPath `shouldReturn` True
+          readFile destFileTwoPath `shouldReturn` fileContents
+          -- copy from another dir to cwd
+          doesPathExist destFileThreePath `shouldReturn` False
+          runReaderT (doFileOp undefined copyOpThree) undefined
+          doesFileExist destFileThreePath `shouldReturn` True
+          readFile destFileThreePath `shouldReturn` srcFileTwoContents
+          -- copy from another dir to another dir
+          doesPathExist destFileFourPath `shouldReturn` False
+          runReaderT (doFileOp undefined copyOpFour) undefined
+          doesFileExist destFileFourPath `shouldReturn` True
+          readFile destFileFourPath `shouldReturn` srcFileThreeContents
 
       it "for existing dir, it should copy the dir to its destination" $
         \mapOfTempDirs -> do
