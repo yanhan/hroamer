@@ -22,7 +22,7 @@ spec = parallel $ do
     it "should generate the list of TrashCopyOp (in sorted order) for files that the user wants to remove" $
       let cwd = "/the/blessed/era"
           pathToTrashCopyDir = "/things/die/here"
-          r = FileOpsReadState cwd  ""  pathToTrashCopyDir
+          r = FileOpsReadState ""  pathToTrashCopyDir
           toStay = ( AbsFilePath $ cwd </> "roost.png"
                    , "83ac96e0-117b-470e-a534-c98a880d30e8"
                    )

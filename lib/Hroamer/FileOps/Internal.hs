@@ -18,7 +18,7 @@ import System.FilePath.Posix
 
 import Hroamer.DataStructures
        (AbsFilePath(toFilePath), AbsFilePathUUIDPair, FileRepr(FileRepr),
-        FileOpsReadState(rsCwd, rsTrashCopyDir))
+        FileOpsReadState(rsTrashCopyDir))
 
 data FileOp
   = CopyOp { srcFileRepr :: FileRepr

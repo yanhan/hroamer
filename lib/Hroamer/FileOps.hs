@@ -23,7 +23,7 @@ import System.Process (createProcess, proc, waitForProcess)
 
 import Hroamer.DataStructures
        (AbsFilePath(AbsFilePath), AbsFilePathUUIDPair,
-        FileOpsReadState(rsCwd, rsPathToDb), FileRepr(FileRepr),
+        FileOpsReadState(rsPathToDb), FileRepr(FileRepr),
         fileReprToFilePath)
 import Hroamer.Database (FilesTableRow(..))
 import Hroamer.FileOps.Internal

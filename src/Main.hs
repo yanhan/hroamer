@@ -136,7 +136,7 @@ main = do
     let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
     if unsupportedPathsDList == Data.DList.empty
       then do
-        let r = FileOpsReadState cwd path_to_db path_to_trashcopy_dir
+        let r = FileOpsReadState path_to_db path_to_trashcopy_dir
             initialPathsAndUuids = fmap (\(filename, uuid) ->
               (AbsFilePath (cwd </> filename), uuid))
               initial_fnames_and_uuids

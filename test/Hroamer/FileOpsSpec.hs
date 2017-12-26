@@ -118,7 +118,7 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
           --
           initial = [toRemoveOne, toRemoveTwo, safeOne, safeTwo]
           current = [toLookup, toCopyOne, toRename, safeOne, safeTwo, toCopyTwo]
-          r = FileOpsReadState cwd "" trashCopyDir
+          r = FileOpsReadState "" trashCopyDir
           expected = [ TrashCopyOp
                          (FileRepr cwd toRemoveTwoFilename)
                          (FileRepr (dirToTrashCopyTo trashCopyDir toRemoveTwoUuid)
@@ -171,7 +171,7 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
                 (doFileOp
                   updateDirAndFilename
                   (TrashCopyOp srcFileRepr destFileRepr srcUuid))
-                (FileOpsReadState destDir pathToDb pathToTrashCopyDir)
+                (FileOpsReadState pathToDb pathToTrashCopyDir)
             )
             HroamerDb.updateDirAndFilename
           -- assertions

@@ -29,7 +29,6 @@ fileReprToFilePath :: FileRepr -> FilePath
 fileReprToFilePath (FileRepr dir fname) = dir </> fname
 
 data FileOpsReadState =
-  FileOpsReadState { rsCwd :: FilePath
-                   , rsPathToDb :: FilePath
+  FileOpsReadState { rsPathToDb :: FilePath
                    , rsTrashCopyDir :: FilePath
                    }
