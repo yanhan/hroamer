@@ -75,13 +75,13 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
 
   describe "getErrors" $ do
     it "when there are multiple categories of errors, it will construct a message that separates each category by an empty line and sort the filenames in each category of error" $ \_ -> do
-      let duplicatePaths = ["main.c", "jobs.txt"]
-      let invalidPaths = ["saturd\0y"]
+      let cwd = "/home/thomas"
+      let duplicatePaths = [cwd </> "main.c", cwd </> "jobs.txt"]
+      let invalidPaths = [cwd </> "saturd\0y"]
       let upaths =
             UPaths
               (S.fromList duplicatePaths)
               (S.fromList invalidPaths)
-      let cwd = "/home/thomas"
       DList.toList (getErrors cwd upaths) `shouldBe`
         [duplicatePathsErrorTitle] <>
         formatPathsForErrorMessage duplicatePaths <>
@@ -89,9 +89,12 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
         formatPathsForErrorMessage invalidPaths
 
     it "will not construct a message with empty lines if there is only one category of error" $ \_ -> do
-      let duplicatePaths = ["homework01.txt", "records.sql", "../cute-cats.png"]
-      let upaths = UPaths (S.fromList duplicatePaths) empty
       let cwd = "/home/jake/docs"
+      let duplicatePaths = [ cwd </> "homework01.txt"
+                           , cwd </> "records.sql"
+                           , cwd </> "../cute-cats.png"
+                           ]
+      let upaths = UPaths (S.fromList duplicatePaths) empty
       DList.toList (getErrors cwd upaths) `shouldBe`
         [duplicatePathsErrorTitle] <>
         formatPathsForErrorMessage duplicatePaths
