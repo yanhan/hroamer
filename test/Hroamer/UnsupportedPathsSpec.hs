@@ -94,9 +94,11 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
 
     it "will not construct a message with empty lines if there is only one category of error" $ \_ -> do
       let cwd = "/home/jake/docs"
+          highway = "/fast/lane/on/left"
       let duplicatePaths = [ cwd </> "homework01.txt"
                            , cwd </> "records.sql"
                            , cwd </> "../cute-cats.png"
+                           , highway </> "drift"
                            ]
       let upaths = UPaths (S.fromList duplicatePaths) empty
       DList.toList (getErrors cwd upaths) `shouldBe`
