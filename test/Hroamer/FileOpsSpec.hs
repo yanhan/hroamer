@@ -288,7 +288,11 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
         \mapOfTempDirs -> do
           let tempDir = fromJust $ lookup doFileOpSpecCopyOpFileKey mapOfTempDirs
               pathToDb = tempDir </> "copyOpFileDb"
-              srcDir = tempDir </> "happy"
+              cwd = tempDir </> "happy"
+              dirOne = tempDir </> "watch-later"
+              dirTwo = tempDir </> "jumping"
+              --
+              srcDir = cwd
               srcFile = "as-a-fiddle"
               srcFileRepr = FileRepr srcDir srcFile
               srcUuid = "57ff0289-e5aa-4356-9dff-606a4c4ee832"
@@ -299,37 +303,37 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
               fileContents = "Ho! Ho! Ho! Merry Christmas!"
               copyOpOne = CopyOp srcFileRepr destFileOneRepr
               -- copy from cwd to another dir
-              destDirTwo = tempDir </> "watch-later"
+              destDirTwo = dirOne
               destFileTwo = "tiling"
               destFileTwoRepr = FileRepr destDirTwo destFileTwo
               destFileTwoPath = destDirTwo </> destFileTwo
               copyOpTwo = CopyOp srcFileRepr destFileTwoRepr
               -- copy from another dir to cwd
-              srcDirTwo = tempDir </> "jumping"
+              srcDirTwo = dirTwo
               srcFileTwo = "lookup"
               srcFileTwoPath = srcDirTwo </> srcFileTwo
               srcFileTwoRepr = FileRepr srcDirTwo srcFileTwo
               srcFileTwoUuid = "0bfaf388-3eac-42e1-b7a4-5dc54342e703"
               srcFileTwoContents = "gogogogo"
-              destDirThree = srcDir
+              destDirThree = cwd
               destFileThree = "tomatoes"
               destFileThreePath = destDirThree </> destFileThree
               destFileThreeRepr = FileRepr destDirThree destFileThree
               copyOpThree = CopyOp srcFileTwoRepr destFileThreeRepr
               -- copy from another dir to another dir
-              srcDirThree = destDirTwo
+              srcDirThree = dirOne
               srcFileThree = "christmas_tree"
               srcFileThreePath = srcDirThree </> srcFileThree
               srcFileThreeContents = "hard work! dedication!"
               srcFileThreeRepr = FileRepr srcDirThree srcFileThree
               srcFileThreeUuid = "68fc3212-6ef1-4351-8a2d-5231e8b7a856"
-              destDirFour = srcDirTwo
+              destDirFour = dirTwo
               destFileFour = "green-spectacles.doc"
               destFileFourPath = destDirFour </> destFileFour
               destFileFourRepr = FileRepr destDirFour destFileFour
               copyOpFour = CopyOp srcFileThreeRepr destFileFourRepr
           HroamerDb.createDbAndTables pathToDb
-          mapM_ createDirectory [srcDir, srcDirTwo, destDirTwo]
+          mapM_ createDirectory [cwd, dirOne, dirTwo]
           writeFile (srcDir </> srcFile) fileContents
           writeFile srcFileTwoPath srcFileTwoContents
           writeFile srcFileThreePath srcFileThreeContents
