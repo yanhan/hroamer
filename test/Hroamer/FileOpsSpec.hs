@@ -79,6 +79,8 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
   describe "generateFileOps" $
     it "should generate a list of FileOp; with TrashCopyOp first, followed by everything else (sorted by filename)" $ \_ ->
       let cwd = "/boiling/water"
+          anotherDirOne = "/aubergine/local/axe2"
+          anotherDirTwo = "/under/cover/of/darkness"
           trashCopyDir = "/rising/turtle"
           -- files that will not be touched
           safeOneFilename = "avocado"
@@ -111,13 +113,38 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
           toRenameFilename = "aubergine"
           toRenameUuid = toRemoveTwoUuid
           toRename = (AbsFilePath $ cwd </> toRenameFilename, toRenameUuid)
-          -- file that has to be looked up
+          -- files that have to be looked up
+          ---- copy to cwd
           toLookupFilename = "egg"
           toLookupUuid = "c95581e7-0b48-4b68-b780-13a0e20c979c"
           toLookup = (AbsFilePath $ cwd </> toLookupFilename, toLookupUuid)
+          ---- copy to another directory
+          toLookupFilenameTwo = "soursop"
+          toLookupUuidTwo = "1b6b4834-b011-4c1f-9b17-0d6d5d978466"
+          toLookupTwo = ( AbsFilePath $ anotherDirTwo </> toLookupFilenameTwo
+                        , toLookupUuidTwo
+                        )
+          -- files to copy
+          toCopyExtOneFilename = "kiln"
+          toCopyExtOne = ( AbsFilePath $ anotherDirOne </> toCopyExtOneFilename
+                         , safeTwoUuid
+                         )
+          toCopyExtTwoFilename = "zeppelin"
+          toCopyExtTwo =  ( AbsFilePath $ anotherDirTwo </> toCopyExtTwoFilename
+                          , safeOneUuid
+                          )
           --
           initial = [toRemoveOne, toRemoveTwo, safeOne, safeTwo]
-          current = [toLookup, toCopyOne, toRename, safeOne, safeTwo, toCopyTwo]
+          current = [ toLookup
+                    , toCopyOne
+                    , toRename
+                    , safeOne
+                    , safeTwo
+                    , toCopyTwo
+                    , toCopyExtOne
+                    , toCopyExtTwo
+                    , toLookupTwo
+                    ]
           r = FileOpsReadState "" trashCopyDir
           expected = [ TrashCopyOp
                          (FileRepr cwd toRemoveTwoFilename)
@@ -129,6 +156,11 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
                          (FileRepr (dirToTrashCopyTo trashCopyDir toRemoveOneUuid)
                                    toRemoveOneFilename)
                          toRemoveOneUuid
+                     -- destination directory (anotherDirOne) is alphabetically
+                     -- before cwd, so it comes before every FileOp with cwd as
+                     -- the destination dir
+                     , CopyOp (FileRepr cwd safeTwoFilename)
+                              (FileRepr anotherDirOne toCopyExtOneFilename)
                      , CopyOp (FileRepr (dirToTrashCopyTo trashCopyDir toRemoveTwoUuid)
                                         toRemoveTwoFilename)
                               (FileRepr cwd toRenameFilename)
@@ -139,6 +171,17 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
                          (FileRepr cwd safeTwoFilename)
                          (FileRepr cwd toCopyTwoFilename)
                      , LookupDbCopyOp (FileRepr cwd toLookupFilename) toLookupUuid
+                     -- destination directory (anotherDirTwo) is alphabetically
+                     -- after cwd, so these FileOp with destination directory of
+                     -- anotherTwo comes after every FileOp with cwd as the
+                     -- destination dir
+                     --
+                     -- Those destination files in the same destination directory
+                     -- are then arranged in alphabetical order
+                     , LookupDbCopyOp (FileRepr anotherDirTwo toLookupFilenameTwo)
+                                      toLookupUuidTwo
+                     , CopyOp (FileRepr cwd safeOneFilename)
+                              (FileRepr anotherDirTwo toCopyExtTwoFilename)
                      ]
           actual = runReader (generateFileOps current initial) r
       in actual `shouldBe` expected
