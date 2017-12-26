@@ -94,7 +94,6 @@ doFileOp dbUpdateDirAndFileName (TrashCopyOp srcFileRepr destFileRepr uuid) =
 -- YH TODO: This is causing us to open another connection to the db.
 -- Refactor the code so that we don't have to do that.
 doFileOp dbUpdateDirAndFileName (LookupDbCopyOp destFileRepr uuid) = do
-  cwd <- asks rsCwd
   pathToDb <- asks rsPathToDb
   r <- ask
   liftIO $

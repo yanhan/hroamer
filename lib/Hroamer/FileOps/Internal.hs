@@ -41,7 +41,6 @@ genTrashCopyOps
   -> Set AbsFilePathUUIDPair
   -> Reader FileOpsReadState [FileOp]
 genTrashCopyOps initialPathsAndUuids currentPathsAndUuids = do
-  cwd <- asks rsCwd
   pathToTrashCopyDir <- asks rsTrashCopyDir
   let pathsAndUuidsToTrashCopy =
         S.difference initialPathsAndUuids currentPathsAndUuids
@@ -66,7 +65,6 @@ genCopyOps
   -> [AbsFilePathUUIDPair]
   -> Reader FileOpsReadState [FileOp]
 genCopyOps uuidToTrashCopyFileRepr initialUuidToPath listOfPathUuidToCopy = do
-  cwd <- asks rsCwd
   return $ fmap
     (\(absFilePath, uuid) ->
        let filePath = toFilePath absFilePath
