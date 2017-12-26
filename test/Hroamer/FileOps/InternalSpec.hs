@@ -37,8 +37,11 @@ spec = parallel $ do
           newStuff = ( AbsFilePath $ cwd </> "combustion"
                      , "28532de4-db73-47a7-b8a1-ee02bf42a73d"
                      )
+          newStuffTwo = ( AbsFilePath $ "/another/dir/on/my/system" </> "fish"
+                        , "3b604de4-016d-440e-8695-4b79d3a8956c"
+                        )
           initial = fromList [toStay, toRemoveOne, toRemoveTwo]
-          current = fromList [toStay, newStuff]
+          current = fromList [toStay, newStuff, newStuffTwo]
           expected = [ TrashCopyOp
                          (FileRepr cwd toRemoveTwoFilename)
                          (FileRepr
