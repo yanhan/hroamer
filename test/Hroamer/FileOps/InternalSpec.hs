@@ -88,7 +88,5 @@ spec = parallel $ do
                      , CopyOp (FileRepr cwd fileTwoName)  (FileRepr cwd fileTwoNewName)
                      , LookupDbCopyOp (FileRepr cwd lkName) lkUuid
                      ]
-          actual = runReader
-                     (genCopyOps uuidToTrashCopyOp initialUuidToPath toCopy)
-                     (FileOpsReadState cwd  ""  "")
+          actual = genCopyOps uuidToTrashCopyOp initialUuidToPath toCopy
       in expected `shouldBe` actual

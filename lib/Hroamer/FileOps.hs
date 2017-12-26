@@ -57,10 +57,10 @@ generateFileOps listOfPathsAndUuids initialPathsAndUuids = do
   -- when the program started.
   let initialUuidToPath =
         M.fromList $ fmap swap initialPathsAndUuids
-  copyOps <- genCopyOps
-               uuidToTrashCopyFileRepr
-               initialUuidToPath
-               listOfPathsAndUuidsToCopy
+      copyOps = genCopyOps
+                  uuidToTrashCopyFileRepr
+                  initialUuidToPath
+                  listOfPathsAndUuidsToCopy
   return $ trashCopyOps <> copyOps
 
 doFileOp :: (FilesTableRow -> IO ()) -> FileOp -> ReaderT FileOpsReadState IO ()

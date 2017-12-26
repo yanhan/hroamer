@@ -59,13 +59,12 @@ genTrashCopyOps initialPathsAndUuids currentPathsAndUuids = do
       listOfPathsAndUuidsToTrashCopy
 
 
-genCopyOps
-  :: Map Text FileRepr
-  -> Map Text AbsFilePath
-  -> [AbsFilePathUUIDPair]
-  -> Reader FileOpsReadState [FileOp]
-genCopyOps uuidToTrashCopyFileRepr initialUuidToPath listOfPathUuidToCopy = do
-  return $ fmap
+genCopyOps :: Map Text FileRepr
+           -> Map Text AbsFilePath
+           -> [AbsFilePathUUIDPair]
+           -> [FileOp]
+genCopyOps uuidToTrashCopyFileRepr initialUuidToPath listOfPathUuidToCopy =
+  fmap
     (\(absFilePath, uuid) ->
        let filePath = toFilePath absFilePath
            destDir = takeDirectory filePath
