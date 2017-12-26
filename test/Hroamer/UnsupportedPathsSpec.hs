@@ -76,8 +76,12 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
   describe "getErrors" $ do
     it "when there are multiple categories of errors, it will construct a message that separates each category by an empty line and sort the filenames in each category of error" $ \_ -> do
       let cwd = "/home/thomas"
-      let duplicatePaths = [cwd </> "main.c", cwd </> "jobs.txt"]
-      let invalidPaths = [cwd </> "saturd\0y"]
+          homeland = "/var/opt/socks"
+          bigboat = "/big/boat/on/lake"
+      let duplicatePaths = [ cwd </> "main.c"
+                           , cwd </> "jobs.txt"
+                           , homeland </> "fiftyfifty"]
+      let invalidPaths = [cwd </> "saturd\0y", bigboat </> "w\0inning"]
       let upaths =
             UPaths
               (S.fromList duplicatePaths)
