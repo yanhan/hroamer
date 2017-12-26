@@ -19,6 +19,7 @@ import Test.Hspec
        (Spec, afterAll, beforeAll, describe, it, parallel, shouldBe,
         shouldReturn)
 
+import Hroamer.DataStructures (AbsFilePath(AbsFilePath))
 import Hroamer.UnsupportedPaths (getErrors, getUnsupportedPaths)
 import Hroamer.UnsupportedPaths.Internal
        (UPaths(UPaths), duplicatePathsErrorTitle,
@@ -46,21 +47,29 @@ spec :: Spec
 spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
   describe "getUnsupportedPaths" $ do
     it "will construct a UPaths data structure with duplicate and invalid paths" $ \_ -> do
-      let paths =
-            [ "../chop"
-            , "/usr/bin/head"
-            , "normal-file-in-dir"
-            , "../../fireball"
-            , "funny.mp4"
-            , "steam.exe"
-            , "funny.mp4"
-            , "flying-meatballs.png"
-            , "../../fireball"
-            , "we\0k"
-            , "we1k"
+      let cwd = "/medium/large/small"
+          anotherDir = "/snoring/loudly"
+          paths =
+            [ AbsFilePath "/medium/large/chop"
+            , AbsFilePath "/usr/bin/head"
+            , AbsFilePath $ cwd </> "normal-file-in-dir"
+            , AbsFilePath "/medium/fireball"
+            , AbsFilePath $ cwd </> "funny.mp4"
+            , AbsFilePath $ cwd </> "steam.exe"
+            , AbsFilePath $ cwd </> "funny.mp4"
+            , AbsFilePath $ cwd </> "flying-meatballs.png"
+            , AbsFilePath "/medium/fireball"
+            , AbsFilePath $ cwd </> "we\0k"
+            , AbsFilePath $ cwd </> "we1k"
+            , AbsFilePath $ anotherDir </> "hashing"
+            , AbsFilePath $ anotherDir </> "cupcakes"
+            , AbsFilePath $ anotherDir </> "cupcakes"
             ]
-      let duplicatePaths = S.fromList ["funny.mp4", "../../fireball"]
-      let invalidPaths = S.fromList ["we\0k"]
+      let duplicatePaths = S.fromList [ cwd </> "funny.mp4"
+                                      , "/medium/fireball"
+                                      , anotherDir </> "cupcakes"
+                                      ]
+      let invalidPaths = S.fromList [cwd </> "we\0k"]
       let expectedUPaths = UPaths duplicatePaths invalidPaths
       getUnsupportedPaths paths `shouldReturn` expectedUPaths
 
