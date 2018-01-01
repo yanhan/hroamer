@@ -138,6 +138,18 @@ For moving files / directory, simply edit the original line in place.
 Note that the order of the lines **do not matter**.
 
 
+## Paths that are not supported by hroamer
+
+- Any file or directory with whitespace characters anywhere in its absolute path. Whitespace characters include but are not limited to the space character, the tab character, the newline character
+- Any file or directory beginning with a `"` character
+
+Other violations:
+
+- Using hroamer to manage any directory under `$XDG_DATA_HOME/hroamer` (defaults to `~/.local/share/hroamer`). This is forbidden because hroamer uses that directory to store some state
+- Duplicate filenames in the same text editor
+- Trying to override the directory or any of its ancestors for the currently active hroamer session. But this does not prevent you from opening another hroamer session to do so
+
+
 ## Tests
 
 To run the tests:
