@@ -60,6 +60,84 @@ cp -R /home/linda/workspace/poseidon/scripts /home/linda/workspace/zeus/scripts
 In `/home/linda/workspace/zeus`, you should see a copy of the `hash.py` file and the `scripts` directory from `/home/linda/workspace/poseidon`.
 
 
+## Usage details
+
+### Anatomy of a line
+
+All lines beginning with a `"` are treated as comments. Hence, the first line we see in the [Quickstart section](#quickstart):
+
+```
+" /home/linda/workspace/poseidon
+```
+
+will be ignored by hroamer and is only there to show the user what the cwd is.
+
+This line:
+
+```
+main.c | ee8a97dd-e269-4f6e-9565-c1f3fd0457b1 | /home/linda/workspace/poseidon/main.c
+```
+
+has 3 parts, each separated by a ` | `.
+
+The first part is `main.c`. This is the filename. Directory names will end with a slash. This part is important.
+
+The second part is `ee8a97dd-e269-4f6e-9565-c1f3fd0457b1`. This is the randomly generated UUID of the file / directory and is unique. This part is important.
+
+The third part is `/home/linda/workspace/poseidon/main.c`. This is the original path to the file / directory. This part is not important.
+
+hroamer uses the UUID to identify the source file / directory that needs to be copied to the destination. This UUID is not dependent on the contents of the file / directory and is globally unique. The name before the UUID allows the user to specify the destination filename. If unchanged, the destination file / directory will have the same name as the source.
+
+We mentioned that the part after the second ` | ` is not important - that is true and it is something I added for improved clarity on where a file was originally from, because UUIDs are not exactly human-friendly. This means that the following line is equivalent to the one above:
+
+```
+main.c | ee8a97dd-e269-4f6e-9565-c1f3fd0457b1
+```
+
+### Moving files / directories
+
+Instead of copy and paste, use cut and paste.
+
+### Use different name for destination file / directory
+
+Just modify the name before the first ` | ` to what you want. Using the example in our [Quickstart section](#quickstart), if we want to copy the `hash.py` file but name it as `run.py`, we will modify the line that was copy-and-pasted to:
+
+```
+run.py | af48298a-5d8c-43f1-97a6-595e08e0783f | /home/linda/workspace/poseidon/hash.py
+```
+
+### Delete files / directories
+
+Just delete the line from the text editor.
+
+However, the file / directory will not truly be deleted. A new directory (whose name is the uuid after the first ` | `) will be created in `~/.local/share/hroamer/trash-copy` and the file / directory will be shifted there.
+
+### Relative paths and absolute paths
+
+If you are too lazy to open a second `hroamer` instance, you can do the same work in just 1 window by using relative paths and absolute paths. Using the same example as in our [Quickstart section](#quickstart), you will launch `hroamer` in `/home/linda/workspace/poseidon` and edit the contents to a state similar to the following (take note of the final 2 lines):
+
+```
+" /home/linda/workspace/poseidon
+.git/ | 59472a7b-4b52-456b-bcb7-4c36f048a6bc | /home/linda/workspace/poseidon/.git
+.gitignore | 68900438-f70e-4004-ad9f-6d32cc386178 | /home/linda/workspace/poseidon/.gitignore
+README.md | 76a1aa25-7c70-4774-84c3-36ae495d42a0 | /home/linda/workspace/poseidon/README.md
+hash.py | af48298a-5d8c-43f1-97a6-595e08e0783f | /home/linda/workspace/poseidon/hash.py
+main.c | ee8a97dd-e269-4f6e-9565-c1f3fd0457b1 | /home/linda/workspace/poseidon/main.c
+scripts/ | e4f0c1ab-2cb2-467b-b4f8-915fb82e5053 | /home/linda/workspace/poseidon/scripts/
+../zeus/hash.py | af48298a-5d8c-43f1-97a6-595e08e0783f | /home/linda/workspace/poseidon/hash.py
+/home/linda/workspace/zeus/scripts | e4f0c1ab-2cb2-467b-b4f8-915fb82e5053 | /home/linda/workspace/poseidon/scripts/
+```
+
+Then save and quit the text editor. This uses:
+
+- the relative path `../zeus/hash.py` to copy `hash.py` to `/home/linda/workspace/zeus/hash.py`
+- the absolute path `/home/linda/workspace/zeus/scripts` to copy the `scripts` directory there
+
+For moving files / directory, simply edit the original line in place.
+
+Note that the order of the lines **do not matter**.
+
+
 ## Tests
 
 To run the tests:
