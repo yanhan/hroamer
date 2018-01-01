@@ -1,8 +1,8 @@
 # hroamer
 
-A file manager that lets you use your text editor for manipulations.
+hroamer lets you use a text editor specified by the `EDITOR` environment variable (defaults to `vim` if not set) to copy / move files from one directory to another.
 
-Writing this so I can work on something more real world using Haskell.
+My original intent of writing hroamer is for me to work on something more real world using Haskell.
 
 Inspired by roamer: https://github.com/abaldwin88/roamer
 
