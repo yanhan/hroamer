@@ -135,7 +135,7 @@ Then save and quit the text editor. This uses:
 
 For moving files / directory, simply edit the original line in place.
 
-Note that the order of the lines **do not matter**.
+Note that the order of the lines **do not matter**. You can also specify as many different relative / absolute paths as you like.
 
 
 ## Paths that are not supported by hroamer
