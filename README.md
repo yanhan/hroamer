@@ -23,11 +23,12 @@ To build:
 
     stack build
 
-To run:
 
-    stack exec hroamer
+## Installing
 
-I am not too familiar with Stack so I cannot give the correct instructions for installing this to a location on your PATH. However, you can find the binary in `.stack-work/install/<ARCH>-<OS>/lts-<LTS-VERSION>/<GHC-VERSION>/bin/hroamer` after building it.
+    stack install hroamer
+
+This will install the `hroamer` binary to `~/.local/bin/hroamer`
 
 
 ## Tests
