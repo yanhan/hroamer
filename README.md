@@ -37,15 +37,27 @@ Suppose you see the following contents in your text editor for `/home/linda/work
 
 ```
 " /home/linda/workspace/poseidon
-.git/ | 59472a7b-4b52-456b-bcb7-4c36f048a6bc  | /home/linda/workspace/poseidon/.git
-.gitignore | 68900438-f70e-4004-ad9f-6d32cc386178  | /home/linda/workspace/poseidon/.gitignore
-README.md | 76a1aa25-7c70-4774-84c3-36ae495d42a0  | /home/linda/workspace/poseidon/README.md
-hash.py | af48298a-5d8c-43f1-97a6-595e08e0783f  | /home/linda/workspace/poseidon/hash.py
-main.c | ee8a97dd-e269-4f6e-9565-c1f3fd0457b1  | /home/linda/workspace/poseidon/main.c
-scripts/ | e4f0c1ab-2cb2-467b-b4f8-915fb82e5053  | /home/linda/workspace/poseidon/scripts/
+.git/ | 59472a7b-4b52-456b-bcb7-4c36f048a6bc | /home/linda/workspace/poseidon/.git
+.gitignore | 68900438-f70e-4004-ad9f-6d32cc386178 | /home/linda/workspace/poseidon/.gitignore
+README.md | 76a1aa25-7c70-4774-84c3-36ae495d42a0 | /home/linda/workspace/poseidon/README.md
+hash.py | af48298a-5d8c-43f1-97a6-595e08e0783f | /home/linda/workspace/poseidon/hash.py
+main.c | ee8a97dd-e269-4f6e-9565-c1f3fd0457b1 | /home/linda/workspace/poseidon/main.c
+scripts/ | e4f0c1ab-2cb2-467b-b4f8-915fb82e5053 | /home/linda/workspace/poseidon/scripts/
 ```
 
-Suppose you want to **copy** the `hash.py` file and the `scripts` directory to `/home/linda/workspace/zeus`. Simply copy and paste the 2 lines beginning with `hash.py` and `scripts/` to the text editor launched by hroamer in the `/home/linda/workspace/zeus` directory, then **save** and exit both text editors (in any order).
+This is a listing of the files in `/home/linda/workspace/poseidon` that can be moved / copied by hroamer. You will see something similar in the text editor for the other directory `/home/linda/workspace/zeus`.
+
+Suppose you want to **copy** the `hash.py` file and the `scripts` directory to `/home/linda/workspace/zeus`. Simply copy and paste the line beginning with `hash.py` and the line beginning with `scripts/` to the text editor launched by hroamer in the `/home/linda/workspace/zeus` directory. Then **save** and exit both text editors (in any order).
+
+In the terminal for `/home/linda/workspace/zeus`, you should see the following output:
+
+```
+hroamer: sigaction
+cp /home/linda/workspace/poseidon/hash.py /home/linda/workspace/zeus/hash.py
+cp -R /home/linda/workspace/poseidon/scripts /home/linda/workspace/zeus/scripts
+```
+
+In `/home/linda/workspace/zeus`, you should see a copy of the `hash.py` file and the `scripts` directory from `/home/linda/workspace/poseidon`.
 
 
 ## Tests
