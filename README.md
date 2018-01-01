@@ -21,12 +21,16 @@ This project makes use of [Stack](https://docs.haskellstack.org/en/stable/README
 
 To build:
 
-    stack build
+```
+stack build
+```
 
 
 ## Installing
 
-    stack install hroamer
+```
+stack install hroamer
+```
 
 This will install the `hroamer` binary to `~/.local/bin/hroamer`
 
@@ -35,7 +39,9 @@ This will install the `hroamer` binary to `~/.local/bin/hroamer`
 
 To run the tests:
 
-    stack test
+```
+stack test
+```
 
 
 ## TODO
