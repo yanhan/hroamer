@@ -82,10 +82,11 @@ The third part is `/home/linda/workspace/poseidon/main.c`. This is the original 
 
 hroamer uses the UUID to identify the source file / directory that needs to be copied to the destination. This UUID is not dependent on the contents of the file / directory and is globally unique. The name before the UUID allows the user to specify the destination filename. If unchanged, the destination file / directory will have the same name as the source.
 
-We mentioned that the part after the second ` | ` is not important - that is true and it is something I added for improved clarity on where a file was originally from, because UUIDs are not exactly human-friendly. This means that the following line is equivalent to the one above:
+We mentioned that the part after the second ` | ` is not important - that is true and it is something I added for improved clarity on where a file was originally from, because UUIDs are not exactly human-friendly. Therefore, to hroamer, the following 2 lines are equivalent:
 
 ```
 main.c | ee8a97dd-e269-4f6e-9565-c1f3fd0457b1
+main.c | ee8a97dd-e269-4f6e-9565-c1f3fd0457b1 | /home/linda/workspace/poseidon/main.c
 ```
 
 ### Moving files / directories
