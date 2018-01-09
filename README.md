@@ -9,6 +9,7 @@ Inspired by roamer: https://github.com/abaldwin88/roamer
 
 ## Prerequisites
 
+- Linux. I believe this should also work on other UNIX systems but I have not tried.
 - SQLite 3
 - [Stack](https://docs.haskellstack.org/en/stable/README/)
 
