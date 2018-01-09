@@ -74,11 +74,11 @@ main.c | ee8a97dd-e269-4f6e-9565-c1f3fd0457b1 | /home/linda/workspace/poseidon/m
 
 has 3 parts, each separated by a ` | `.
 
-The first part is `main.c`. This is the filename. Directory names will end with a slash to make it easy to distinguish between files and directories. This part is important.
+The first part is `main.c`. This is the filename. Directory names will end with a slash to make it easy to distinguish between files and directories. This is a mandatory component of the line.
 
-The second part is `ee8a97dd-e269-4f6e-9565-c1f3fd0457b1`. This is the randomly generated UUID of the file / directory and is unique. This part is important.
+The second part is `ee8a97dd-e269-4f6e-9565-c1f3fd0457b1`. This is the randomly generated UUID of the file / directory and is unique. This is mandatory component of the line.
 
-The third part is `/home/linda/workspace/poseidon/main.c`. This is the original path to the file / directory. This part is not important.
+The third part is `/home/linda/workspace/poseidon/main.c`. This is the original path to the file / directory. This is not a mandatory component of the line.
 
 hroamer uses the UUID to identify the source file / directory that needs to be copied to the destination. This UUID is not dependent on the contents of the file / directory and is globally unique. The name before the UUID allows the user to specify the destination filename. If unchanged, the destination file / directory will have the same name as the source.
 
