@@ -58,7 +58,7 @@ In `/home/linda/workspace/zeus`, you should see a copy of the `hash.py` file and
 
 ### Anatomy of a line
 
-All lines beginning with a `"` are treated as comments. Hence, the first line we see in the [Quickstart section](#quickstart):
+All lines beginning with a `"` are treated as comments. Hence, the first line we see in the text editor of the [Quickstart section](#quickstart):
 
 ```
 " /home/linda/workspace/poseidon
