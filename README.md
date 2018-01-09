@@ -18,7 +18,7 @@ stack build
 stack install hroamer
 ```
 
-This will build and install the `hroamer` binary to `~/.local/bin/hroamer`
+This will build and install the `hroamer` binary to `~/.local/bin/hroamer`. For convenience, you may want to append the `${HOME}/.local/bin` directory to your `PATH` environment variable.
 
 
 ## Quickstart
