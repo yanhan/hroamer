@@ -7,24 +7,18 @@ My original intent of writing hroamer is for me to work on something more real w
 Inspired by roamer: https://github.com/abaldwin88/roamer
 
 
-## Building
+## Installing
 
-This project makes use of [Stack](https://docs.haskellstack.org/en/stable/README/) for building.
+This project makes use of [Stack](https://docs.haskellstack.org/en/stable/README/).
 
-To build:
+To build and install:
 
 ```
 stack build
-```
-
-
-## Installing
-
-```
 stack install hroamer
 ```
 
-This will install the `hroamer` binary to `~/.local/bin/hroamer`
+This will build and install the `hroamer` binary to `~/.local/bin/hroamer`
 
 
 ## Quickstart
