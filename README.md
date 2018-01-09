@@ -53,6 +53,8 @@ cp -R /home/linda/workspace/poseidon/scripts /home/linda/workspace/zeus/scripts
 
 In `/home/linda/workspace/zeus`, you should see a copy of the `hash.py` file and the `scripts` directory from `/home/linda/workspace/poseidon`.
 
+Ignore the `hroamer: sigaction` line; it is output by the [unix library](https://hackage.haskell.org/package/unix-2.7.2.2) because hroamer uses some signal handlers to perform cleanup of temporary files. So far, I have been unable to prevent the library from outputting this.
+
 
 ## Usage details
 
