@@ -74,7 +74,7 @@ main.c | ee8a97dd-e269-4f6e-9565-c1f3fd0457b1 | /home/linda/workspace/poseidon/m
 
 has 3 parts, each separated by a ` | `.
 
-The first part is `main.c`. This is the filename. Directory names will end with a slash. This part is important.
+The first part is `main.c`. This is the filename. Directory names will end with a slash to make it easy to distinguish between files and directories. This part is important.
 
 The second part is `ee8a97dd-e269-4f6e-9565-c1f3fd0457b1`. This is the randomly generated UUID of the file / directory and is unique. This part is important.
 
