@@ -7,6 +7,12 @@ My original intent of writing hroamer is for me to work on something more real w
 Inspired by roamer: https://github.com/abaldwin88/roamer
 
 
+## Prerequisites
+
+- SQLite 3
+- [Stack](https://docs.haskellstack.org/en/stable/README/)
+
+
 ## Installing
 
 This project makes use of [Stack](https://docs.haskellstack.org/en/stable/README/).
