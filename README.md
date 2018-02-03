@@ -9,7 +9,7 @@ Inspired by roamer: https://github.com/abaldwin88/roamer
 
 ## Demo on asciinema
 
-[![asciicast](https://asciinema.org/a/160847.png)](https://asciinema.org/a/160847)
+[![asciicast](https://asciinema.org/a/160862.png)](https://asciinema.org/a/160862)
 
 
 ## Prerequisites
