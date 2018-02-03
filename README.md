@@ -7,6 +7,11 @@ My original intent of writing hroamer is for me to work on something more real w
 Inspired by roamer: https://github.com/abaldwin88/roamer
 
 
+## Demo on asciinema
+
+[![asciicast](https://asciinema.org/a/160847.png)](https://asciinema.org/a/160847)
+
+
 ## Prerequisites
 
 - Linux. I believe this should also work on other UNIX systems but I have not tried.
