@@ -17,9 +17,7 @@ executable hroamer
   hs-source-dirs:      src
   main-is:             Main.hs
   default-language:    Haskell2010
-  default-extensions:  FlexibleContexts
-                     , NoImplicitPrelude
-                     , OverloadedStrings
+  default-extensions:  NoImplicitPrelude
   build-depends:       hroamer
                      , base >= 4.7 && < 5
                      , containers
@@ -39,7 +37,11 @@ executable hroamer
 library
   hs-source-dirs:      lib
   default-language:    Haskell2010
-  default-extensions:  NoImplicitPrelude
+  default-extensions:  FlexibleContexts
+                     , FlexibleInstances
+                     , GeneralizedNewtypeDeriving
+                     , MultiParamTypeClasses
+                     , NoImplicitPrelude
                      , OverloadedStrings
   build-depends:       base >= 4.7 && < 5
                      , bytestring
@@ -66,6 +68,7 @@ library
                      , Hroamer.Database
                      , Hroamer.FileOps
                      , Hroamer.Parser
+                     , Hroamer.Main
                      , Hroamer.Path
                      , Hroamer.StateFile
                      , Hroamer.UnsupportedPaths
