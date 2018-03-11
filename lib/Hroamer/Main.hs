@@ -105,6 +105,9 @@ class (Monad m) => MonadFileSystem m where
   default getCwd :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
   getCwd = lift $ getCwd
 
+  default getXdgDir :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
+  getXdgDir = lift $ getXdgDir
+
 newtype AppM a = AppM { runAppM :: IO a } deriving (Functor, Applicative, Monad, MonadIO)
 
 instance MonadFileSystem AppM where
