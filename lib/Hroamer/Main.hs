@@ -108,11 +108,12 @@ class (Monad m) => MonadFileSystem m where
   default getXdgDir :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
   getXdgDir = lift $ getXdgDir
 
-newtype AppM a = AppM { runAppM :: IO a } deriving (Functor, Applicative, Monad, MonadIO)
+instance MonadFileSystem IO where
+  getCwd = getCurrentDirectory
+  getXdgDir = getXdgDirectory XdgData "hroamer"
 
-instance MonadFileSystem AppM where
-  getCwd = liftIO $ getCurrentDirectory
-  getXdgDir = liftIO $ getXdgDirectory XdgData "hroamer"
+newtype AppM a = AppM { runAppM :: IO a }
+  deriving (Functor, Applicative, Monad, MonadIO, MonadFileSystem)
 
 mainIO :: IO ()
 mainIO =  runAppM main
