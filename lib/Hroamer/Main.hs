@@ -6,6 +6,7 @@ import Control.Exception (catch, IOException)
 import Control.Monad (forM_, join, mapM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (runReaderT, runReader)
+import Control.Monad.Trans.Class (MonadTrans(lift))
 import Control.Monad.Writer.Class (MonadWriter, tell)
 import Control.Monad.Writer.Strict (WriterT(runWriterT))
 import qualified Data.DList
@@ -97,23 +98,34 @@ userMadeChanges dirStateFilePath userDirStateFilePath = do
     _ -> return True
 
 
+class (Monad m) => MonadFileSystem m where
+  getCwd :: m FilePath
+  getXdgDir :: m FilePath
+
+  default getCwd :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
+  getCwd = lift $ getCwd
+
 newtype AppM a = AppM { runAppM :: IO a } deriving (Functor, Applicative, Monad, MonadIO)
+
+instance MonadFileSystem AppM where
+  getCwd = liftIO $ getCurrentDirectory
+  getXdgDir = liftIO $ getXdgDirectory XdgData "hroamer"
 
 mainIO :: IO ()
 mainIO =  runAppM main
 
 
-main :: MonadIO m => m ()
-main = liftIO $ do
-  app_data_dir <- getXdgDirectory XdgData "hroamer"
+main :: (MonadIO m, MonadFileSystem m) => m ()
+main = do
+  app_data_dir <- getXdgDir
   let app_tmp_dir = app_data_dir </> "tmp"
   -- Directory for storing files 'deleted' using hroamer
   let path_to_trashcopy_dir = app_data_dir </> "trash-copy"
-  createHroamerDirs app_data_dir app_tmp_dir path_to_trashcopy_dir
+  liftIO $ createHroamerDirs app_data_dir app_tmp_dir path_to_trashcopy_dir
   let path_to_db = app_data_dir </> "hroamer.db"
-  HroamerDb.createDbAndTables path_to_db
+  liftIO $ HroamerDb.createDbAndTables path_to_db
 
-  cwd <- getCurrentDirectory
+  cwd <- getCwd
   (_, startLogs) <- runWriterT $ do
     if Path.hasSpace cwd
        then tell $
@@ -123,20 +135,20 @@ main = liftIO $ do
     checkIfCwdIsUnderHroamerDir app_data_dir cwd
   case startLogs of
     (_:_) -> do
-      TIO.putStrLn $ intercalate "\n" startLogs
-      exitWith $ ExitFailure 1
+      liftIO $ TIO.putStrLn $ intercalate "\n" startLogs
+      liftIO $ exitWith $ ExitFailure 1
     [] -> return ()
 
   (initial_fnames_and_uuids, dirstate_filepath) <-
-    processCwd cwd app_tmp_dir path_to_db
+    liftIO $ processCwd cwd app_tmp_dir path_to_db
   let user_dirstate_filepath =
         (takeDirectory dirstate_filepath) </>
         ("user-" <> takeBaseName dirstate_filepath)
-  copyFile dirstate_filepath user_dirstate_filepath
-  installSignalHandlers dirstate_filepath user_dirstate_filepath
-  letUserEditFile user_dirstate_filepath
+  liftIO $ copyFile dirstate_filepath user_dirstate_filepath
+  liftIO $ installSignalHandlers dirstate_filepath user_dirstate_filepath
+  liftIO $ letUserEditFile user_dirstate_filepath
 
-  ifOnlyTrue (userMadeChanges dirstate_filepath user_dirstate_filepath) $ do
+  liftIO $ ifOnlyTrue (userMadeChanges dirstate_filepath user_dirstate_filepath) $ do
     list_of_paths_and_uuid <- join $ mapM (\(path, uuid) -> do
       resolvedPath <- runReaderT (Path.resolvePath path) cwd
       return (resolvedPath, uuid)) <$> StateFile.read user_dirstate_filepath
@@ -163,8 +175,8 @@ main = liftIO $ do
       else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
 
   -- cleanup
-  removeFile dirstate_filepath `catch` ignoreIOException
-  removeFile user_dirstate_filepath `catch` ignoreIOException
+  liftIO $ removeFile dirstate_filepath `catch` ignoreIOException
+  liftIO $ removeFile user_dirstate_filepath `catch` ignoreIOException
   where
     ifOnlyTrue :: IO Bool -> IO () -> IO ()
     ifOnlyTrue ioBoolVal action = ioBoolVal >>=
