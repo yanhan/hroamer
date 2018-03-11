@@ -50,22 +50,6 @@ checkIfCwdIsUnderHroamerDir appDataDir cwd =
     else return ()
 
 
-createHroamerDirs :: FilePath -> FilePath -> FilePath -> IO ()
-createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir = do
-  (allDirsOk, errorDList) <- runWriterT $ do
-    -- WriterT (DList Text) IO Bool
-    createdAppDataDir <- Path.createDirNoForce appDataDir
-    createdAppTmpDir <- Path.createDirNoForce appTmpDir
-    createdTrashCopyDir <- Path.createDirNoForce pathToTrashCopyDir
-    return $ createdAppDataDir && createdAppTmpDir && createdTrashCopyDir
-  if not allDirsOk
-    then do
-      mapM_ TIO.putStrLn $ Data.DList.toList errorDList
-      TIO.putStrLn "Exiting."
-      exitWith $ ExitFailure 1
-    else return ()
-
-
 ignoreIOException :: IOException -> IO ()
 ignoreIOException = const $ return ()
 
@@ -99,8 +83,14 @@ userMadeChanges dirStateFilePath userDirStateFilePath = do
 
 
 class (Monad m) => MonadFileSystem m where
+  createHroamerDirs :: FilePath -> FilePath -> FilePath -> m ()
   getCwd :: m FilePath
   getXdgDir :: m FilePath
+
+  default createHroamerDirs :: (MonadTrans t, MonadFileSystem m', m ~ t m') =>
+    FilePath -> FilePath -> FilePath -> m ()
+  createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir =
+    lift $ createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir
 
   default getCwd :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
   getCwd = lift $ getCwd
@@ -109,6 +99,20 @@ class (Monad m) => MonadFileSystem m where
   getXdgDir = lift $ getXdgDir
 
 instance MonadFileSystem IO where
+  createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir = do
+    (allDirsOk, errorDList) <- runWriterT $ do
+      -- WriterT (DList Text) IO Bool
+      createdAppDataDir <- Path.createDirNoForce appDataDir
+      createdAppTmpDir <- Path.createDirNoForce appTmpDir
+      createdTrashCopyDir <- Path.createDirNoForce pathToTrashCopyDir
+      return $ createdAppDataDir && createdAppTmpDir && createdTrashCopyDir
+    if not allDirsOk
+      then do
+        mapM_ TIO.putStrLn $ Data.DList.toList errorDList
+        TIO.putStrLn "Exiting."
+        exitWith $ ExitFailure 1
+      else return ()
+
   getCwd = getCurrentDirectory
   getXdgDir = getXdgDirectory XdgData "hroamer"
 
@@ -125,7 +129,7 @@ main = do
   let app_tmp_dir = app_data_dir </> "tmp"
   -- Directory for storing files 'deleted' using hroamer
   let path_to_trashcopy_dir = app_data_dir </> "trash-copy"
-  liftIO $ createHroamerDirs app_data_dir app_tmp_dir path_to_trashcopy_dir
+  createHroamerDirs app_data_dir app_tmp_dir path_to_trashcopy_dir
   let path_to_db = app_data_dir </> "hroamer.db"
   liftIO $ HroamerDb.createDbAndTables path_to_db
 
