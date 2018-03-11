@@ -2,9 +2,10 @@ module Main where
 
 import Control.Exception (catch, IOException)
 import Control.Monad (forM_, join, mapM)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (runReaderT, runReader)
-import Control.Monad.Writer.Strict (WriterT(runWriterT), tell)
+import Control.Monad.Writer.Class (MonadWriter, tell)
+import Control.Monad.Writer.Strict (WriterT(runWriterT))
 import qualified Data.DList
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text.IO as TIO
@@ -32,10 +33,10 @@ import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 import qualified Hroamer.Utilities as Utils
 
-checkIfCwdIsUnderHroamerDir :: FilePath -> FilePath -> WriterT [Text] IO ()
+checkIfCwdIsUnderHroamerDir :: MonadWriter [Text] m => FilePath -> FilePath -> m ()
 checkIfCwdIsUnderHroamerDir appDataDir cwd =
   if Path.isWeakAncestorDir appDataDir cwd
-    then do
+    then
       tell $
         [
           "Error: You tried to use hroamer to manage " <> (pack cwd) <> "\n" <>
