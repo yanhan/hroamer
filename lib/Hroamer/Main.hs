@@ -3,7 +3,7 @@ module Hroamer.Main
   ) where
 
 import Control.Exception (catch, IOException)
-import Control.Monad (forM_, join, mapM)
+import Control.Monad (forM_, join, mapM, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (runReaderT, runReader)
 import Control.Monad.Trans.Class (MonadTrans(lift))
@@ -38,16 +38,14 @@ import qualified Hroamer.Utilities as Utils
 
 checkIfCwdIsUnderHroamerDir :: MonadWriter [Text] m => FilePath -> FilePath -> m ()
 checkIfCwdIsUnderHroamerDir appDataDir cwd =
-  if Path.isWeakAncestorDir appDataDir cwd
-    then
-      tell $
-        [
-          "Error: You tried to use hroamer to manage " <> (pack cwd) <> "\n" <>
-          "However, you are not allowed to use hroamer to manage " <>
-          (pack appDataDir) <>
-          " and directories below it.\nExiting."
-        ]
-    else return ()
+  when (Path.isWeakAncestorDir appDataDir cwd) $
+    tell
+      [
+        "Error: You tried to use hroamer to manage " <> pack cwd <> "\n" <>
+        "However, you are not allowed to use hroamer to manage " <>
+        pack appDataDir <>
+        " and directories below it.\nExiting."
+      ]
 
 
 ignoreIOException :: IOException -> IO ()
@@ -93,10 +91,10 @@ class (Monad m) => MonadFileSystem m where
     lift $ createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir
 
   default getCwd :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
-  getCwd = lift $ getCwd
+  getCwd = lift getCwd
 
   default getXdgDir :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
-  getXdgDir = lift $ getXdgDir
+  getXdgDir = lift getXdgDir
 
 instance MonadFileSystem IO where
   createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir = do
@@ -106,12 +104,10 @@ instance MonadFileSystem IO where
       createdAppTmpDir <- Path.createDirNoForce appTmpDir
       createdTrashCopyDir <- Path.createDirNoForce pathToTrashCopyDir
       return $ createdAppDataDir && createdAppTmpDir && createdTrashCopyDir
-    if not allDirsOk
-      then do
-        mapM_ TIO.putStrLn $ Data.DList.toList errorDList
-        TIO.putStrLn "Exiting."
-        exitWith $ ExitFailure 1
-      else return ()
+    when allDirsOk $ do
+      mapM_ TIO.putStrLn $ Data.DList.toList errorDList
+      TIO.putStrLn "Exiting."
+      exitWith $ ExitFailure 1
 
   getCwd = getCurrentDirectory
   getXdgDir = getXdgDirectory XdgData "hroamer"
@@ -135,10 +131,9 @@ main = do
 
   cwd <- getCwd
   (_, startLogs) <- runWriterT $ do
-    if Path.hasSpace cwd
-       then tell $
-         ["Error: cannot manage current directory because it has space characters"]
-       else return ()
+    when (Path.hasSpace cwd) $
+     tell
+       ["Error: cannot manage current directory because it has space characters"]
     -- Do not allow user to use hroamer to manage files that it creates
     checkIfCwdIsUnderHroamerDir app_data_dir cwd
   case startLogs of
@@ -150,7 +145,7 @@ main = do
   (initial_fnames_and_uuids, dirstate_filepath) <-
     liftIO $ processCwd cwd app_tmp_dir path_to_db
   let user_dirstate_filepath =
-        (takeDirectory dirstate_filepath) </>
+        takeDirectory dirstate_filepath </>
         ("user-" <> takeBaseName dirstate_filepath)
   liftIO $ copyFile dirstate_filepath user_dirstate_filepath
   liftIO $ installSignalHandlers dirstate_filepath user_dirstate_filepath
@@ -188,4 +183,4 @@ main = do
   where
     ifOnlyTrue :: IO Bool -> IO () -> IO ()
     ifOnlyTrue ioBoolVal action = ioBoolVal >>=
-      \yes -> if yes then action else return ()
+      \yes -> when yes action
