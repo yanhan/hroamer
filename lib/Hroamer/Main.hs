@@ -13,7 +13,7 @@ import Data.Text (Text, intercalate, pack)
 import qualified Data.Text.IO as TIO
 import Foundation hiding (intercalate)
 import Foundation.Collection (mapM_)
-import System.Directory (copyFile, removeFile)
+import System.Directory (removeFile)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
        (FilePath, (</>), takeDirectory, takeBaseName)
@@ -114,7 +114,7 @@ main = do
   let user_dirstate_filepath =
         takeDirectory dirstate_filepath </>
         ("user-" <> takeBaseName dirstate_filepath)
-  liftIO $ copyFile dirstate_filepath user_dirstate_filepath
+  copyFile dirstate_filepath user_dirstate_filepath
   liftIO $ installSignalHandlers dirstate_filepath user_dirstate_filepath
   liftIO $ letUserEditFile user_dirstate_filepath
 

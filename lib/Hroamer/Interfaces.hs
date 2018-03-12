@@ -9,6 +9,7 @@ import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import qualified Data.Text.IO as TIO
 import Foundation
+import qualified System.Directory
 import System.Directory
        (XdgDirectory(XdgData), getCurrentDirectory, getXdgDirectory)
 import System.Exit (ExitCode(ExitFailure), exitWith)
@@ -18,9 +19,15 @@ import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
 
 class (Monad m) => MonadFileSystem m where
+  copyFile :: FilePath -> FilePath -> m ()
   createHroamerDirs :: FilePath -> FilePath -> FilePath -> m ()
   getCwd :: m FilePath
   getXdgDir :: m FilePath
+
+  default copyFile :: (MonadTrans t, MonadFileSystem m', m ~ t m') =>
+    FilePath -> FilePath -> m ()
+
+  copyFile src dest = lift $ copyFile src dest
 
   default createHroamerDirs :: (MonadTrans t, MonadFileSystem m', m ~ t m') =>
     FilePath -> FilePath -> FilePath -> m ()
@@ -34,6 +41,8 @@ class (Monad m) => MonadFileSystem m where
   getXdgDir = lift getXdgDir
 
 instance MonadFileSystem IO where
+  copyFile = System.Directory.copyFile
+
   createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir = do
     (allDirsOk, errorDList) <- runWriterT $ do
       -- WriterT (DList Text) IO Bool
