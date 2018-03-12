@@ -2,8 +2,10 @@ module Hroamer.Interfaces
   ( MonadDatabase(..)
   , MonadExit(..)
   , MonadFileSystem(..)
+  , MonadSignal(..)
   ) where
 
+import Control.Exception (catch)
 import Control.Monad (mapM_, unless)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Writer.Strict (runWriterT)
@@ -12,10 +14,14 @@ import qualified Data.Text.IO as TIO
 import Foundation
 import qualified System.Directory
 import System.Directory
-       (XdgDirectory(XdgData), getCurrentDirectory, getXdgDirectory)
+       (XdgDirectory(XdgData), getCurrentDirectory, getXdgDirectory,
+        removeFile)
 import qualified System.Exit
 import System.Exit (ExitCode(ExitFailure))
 import System.FilePath.Posix (FilePath)
+import System.Posix.Signals
+       (Handler(Catch), installHandler, keyboardSignal, softwareStop,
+        softwareTermination)
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
@@ -79,3 +85,24 @@ class (Monad m) => MonadExit m where
 
 instance MonadExit IO where
   exitWith = System.Exit.exitWith
+
+
+class (Monad m) => MonadSignal m where
+  installSignalHandlers :: FilePath -> FilePath -> m ()
+
+  default installSignalHandlers :: (MonadTrans t, MonadSignal m', m ~ t m') =>
+    FilePath -> FilePath -> m ()
+
+  installSignalHandlers dirStateFilePath userDirStateFilePath = lift $
+    installSignalHandlers dirStateFilePath userDirStateFilePath
+
+instance MonadSignal IO where
+  installSignalHandlers dirStateFilePath userDirStateFilePath =
+    let signals_to_handle = [keyboardSignal, softwareStop, softwareTermination]
+        handler = Catch $
+          removeFile dirStateFilePath `catch` ignoreIOException >>
+          removeFile userDirStateFilePath `catch` ignoreIOException
+    in mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
+
+ignoreIOException :: IOException -> IO ()
+ignoreIOException = const $ return ()

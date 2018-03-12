@@ -17,9 +17,6 @@ import System.Directory (removeFile)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess))
 import System.FilePath.Posix
        (FilePath, (</>), takeDirectory, takeBaseName)
-import System.Posix.Signals
-       (Handler(Catch), installHandler, keyboardSignal, softwareStop,
-        softwareTermination)
 import System.Process (createProcess, proc, waitForProcess)
 
 import Hroamer.Core (processCwd)
@@ -27,7 +24,8 @@ import Hroamer.DataStructures
        (AbsFilePath(AbsFilePath), FileOpsReadState(FileOpsReadState))
 import Hroamer.FileOps (doFileOp, generateFileOps)
 import Hroamer.Interfaces
-       (MonadDatabase(..), MonadExit(..), MonadFileSystem(..))
+       (MonadDatabase(..), MonadExit(..), MonadFileSystem(..),
+        MonadSignal(..))
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
@@ -51,15 +49,6 @@ ignoreIOException :: IOException -> IO ()
 ignoreIOException = const $ return ()
 
 
-installSignalHandlers :: FilePath -> FilePath -> IO ()
-installSignalHandlers dirStateFilePath userDirStateFilePath =
-  let signals_to_handle = [keyboardSignal, softwareStop, softwareTermination]
-      handler = Catch $
-        removeFile dirStateFilePath `catch` ignoreIOException >>
-        removeFile userDirStateFilePath `catch` ignoreIOException
-  in mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
-
-
 letUserEditFile :: FilePath -> IO ()
 letUserEditFile userDirStateFilePath = do
   editorCreateProcess <- Utils.makeEditorCreateProcess userDirStateFilePath
@@ -80,14 +69,19 @@ userMadeChanges dirStateFilePath userDirStateFilePath = do
 
 newtype AppM a = AppM { runAppM :: IO a }
   deriving ( Functor, Applicative, Monad, MonadIO, MonadExit, MonadFileSystem
-           , MonadDatabase
+           , MonadDatabase, MonadSignal
            )
 
 mainIO :: IO ()
 mainIO =  runAppM main
 
 
-main :: (MonadIO m, MonadFileSystem m, MonadDatabase m, MonadExit m) => m ()
+main :: ( MonadIO m
+        , MonadFileSystem m
+        , MonadDatabase m
+        , MonadExit m
+        , MonadSignal m
+        ) => m ()
 main = do
   app_data_dir <- getXdgDir
   let app_tmp_dir = app_data_dir </> "tmp"
@@ -116,7 +110,7 @@ main = do
         takeDirectory dirstate_filepath </>
         ("user-" <> takeBaseName dirstate_filepath)
   copyFile dirstate_filepath user_dirstate_filepath
-  liftIO $ installSignalHandlers dirstate_filepath user_dirstate_filepath
+  installSignalHandlers dirstate_filepath user_dirstate_filepath
   liftIO $ letUserEditFile user_dirstate_filepath
 
   liftIO $ ifOnlyTrue (userMadeChanges dirstate_filepath user_dirstate_filepath) $ do
