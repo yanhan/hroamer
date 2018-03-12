@@ -3,7 +3,7 @@ module Hroamer.Interfaces
   , MonadFileSystem(..)
   ) where
 
-import Control.Monad (mapM_, when)
+import Control.Monad (mapM_, unless)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
@@ -50,7 +50,7 @@ instance MonadFileSystem IO where
       createdAppTmpDir <- Path.createDirNoForce appTmpDir
       createdTrashCopyDir <- Path.createDirNoForce pathToTrashCopyDir
       return $ createdAppDataDir && createdAppTmpDir && createdTrashCopyDir
-    when allDirsOk $ do
+    unless allDirsOk $ do
       mapM_ TIO.putStrLn $ Data.DList.toList errorDList
       TIO.putStrLn "Exiting."
       exitWith $ ExitFailure 1
