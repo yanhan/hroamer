@@ -6,17 +6,14 @@ import Control.Exception (catch, IOException)
 import Control.Monad (forM_, join, mapM, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (runReaderT, runReader)
-import Control.Monad.Trans.Class (MonadTrans(lift))
 import Control.Monad.Writer.Class (MonadWriter, tell)
-import Control.Monad.Writer.Strict (WriterT(runWriterT))
+import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text.IO as TIO
 import Foundation hiding (intercalate)
 import Foundation.Collection (mapM_)
-import System.Directory
-       (XdgDirectory(XdgData), copyFile, getCurrentDirectory,
-        getXdgDirectory, removeFile)
+import System.Directory (copyFile, removeFile)
 import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
 import System.FilePath.Posix
        (FilePath, (</>), takeDirectory, takeBaseName)
@@ -29,6 +26,7 @@ import Hroamer.Core (processCwd)
 import Hroamer.DataStructures
        (AbsFilePath(AbsFilePath), FileOpsReadState(FileOpsReadState))
 import Hroamer.FileOps (doFileOp, generateFileOps)
+import Hroamer.Interfaces (MonadDatabase(..), MonadFileSystem(..))
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
@@ -78,49 +76,6 @@ userMadeChanges dirStateFilePath userDirStateFilePath = do
   case cmpExitCode of
     ExitSuccess -> return False
     _ -> return True
-
-
-class (Monad m) => MonadFileSystem m where
-  createHroamerDirs :: FilePath -> FilePath -> FilePath -> m ()
-  getCwd :: m FilePath
-  getXdgDir :: m FilePath
-
-  default createHroamerDirs :: (MonadTrans t, MonadFileSystem m', m ~ t m') =>
-    FilePath -> FilePath -> FilePath -> m ()
-  createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir =
-    lift $ createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir
-
-  default getCwd :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
-  getCwd = lift getCwd
-
-  default getXdgDir :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
-  getXdgDir = lift getXdgDir
-
-instance MonadFileSystem IO where
-  createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir = do
-    (allDirsOk, errorDList) <- runWriterT $ do
-      -- WriterT (DList Text) IO Bool
-      createdAppDataDir <- Path.createDirNoForce appDataDir
-      createdAppTmpDir <- Path.createDirNoForce appTmpDir
-      createdTrashCopyDir <- Path.createDirNoForce pathToTrashCopyDir
-      return $ createdAppDataDir && createdAppTmpDir && createdTrashCopyDir
-    when allDirsOk $ do
-      mapM_ TIO.putStrLn $ Data.DList.toList errorDList
-      TIO.putStrLn "Exiting."
-      exitWith $ ExitFailure 1
-
-  getCwd = getCurrentDirectory
-  getXdgDir = getXdgDirectory XdgData "hroamer"
-
-
-class (Monad m) => MonadDatabase m where
-  initDb :: FilePath -> m ()
-
-  default initDb :: (MonadTrans t, MonadDatabase m', m ~ t m') => FilePath -> m ()
-  initDb = lift . initDb
-
-instance MonadDatabase IO where
-  initDb = HroamerDb.initDb
 
 newtype AppM a = AppM { runAppM :: IO a }
   deriving ( Functor, Applicative, Monad, MonadIO, MonadFileSystem

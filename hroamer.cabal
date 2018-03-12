@@ -70,6 +70,7 @@ library
                      , Hroamer.DataStructures
                      , Hroamer.Database
                      , Hroamer.FileOps
+                     , Hroamer.Interfaces
                      , Hroamer.Parser
                      , Hroamer.Main
                      , Hroamer.Path
