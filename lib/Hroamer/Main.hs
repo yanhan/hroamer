@@ -2,7 +2,7 @@ module Hroamer.Main
   ( mainIO
   ) where
 
-import Control.Exception (catch, IOException)
+import Control.Exception (catch)
 import Control.Monad (forM_, join, mapM, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (runReaderT, runReader)
@@ -22,6 +22,7 @@ import System.Process (createProcess, proc, waitForProcess)
 import Hroamer.Core (processCwd)
 import Hroamer.DataStructures
        (AbsFilePath(AbsFilePath), FileOpsReadState(FileOpsReadState))
+import Hroamer.Exception (ignoreIOException)
 import Hroamer.FileOps (doFileOp, generateFileOps)
 import Hroamer.Interfaces
        (MonadDatabase(..), MonadExit(..), MonadFileSystem(..),
@@ -43,10 +44,6 @@ checkIfCwdIsUnderHroamerDir appDataDir cwd =
         pack appDataDir <>
         " and directories below it.\nExiting."
       ]
-
-
-ignoreIOException :: IOException -> IO ()
-ignoreIOException = const $ return ()
 
 
 letUserEditFile :: FilePath -> IO ()

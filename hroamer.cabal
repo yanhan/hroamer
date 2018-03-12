@@ -69,6 +69,7 @@ library
                      , Hroamer.Core
                      , Hroamer.DataStructures
                      , Hroamer.Database
+                     , Hroamer.Exception
                      , Hroamer.FileOps
                      , Hroamer.Interfaces
                      , Hroamer.Parser

@@ -24,6 +24,7 @@ import System.Posix.Signals
         softwareTermination)
 
 import qualified Hroamer.Database as HroamerDb
+import Hroamer.Exception (ignoreIOException)
 import qualified Hroamer.Path as Path
 
 class (Monad m) => MonadFileSystem m where
@@ -103,6 +104,3 @@ instance MonadSignal IO where
           removeFile dirStateFilePath `catch` ignoreIOException >>
           removeFile userDirStateFilePath `catch` ignoreIOException
     in mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
-
-ignoreIOException :: IOException -> IO ()
-ignoreIOException = const $ return ()
