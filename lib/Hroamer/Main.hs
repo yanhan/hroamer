@@ -14,10 +14,9 @@ import qualified Data.Text.IO as TIO
 import Foundation hiding (intercalate)
 import Foundation.Collection (mapM_)
 import System.Directory (removeFile)
-import System.Exit (ExitCode(ExitFailure, ExitSuccess))
+import System.Exit (ExitCode(ExitFailure))
 import System.FilePath.Posix
        (FilePath, (</>), takeDirectory, takeBaseName)
-import System.Process (createProcess, proc, waitForProcess)
 
 import Hroamer.Core (processCwd)
 import Hroamer.DataStructures
@@ -43,17 +42,6 @@ checkIfCwdIsUnderHroamerDir appDataDir cwd =
         pack appDataDir <>
         " and directories below it.\nExiting."
       ]
-
-
-userMadeChanges :: FilePath -> FilePath -> IO Bool
-userMadeChanges dirStateFilePath userDirStateFilePath = do
-  (_, _, _, cmpProcess) <-
-    createProcess
-      (proc "cmp" ["--silent", dirStateFilePath, userDirStateFilePath])
-  cmpExitCode <- waitForProcess cmpProcess
-  case cmpExitCode of
-    ExitSuccess -> return False
-    _ -> return True
 
 newtype AppM a = AppM { runAppM :: IO a }
   deriving ( Functor, Applicative, Monad, MonadIO, MonadExit, MonadFileSystem
@@ -103,31 +91,32 @@ main = do
   installSignalHandlers dirstate_filepath user_dirstate_filepath
   letUserEditFile user_dirstate_filepath
 
-  liftIO $ ifOnlyTrue (userMadeChanges dirstate_filepath user_dirstate_filepath) $ do
-    list_of_paths_and_uuid <- join $ mapM (\(path, uuid) -> do
-      resolvedPath <- runReaderT (Path.resolvePath path) cwd
-      return (resolvedPath, uuid)) <$> StateFile.read user_dirstate_filepath
-    let list_of_paths = fmap fst list_of_paths_and_uuid
-    unsupportedPaths <-
-      runReaderT (UnsupportedPaths.getUnsupportedPaths list_of_paths) cwd
-    let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
-    if unsupportedPathsDList == Data.DList.empty
-      then do
-        let r = FileOpsReadState path_to_db path_to_trashcopy_dir
-            initialPathsAndUuids = fmap (\(filename, uuid) ->
-              (AbsFilePath (cwd </> filename), uuid))
-              initial_fnames_and_uuids
-        let file_op_list = runReader
-                             (generateFileOps
-                               list_of_paths_and_uuid
-                               initialPathsAndUuids)
-                             r
-        HroamerDb.wrapDbConn
-          path_to_db
-          (\f ->
-            forM_ file_op_list (\fileop -> runReaderT (doFileOp f fileop) r))
-          HroamerDb.updateDirAndFilename
-      else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
+  userMadeChanges dirstate_filepath user_dirstate_filepath >>= \foundChanges ->
+    when foundChanges $ liftIO $ do
+      list_of_paths_and_uuid <- join $ mapM (\(path, uuid) -> do
+        resolvedPath <- runReaderT (Path.resolvePath path) cwd
+        return (resolvedPath, uuid)) <$> StateFile.read user_dirstate_filepath
+      let list_of_paths = fmap fst list_of_paths_and_uuid
+      unsupportedPaths <-
+        runReaderT (UnsupportedPaths.getUnsupportedPaths list_of_paths) cwd
+      let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
+      if unsupportedPathsDList == Data.DList.empty
+        then do
+          let r = FileOpsReadState path_to_db path_to_trashcopy_dir
+              initialPathsAndUuids = fmap (\(filename, uuid) ->
+                (AbsFilePath (cwd </> filename), uuid))
+                initial_fnames_and_uuids
+          let file_op_list = runReader
+                               (generateFileOps
+                                 list_of_paths_and_uuid
+                                 initialPathsAndUuids)
+                               r
+          HroamerDb.wrapDbConn
+            path_to_db
+            (\f ->
+              forM_ file_op_list (\fileop -> runReaderT (doFileOp f fileop) r))
+            HroamerDb.updateDirAndFilename
+        else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
 
   -- cleanup
   liftIO $ removeFile dirstate_filepath `catch` ignoreIOException

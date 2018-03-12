@@ -20,12 +20,12 @@ import System.Directory
        (XdgDirectory(XdgData), getCurrentDirectory, getXdgDirectory,
         removeFile)
 import qualified System.Exit
-import System.Exit (ExitCode(ExitFailure))
+import System.Exit (ExitCode(ExitFailure, ExitSuccess))
 import System.FilePath.Posix (FilePath)
 import System.Posix.Signals
        (Handler(Catch), installHandler, keyboardSignal, softwareStop,
         softwareTermination)
-import System.Process (createProcess, waitForProcess)
+import System.Process (createProcess, proc, waitForProcess)
 
 import qualified Hroamer.Database as HroamerDb
 import Hroamer.Exception (ignoreIOException)
@@ -124,11 +124,18 @@ instance MonadScreenIO IO where
 
 class (Monad m) => MonadUserControl m where
   letUserEditFile :: FilePath -> m ()
+  userMadeChanges :: FilePath -> FilePath -> m Bool
 
   default letUserEditFile :: (MonadTrans t, MonadUserControl m', m ~ t m') =>
     FilePath -> m ()
 
   letUserEditFile = lift . letUserEditFile
+
+  default userMadeChanges :: (MonadTrans t, MonadUserControl m', m ~ t m') =>
+    FilePath -> FilePath -> m Bool
+
+  userMadeChanges dirStateFilePath userDirStateFilePath =
+    lift $ userMadeChanges dirStateFilePath userDirStateFilePath
 
 instance MonadUserControl IO where
   letUserEditFile userDirStateFilePath = do
@@ -136,3 +143,12 @@ instance MonadUserControl IO where
     (_, _, _, editorProcess) <- createProcess editorCreateProcess
     waitForProcess editorProcess
     return ()
+
+  userMadeChanges dirStateFilePath userDirStateFilePath = do
+    (_, _, _, cmpProcess) <-
+      createProcess
+        (proc "cmp" ["--silent", dirStateFilePath, userDirStateFilePath])
+    cmpExitCode <- waitForProcess cmpProcess
+    case cmpExitCode of
+      ExitSuccess -> return False
+      _ -> return True
