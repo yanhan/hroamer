@@ -200,7 +200,7 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
               destDir = pathToTrashCopyDir </> (toList srcUuid)
               destFile = "runReaderT"
               destFileRepr = FileRepr destDir  destFile
-          HroamerDb.createDbAndTables pathToDb
+          HroamerDb.initDb pathToDb
           createDirectory srcDir
           writeFile (srcDir </> srcFile) "move asks to readerT"
           createDirectory pathToTrashCopyDir
@@ -246,7 +246,7 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
               destDir = tempDir </> "toxic"
               destFile = "ducky"
               destFileRepr = FileRepr destDir destFile
-          HroamerDb.createDbAndTables pathToDb
+          HroamerDb.initDb pathToDb
           HroamerDb.wrapDbConn
             pathToDb
             (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
@@ -273,7 +273,7 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
               srcFileRepr = FileRepr srcDir srcFile
               destFileRepr = FileRepr destDir destFile
           createDirectory srcDir
-          HroamerDb.createDbAndTables pathToDb
+          HroamerDb.initDb pathToDb
           HroamerDb.wrapDbConn
             pathToDb
             (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))
@@ -332,7 +332,7 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
               destFileFourPath = destDirFour </> destFileFour
               destFileFourRepr = FileRepr destDirFour destFileFour
               copyOpFour = CopyOp srcFileThreeRepr destFileFourRepr
-          HroamerDb.createDbAndTables pathToDb
+          HroamerDb.initDb pathToDb
           mapM_ createDirectory [cwd, dirOne, dirTwo]
           writeFile (srcDir </> srcFile) fileContents
           writeFile srcFileTwoPath srcFileTwoContents
@@ -385,7 +385,7 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
               destDirPath = destContainingDir </> destDir
               destFilePath = destDirPath </> srcFile
               fileContents = "Make some noise if you... are... ready!!!!"
-          HroamerDb.createDbAndTables pathToDb
+          HroamerDb.initDb pathToDb
           createDirectoryIfMissing True srcDirPath
           writeFile srcFilePath fileContents
           createDirectory destContainingDir
@@ -417,7 +417,7 @@ spec = parallel $ beforeAll createDirsForTest $ afterAll rmrf $ do
               destFile = "pointer"
               destPath = destDir </> destFile
               destFileRepr = FileRepr destDir destFile
-          HroamerDb.createDbAndTables pathToDb
+          HroamerDb.initDb pathToDb
           HroamerDb.wrapDbConn
             pathToDb
             (\addFileDetailsToDb -> addFileDetailsToDb srcDir (srcFile, srcUuid))

@@ -19,7 +19,7 @@ import Test.Hspec
         shouldReturn)
 
 import Hroamer.Database
-       (createDbAndTables, getAllFilesInDir, getRowFromUUID,
+       (initDb, getAllFilesInDir, getRowFromUUID,
         updateDbToMatchDirState, updateDirAndFilename, wrapDbConn)
 import Hroamer.Database.Internal
        (FilesTableRow(FilesTableRow, dir, filename, uuid),
@@ -29,20 +29,20 @@ import TestHelpers
 
 spec :: Spec
 spec = do
-  describe "createDbAndTables" $ do
+  describe "initDb" $ do
     it "should create a new SQLite database if it does not exist" $
-      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+      withSystemTempDirectory "initDb" $ \dirPath -> do
         let pathToDb = dirPath </> "hroamer.db"
         doesPathExist pathToDb `shouldReturn` False
-        createDbAndTables pathToDb
+        initDb pathToDb
         doesFileExist pathToDb `shouldReturn` True
         withConnection pathToDb (\dbconn -> do getTotalRows dbconn `shouldReturn` [0])
 
     it "should not create a SQLite database if a file exists at that location" $
-      withSystemTempDirectory "createDbAndTables" $ \dirPath -> do
+      withSystemTempDirectory "initDb" $ \dirPath -> do
         let contents = "abracadabra"
         pathToDb <- writeTempFile dirPath "hroamerdb"  contents
-        createDbAndTables pathToDb
+        initDb pathToDb
         doesFileExist pathToDb `shouldReturn` True
         readFile pathToDb `shouldReturn` contents
 
@@ -124,7 +124,7 @@ spec = do
         let f getRow = do
                 rowList <- getRow uuid
                 return $ fmap filename $ listToMaybe rowList
-        createDbAndTables pathToDb
+        initDb pathToDb
         withConnection pathToDb (\dbconn ->
           addFileDetailsToDb dbconn dirname (fname, uuid))
         justActualFilename <- wrapDbConn pathToDb f getRowFromUUID

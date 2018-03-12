@@ -1,9 +1,9 @@
 module Hroamer.Database
   ( FilesTableRow(..)
-  , createDbAndTables
   , deleteFileFromDb
   , getAllFilesInDir
   , getRowFromUUID
+  , initDb
   , updateDbToMatchDirState
   , updateDirAndFilename
   , wrapDbConn
@@ -21,8 +21,8 @@ import Hroamer.Database.Internal
        (FilesTableRow(FilesTableRow, dir, filename, uuid),
         addFileDetailsToDb, deleteFileFromDb)
 
-createDbAndTables :: FilePath -> IO ()
-createDbAndTables path_to_db = do
+initDb :: FilePath -> IO ()
+initDb path_to_db = do
   db_exists <- doesFileExist path_to_db
   if not db_exists
     then withConnection

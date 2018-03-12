@@ -60,7 +60,7 @@ spec = parallel $ beforeAll createDirs $ afterAll rmrf $ do
             -- This file should be ignored
             newFileWithSpace = "here be dragons"
             newFileWithSpacePath = cwd </> newFileWithSpace
-        HroamerDb.createDbAndTables pathToDb
+        HroamerDb.initDb pathToDb
         mapM_ createDirectory [cwd, appTmpDir]
         writeFile fileOnePath "I see a leaf floating around"
         writeFile fileTwoPath "It's a bird!"
@@ -116,7 +116,7 @@ spec = parallel $ beforeAll createDirs $ afterAll rmrf $ do
         mapM_ createDirectory [appTmpDir, cwd, dirWithSpacePath, newDirWithSpacePath]
         mapM_ (\filePath -> writeFile filePath "")
           [oldFilePath, fileWithSpacePath, newFileWithSpacePath, newFilePath]
-        HroamerDb.createDbAndTables pathToDb
+        HroamerDb.initDb pathToDb
         HroamerDb.wrapDbConn
           pathToDb
           (\addFileDetailsToDb -> do

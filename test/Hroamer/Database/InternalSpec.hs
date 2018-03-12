@@ -9,7 +9,7 @@ import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
        (Spec, after, afterAll, beforeAll, describe, it, shouldReturn)
 
-import Hroamer.Database (createDbAndTables)
+import Hroamer.Database (initDb)
 import Hroamer.Database.Internal
        (addFileDetailsToDb, deleteFileFromDb)
 import TestHelpers

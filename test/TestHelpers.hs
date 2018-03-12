@@ -28,7 +28,7 @@ import System.Process (createProcess, proc, waitForProcess)
 import Test.QuickCheck (Gen, choose, listOf1, suchThat)
 
 import Hroamer.Char (isNotSpace)
-import Hroamer.Database (createDbAndTables)
+import Hroamer.Database (initDb)
 
 type RowCount = Int
 
@@ -42,7 +42,7 @@ setupDbForTest :: [Char] -> IO FilePath
 setupDbForTest filenameTemplate = do
   dirPath <- createTempDirectory "/tmp"  filenameTemplate
   let pathToDb = dirPath </> "hroamer.db"
-  createDbAndTables pathToDb
+  initDb pathToDb
   return pathToDb
 
 deleteTempDirForTest :: FilePath -> IO ()
