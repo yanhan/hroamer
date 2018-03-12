@@ -112,14 +112,26 @@ instance MonadFileSystem IO where
   getCwd = getCurrentDirectory
   getXdgDir = getXdgDirectory XdgData "hroamer"
 
+
+class (Monad m) => MonadDatabase m where
+  createDbAndTables :: FilePath -> m ()
+
+  default createDbAndTables :: (MonadTrans t, MonadDatabase m', m ~ t m') => FilePath -> m ()
+  createDbAndTables = lift . createDbAndTables
+
+instance MonadDatabase IO where
+  createDbAndTables = HroamerDb.createDbAndTables
+
 newtype AppM a = AppM { runAppM :: IO a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadFileSystem)
+  deriving ( Functor, Applicative, Monad, MonadIO, MonadFileSystem
+           , MonadDatabase
+           )
 
 mainIO :: IO ()
 mainIO =  runAppM main
 
 
-main :: (MonadIO m, MonadFileSystem m) => m ()
+main :: (MonadIO m, MonadFileSystem m, MonadDatabase m) => m ()
 main = do
   app_data_dir <- getXdgDir
   let app_tmp_dir = app_data_dir </> "tmp"
@@ -127,7 +139,7 @@ main = do
   let path_to_trashcopy_dir = app_data_dir </> "trash-copy"
   createHroamerDirs app_data_dir app_tmp_dir path_to_trashcopy_dir
   let path_to_db = app_data_dir </> "hroamer.db"
-  liftIO $ HroamerDb.createDbAndTables path_to_db
+  createDbAndTables path_to_db
 
   cwd <- getCwd
   (_, startLogs) <- runWriterT $ do
