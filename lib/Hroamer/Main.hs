@@ -121,7 +121,3 @@ main = do
   -- cleanup
   liftIO $ removeFile dirstate_filepath `catch` ignoreIOException
   liftIO $ removeFile user_dirstate_filepath `catch` ignoreIOException
-  where
-    ifOnlyTrue :: IO Bool -> IO () -> IO ()
-    ifOnlyTrue ioBoolVal action = ioBoolVal >>=
-      \yes -> when yes action
