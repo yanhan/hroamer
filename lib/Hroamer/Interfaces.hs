@@ -1,5 +1,6 @@
 module Hroamer.Interfaces
   ( MonadDatabase(..)
+  , MonadExit(..)
   , MonadFileSystem(..)
   ) where
 
@@ -12,7 +13,8 @@ import Foundation
 import qualified System.Directory
 import System.Directory
        (XdgDirectory(XdgData), getCurrentDirectory, getXdgDirectory)
-import System.Exit (ExitCode(ExitFailure), exitWith)
+import qualified System.Exit
+import System.Exit (ExitCode(ExitFailure))
 import System.FilePath.Posix (FilePath)
 
 import qualified Hroamer.Database as HroamerDb
@@ -53,7 +55,7 @@ instance MonadFileSystem IO where
     unless allDirsOk $ do
       mapM_ TIO.putStrLn $ Data.DList.toList errorDList
       TIO.putStrLn "Exiting."
-      exitWith $ ExitFailure 1
+      System.Exit.exitWith $ ExitFailure 1
 
   getCwd = getCurrentDirectory
   getXdgDir = getXdgDirectory XdgData "hroamer"
@@ -67,3 +69,13 @@ class (Monad m) => MonadDatabase m where
 
 instance MonadDatabase IO where
   initDb = HroamerDb.initDb
+
+
+class (Monad m) => MonadExit m where
+  exitWith :: ExitCode -> m a
+
+  default exitWith :: (MonadTrans t, MonadExit m', m ~ t m') => ExitCode -> m a
+  exitWith = lift . exitWith
+
+instance MonadExit IO where
+  exitWith = System.Exit.exitWith

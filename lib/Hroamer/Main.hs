@@ -14,7 +14,7 @@ import qualified Data.Text.IO as TIO
 import Foundation hiding (intercalate)
 import Foundation.Collection (mapM_)
 import System.Directory (removeFile)
-import System.Exit (ExitCode(ExitFailure, ExitSuccess), exitWith)
+import System.Exit (ExitCode(ExitFailure, ExitSuccess))
 import System.FilePath.Posix
        (FilePath, (</>), takeDirectory, takeBaseName)
 import System.Posix.Signals
@@ -26,7 +26,8 @@ import Hroamer.Core (processCwd)
 import Hroamer.DataStructures
        (AbsFilePath(AbsFilePath), FileOpsReadState(FileOpsReadState))
 import Hroamer.FileOps (doFileOp, generateFileOps)
-import Hroamer.Interfaces (MonadDatabase(..), MonadFileSystem(..))
+import Hroamer.Interfaces
+       (MonadDatabase(..), MonadExit(..), MonadFileSystem(..))
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
@@ -78,7 +79,7 @@ userMadeChanges dirStateFilePath userDirStateFilePath = do
     _ -> return True
 
 newtype AppM a = AppM { runAppM :: IO a }
-  deriving ( Functor, Applicative, Monad, MonadIO, MonadFileSystem
+  deriving ( Functor, Applicative, Monad, MonadIO, MonadExit, MonadFileSystem
            , MonadDatabase
            )
 
@@ -86,7 +87,7 @@ mainIO :: IO ()
 mainIO =  runAppM main
 
 
-main :: (MonadIO m, MonadFileSystem m, MonadDatabase m) => m ()
+main :: (MonadIO m, MonadFileSystem m, MonadDatabase m, MonadExit m) => m ()
 main = do
   app_data_dir <- getXdgDir
   let app_tmp_dir = app_data_dir </> "tmp"
@@ -106,7 +107,7 @@ main = do
   case startLogs of
     (_:_) -> do
       liftIO $ TIO.putStrLn $ intercalate "\n" startLogs
-      liftIO $ exitWith $ ExitFailure 1
+      exitWith $ ExitFailure 1
     [] -> return ()
 
   (initial_fnames_and_uuids, dirstate_filepath) <-
