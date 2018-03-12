@@ -3,6 +3,8 @@ module Hroamer.Interfaces
   , MonadExit(..)
   , MonadFileSystem(..)
   , MonadSignal(..)
+  , MonadScreenIO(..)
+  , MonadUserControl(..)
   ) where
 
 import Control.Exception (catch)
@@ -10,6 +12,7 @@ import Control.Monad (mapM_, unless)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
+import Data.Text (Text)
 import qualified Data.Text.IO as TIO
 import Foundation
 import qualified System.Directory
@@ -22,10 +25,12 @@ import System.FilePath.Posix (FilePath)
 import System.Posix.Signals
        (Handler(Catch), installHandler, keyboardSignal, softwareStop,
         softwareTermination)
+import System.Process (createProcess, waitForProcess)
 
 import qualified Hroamer.Database as HroamerDb
 import Hroamer.Exception (ignoreIOException)
 import qualified Hroamer.Path as Path
+import qualified Hroamer.Utilities as Utils
 
 class (Monad m) => MonadFileSystem m where
   copyFile :: FilePath -> FilePath -> m ()
@@ -104,3 +109,30 @@ instance MonadSignal IO where
           removeFile dirStateFilePath `catch` ignoreIOException >>
           removeFile userDirStateFilePath `catch` ignoreIOException
     in mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
+
+
+class (Monad m) => MonadScreenIO m where
+  printToStdout :: Text -> m ()
+
+  default printToStdout :: (MonadTrans t, MonadScreenIO m', m ~ t m') => Text -> m ()
+
+  printToStdout = lift . printToStdout
+
+instance MonadScreenIO IO where
+  printToStdout = TIO.putStrLn
+
+
+class (Monad m) => MonadUserControl m where
+  letUserEditFile :: FilePath -> m ()
+
+  default letUserEditFile :: (MonadTrans t, MonadUserControl m', m ~ t m') =>
+    FilePath -> m ()
+
+  letUserEditFile = lift . letUserEditFile
+
+instance MonadUserControl IO where
+  letUserEditFile userDirStateFilePath = do
+    editorCreateProcess <- Utils.makeEditorCreateProcess userDirStateFilePath
+    (_, _, _, editorProcess) <- createProcess editorCreateProcess
+    waitForProcess editorProcess
+    return ()

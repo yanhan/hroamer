@@ -26,13 +26,12 @@ import Hroamer.Exception (ignoreIOException)
 import Hroamer.FileOps (doFileOp, generateFileOps)
 import Hroamer.Interfaces
        (MonadDatabase(..), MonadExit(..), MonadFileSystem(..),
-        MonadSignal(..))
+        MonadScreenIO(..), MonadSignal(..), MonadUserControl(..))
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
 import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
-import qualified Hroamer.Utilities as Utils
 
 checkIfCwdIsUnderHroamerDir :: MonadWriter [Text] m => FilePath -> FilePath -> m ()
 checkIfCwdIsUnderHroamerDir appDataDir cwd =
@@ -44,14 +43,6 @@ checkIfCwdIsUnderHroamerDir appDataDir cwd =
         pack appDataDir <>
         " and directories below it.\nExiting."
       ]
-
-
-letUserEditFile :: FilePath -> IO ()
-letUserEditFile userDirStateFilePath = do
-  editorCreateProcess <- Utils.makeEditorCreateProcess userDirStateFilePath
-  (_, _, _, editorProcess) <- createProcess editorCreateProcess
-  waitForProcess editorProcess
-  return ()
 
 
 userMadeChanges :: FilePath -> FilePath -> IO Bool
@@ -66,7 +57,7 @@ userMadeChanges dirStateFilePath userDirStateFilePath = do
 
 newtype AppM a = AppM { runAppM :: IO a }
   deriving ( Functor, Applicative, Monad, MonadIO, MonadExit, MonadFileSystem
-           , MonadDatabase, MonadSignal
+           , MonadDatabase, MonadScreenIO, MonadSignal, MonadUserControl
            )
 
 mainIO :: IO ()
@@ -77,7 +68,9 @@ main :: ( MonadIO m
         , MonadFileSystem m
         , MonadDatabase m
         , MonadExit m
+        , MonadScreenIO m
         , MonadSignal m
+        , MonadUserControl m
         ) => m ()
 main = do
   app_data_dir <- getXdgDir
@@ -97,7 +90,7 @@ main = do
     checkIfCwdIsUnderHroamerDir app_data_dir cwd
   case startLogs of
     (_:_) -> do
-      liftIO $ TIO.putStrLn $ intercalate "\n" startLogs
+      printToStdout $ intercalate "\n" startLogs
       exitWith $ ExitFailure 1
     [] -> return ()
 
@@ -108,7 +101,7 @@ main = do
         ("user-" <> takeBaseName dirstate_filepath)
   copyFile dirstate_filepath user_dirstate_filepath
   installSignalHandlers dirstate_filepath user_dirstate_filepath
-  liftIO $ letUserEditFile user_dirstate_filepath
+  letUserEditFile user_dirstate_filepath
 
   liftIO $ ifOnlyTrue (userMadeChanges dirstate_filepath user_dirstate_filepath) $ do
     list_of_paths_and_uuid <- join $ mapM (\(path, uuid) -> do
