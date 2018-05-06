@@ -6,7 +6,6 @@ module Hroamer.UnsupportedPaths
 import Control.Exception (catch)
 import Control.Monad (mapM_)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.State
        (State, StateT, evalState, evalStateT, execStateT, get, lift,
         modify, put)
@@ -32,16 +31,14 @@ import Hroamer.UnsupportedPaths.Internal
 excHandlerReturnFalse :: IOException -> IO Bool
 excHandlerReturnFalse = const $ return False
 
-getUnsupportedPaths :: [AbsFilePath] -> ReaderT FilePath IO UPaths
-getUnsupportedPaths absFilePaths = do
-  r <- ask
+getUnsupportedPaths :: FilePath -> [AbsFilePath] -> IO UPaths
+getUnsupportedPaths cwd absFilePaths = do
   (_, uPaths) <- liftIO $
-    execStateT (runReaderT sta r) (empty, (UPaths empty empty empty))
+    execStateT sta (empty, (UPaths empty empty empty))
   return uPaths
   where
-    sta :: ReaderT FilePath (StateT (Set FilePath, UPaths) IO) ()
+    sta :: StateT (Set FilePath, UPaths) IO ()
     sta = do
-      cwd <- ask
       mapM_
         (\absFilePath -> do
            (filesSeen, uPaths) <- get

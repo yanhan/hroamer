@@ -85,7 +85,7 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
                                       ]
       let invalidPaths = S.fromList [cwd </> "we\0k"]
       let expectedUPaths = UPaths ancestorPaths duplicatePaths invalidPaths
-      runReaderT (getUnsupportedPaths paths) cwd `shouldReturn` expectedUPaths
+        in getUnsupportedPaths cwd paths `shouldReturn` expectedUPaths
 
   describe "getErrors" $ do
     it "when there are multiple categories of errors, it will construct a message that separates each category by an empty line and sort the filenames in each category of error" $ \_ -> do
