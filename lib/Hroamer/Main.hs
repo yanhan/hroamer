@@ -10,7 +10,6 @@ import Control.Monad.Writer.Class (MonadWriter, tell)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import Data.Text (Text, intercalate, pack)
-import qualified Data.Text.IO as TIO
 import Foundation hiding (intercalate)
 import Foundation.Collection (mapM_)
 import System.Exit (ExitCode(ExitFailure))
@@ -114,7 +113,7 @@ main = do
           (\f ->
             forM_ file_op_list (\fileop -> runReaderT (doFileOp f fileop) r))
           HroamerDb.updateDirAndFilename
-      else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
+      else mapM_ printToStdout $ Data.DList.toList unsupportedPathsDList
 
   -- cleanup
   rmIgnoreIOException dirstate_filepath
