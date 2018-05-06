@@ -79,12 +79,12 @@ spec = parallel $ beforeAll createTempDirs $ afterAll rmrf $ do
                                      , cwdParent
                                      , cwdGrandParent
                                      ]
-      let duplicatePaths = S.fromList [ cwd </> "funny.mp4"
+          duplicatePaths = S.fromList [ cwd </> "funny.mp4"
                                       , "/medium/fireball"
                                       , anotherDir </> "cupcakes"
                                       ]
-      let invalidPaths = S.fromList [cwd </> "we\0k"]
-      let expectedUPaths = UPaths ancestorPaths duplicatePaths invalidPaths
+          invalidPaths = S.fromList [cwd </> "we\0k"]
+          expectedUPaths = UPaths ancestorPaths duplicatePaths invalidPaths
         in getUnsupportedPaths cwd paths `shouldReturn` expectedUPaths
 
   describe "getErrors" $ do
