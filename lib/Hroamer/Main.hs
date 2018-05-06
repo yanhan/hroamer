@@ -41,8 +41,8 @@ checkIfCwdIsUnderHroamerDir appDataDir cwd =
       ]
 
 newtype AppM a = AppM { runAppM :: IO a }
-  deriving ( Functor, Applicative, Monad, MonadIO, SystemExit, FileSystemOps
-           , DatabaseOps, PathOps, ScreenIO, InstallSignalHandlers, UserControl
+  deriving ( Functor, Applicative, Monad, MonadIO, DatabaseOps, FileSystemOps
+           , InstallSignalHandlers, PathOps, ScreenIO, SystemExit, UserControl
            )
 
 mainIO :: IO ()
