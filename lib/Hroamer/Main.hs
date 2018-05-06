@@ -22,7 +22,7 @@ import Hroamer.DataStructures
 import Hroamer.FileOps (doFileOp, generateFileOps)
 import Hroamer.Interfaces
        (DatabaseOps(..), FileSystemOps(..), InstallSignalHandlers(..),
-        ScreenIO(..), SystemExit(..), UserControl(..))
+        PathOps(..), ScreenIO(..), SystemExit(..), UserControl(..))
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
@@ -42,7 +42,7 @@ checkIfCwdIsUnderHroamerDir appDataDir cwd =
 
 newtype AppM a = AppM { runAppM :: IO a }
   deriving ( Functor, Applicative, Monad, MonadIO, SystemExit, FileSystemOps
-           , DatabaseOps, ScreenIO, InstallSignalHandlers, UserControl
+           , DatabaseOps, PathOps, ScreenIO, InstallSignalHandlers, UserControl
            )
 
 mainIO :: IO ()
@@ -53,6 +53,7 @@ main :: ( MonadIO m
         , DatabaseOps m
         , FileSystemOps m
         , InstallSignalHandlers m
+        , PathOps m
         , ScreenIO m
         , SystemExit m
         , UserControl m
@@ -91,7 +92,7 @@ main = do
   foundChanges <- userMadeChanges dirstate_filepath user_dirstate_filepath
   when foundChanges $ liftIO $ do
     list_of_paths_and_uuid <- join $ mapM (\(path, uuid) -> do
-      resolvedPath <- Path.resolvePath cwd path
+      resolvedPath <- resolvePath cwd path
       return (resolvedPath, uuid)) <$> StateFile.read user_dirstate_filepath
     let list_of_paths = fmap fst list_of_paths_and_uuid
     unsupportedPaths <-

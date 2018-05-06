@@ -2,6 +2,7 @@ module Hroamer.Interfaces
   ( DatabaseOps(..)
   , FileSystemOps(..)
   , InstallSignalHandlers(..)
+  , PathOps(..)
   , ScreenIO(..)
   , SystemExit(..)
   , UserControl(..)
@@ -29,6 +30,7 @@ import System.Posix.Signals
 import System.Process (createProcess, proc, waitForProcess)
 
 import qualified Hroamer.Database as HroamerDb
+import Hroamer.DataStructures (AbsFilePath(AbsFilePath))
 import Hroamer.Exception (ignoreIOException)
 import qualified Hroamer.Path as Path
 import qualified Hroamer.Utilities as Utils
@@ -79,6 +81,17 @@ instance FileSystemOps IO where
   getXdgDir = getXdgDirectory XdgData "hroamer"
 
   rmIgnoreIOException file = liftIO $ removeFile file `catch` ignoreIOException
+
+
+class Monad m => PathOps m where
+  resolvePath :: FilePath -> FilePath -> m AbsFilePath
+
+  default resolvePath :: (MonadTrans t, PathOps m', m ~ t m') =>
+    FilePath -> FilePath -> m AbsFilePath
+  resolvePath cwd file = lift $ resolvePath cwd file
+
+instance PathOps IO where
+  resolvePath = Path.resolvePath
 
 
 class (Monad m) => DatabaseOps m where
