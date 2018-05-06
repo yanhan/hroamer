@@ -90,7 +90,7 @@ main = do
   letUserEditFile user_dirstate_filepath
 
   foundChanges <- userMadeChanges dirstate_filepath user_dirstate_filepath
-  when foundChanges $ liftIO $ do
+  when foundChanges $ do
     list_of_paths_and_uuid <- join $ mapM (\(path, uuid) -> do
       resolvedPath <- resolvePath cwd path
       return (resolvedPath, uuid)) <$> parseStateFile user_dirstate_filepath
@@ -108,7 +108,7 @@ main = do
                                list_of_paths_and_uuid
                                initialPathsAndUuids)
                              r
-        HroamerDb.wrapDbConn
+        liftIO $ HroamerDb.wrapDbConn
           path_to_db
           (\f ->
             forM_ file_op_list (\fileop -> runReaderT (doFileOp f fileop) r))
