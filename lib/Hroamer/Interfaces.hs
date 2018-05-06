@@ -30,9 +30,10 @@ import System.Posix.Signals
 import System.Process (createProcess, proc, waitForProcess)
 
 import qualified Hroamer.Database as HroamerDb
-import Hroamer.DataStructures (AbsFilePath(AbsFilePath))
+import Hroamer.DataStructures (AbsFilePath(AbsFilePath), FilePathUUIDPair)
 import Hroamer.Exception (ignoreIOException)
 import qualified Hroamer.Path as Path
+import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.Utilities as Utils
 
 class (Monad m) => FileSystemOps m where
@@ -40,6 +41,7 @@ class (Monad m) => FileSystemOps m where
   createHroamerDirs :: FilePath -> FilePath -> FilePath -> m ()
   getCwd :: m FilePath
   getXdgDir :: m FilePath
+  parseStateFile :: FilePath -> m [FilePathUUIDPair]
   rmIgnoreIOException :: FilePath -> m ()
 
   default copyFile :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
@@ -57,6 +59,10 @@ class (Monad m) => FileSystemOps m where
 
   default getXdgDir :: (MonadTrans t, FileSystemOps m', m ~ t m') => m FilePath
   getXdgDir = lift getXdgDir
+
+  default parseStateFile :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
+    FilePath -> m [FilePathUUIDPair]
+  parseStateFile = lift . parseStateFile
 
   default rmIgnoreIOException :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
     FilePath -> m ()
@@ -79,6 +85,8 @@ instance FileSystemOps IO where
 
   getCwd = getCurrentDirectory
   getXdgDir = getXdgDirectory XdgData "hroamer"
+
+  parseStateFile = StateFile.read
 
   rmIgnoreIOException file = liftIO $ removeFile file `catch` ignoreIOException
 

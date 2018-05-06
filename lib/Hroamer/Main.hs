@@ -93,7 +93,7 @@ main = do
   when foundChanges $ liftIO $ do
     list_of_paths_and_uuid <- join $ mapM (\(path, uuid) -> do
       resolvedPath <- resolvePath cwd path
-      return (resolvedPath, uuid)) <$> StateFile.read user_dirstate_filepath
+      return (resolvedPath, uuid)) <$> parseStateFile user_dirstate_filepath
     let list_of_paths = fmap fst list_of_paths_and_uuid
     unsupportedPaths <-
       runReaderT (UnsupportedPaths.getUnsupportedPaths list_of_paths) cwd
