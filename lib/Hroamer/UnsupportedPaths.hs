@@ -1,5 +1,6 @@
 module Hroamer.UnsupportedPaths
-  ( getErrors
+  ( UPaths(UPaths)
+  , getErrors
   , getUnsupportedPaths
   ) where
 

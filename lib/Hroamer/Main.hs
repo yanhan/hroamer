@@ -95,7 +95,7 @@ main = do
       resolvedPath <- resolvePath cwd path
       return (resolvedPath, uuid)) <$> parseStateFile user_dirstate_filepath
     let list_of_paths = fmap fst list_of_paths_and_uuid
-    unsupportedPaths <- UnsupportedPaths.getUnsupportedPaths cwd list_of_paths
+    unsupportedPaths <- getUnsupportedPaths cwd list_of_paths
     let unsupportedPathsDList = UnsupportedPaths.getErrors cwd unsupportedPaths
     if unsupportedPathsDList == Data.DList.empty
       then do

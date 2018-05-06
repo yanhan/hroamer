@@ -32,9 +32,11 @@ import System.Process (createProcess, proc, waitForProcess)
 import qualified Hroamer.Database as HroamerDb
 import Hroamer.DataStructures (AbsFilePath(AbsFilePath), FilePathUUIDPair)
 import Hroamer.Exception (ignoreIOException)
+import Hroamer.UnsupportedPaths (UPaths)
 import qualified Hroamer.Path as Path
 import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.Utilities as Utils
+import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 
 class (Monad m) => FileSystemOps m where
   copyFile :: FilePath -> FilePath -> m ()
@@ -92,13 +94,20 @@ instance FileSystemOps IO where
 
 
 class Monad m => PathOps m where
+  getUnsupportedPaths :: FilePath -> [AbsFilePath] -> m UPaths
   resolvePath :: FilePath -> FilePath -> m AbsFilePath
+
+  default getUnsupportedPaths :: (MonadTrans t, PathOps m', m ~ t m') =>
+    FilePath -> [AbsFilePath] -> m UPaths
+  getUnsupportedPaths cwd absFilePaths =
+    lift $ getUnsupportedPaths cwd absFilePaths
 
   default resolvePath :: (MonadTrans t, PathOps m', m ~ t m') =>
     FilePath -> FilePath -> m AbsFilePath
   resolvePath cwd file = lift $ resolvePath cwd file
 
 instance PathOps IO where
+  getUnsupportedPaths = UnsupportedPaths.getUnsupportedPaths
   resolvePath = Path.resolvePath
 
 
