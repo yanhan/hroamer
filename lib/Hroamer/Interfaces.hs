@@ -1,10 +1,10 @@
 module Hroamer.Interfaces
-  ( MonadDatabase(..)
-  , MonadExit(..)
-  , MonadFileSystem(..)
-  , MonadSignal(..)
-  , MonadScreenIO(..)
-  , MonadUserControl(..)
+  ( DatabaseOps(..)
+  , FileSystemOps(..)
+  , InstallSignalHandlers(..)
+  , ScreenIO(..)
+  , SystemExit(..)
+  , UserControl(..)
   ) where
 
 import Control.Exception (catch)
@@ -32,29 +32,29 @@ import Hroamer.Exception (ignoreIOException)
 import qualified Hroamer.Path as Path
 import qualified Hroamer.Utilities as Utils
 
-class (Monad m) => MonadFileSystem m where
+class (Monad m) => FileSystemOps m where
   copyFile :: FilePath -> FilePath -> m ()
   createHroamerDirs :: FilePath -> FilePath -> FilePath -> m ()
   getCwd :: m FilePath
   getXdgDir :: m FilePath
 
-  default copyFile :: (MonadTrans t, MonadFileSystem m', m ~ t m') =>
+  default copyFile :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
     FilePath -> FilePath -> m ()
 
   copyFile src dest = lift $ copyFile src dest
 
-  default createHroamerDirs :: (MonadTrans t, MonadFileSystem m', m ~ t m') =>
+  default createHroamerDirs :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
     FilePath -> FilePath -> FilePath -> m ()
   createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir =
     lift $ createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir
 
-  default getCwd :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
+  default getCwd :: (MonadTrans t, FileSystemOps m', m ~ t m') => m FilePath
   getCwd = lift getCwd
 
-  default getXdgDir :: (MonadTrans t, MonadFileSystem m', m ~ t m') => m FilePath
+  default getXdgDir :: (MonadTrans t, FileSystemOps m', m ~ t m') => m FilePath
   getXdgDir = lift getXdgDir
 
-instance MonadFileSystem IO where
+instance FileSystemOps IO where
   copyFile = System.Directory.copyFile
 
   createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir = do
@@ -73,36 +73,36 @@ instance MonadFileSystem IO where
   getXdgDir = getXdgDirectory XdgData "hroamer"
 
 
-class (Monad m) => MonadDatabase m where
+class (Monad m) => DatabaseOps m where
   initDb :: FilePath -> m ()
 
-  default initDb :: (MonadTrans t, MonadDatabase m', m ~ t m') => FilePath -> m ()
+  default initDb :: (MonadTrans t, DatabaseOps m', m ~ t m') => FilePath -> m ()
   initDb = lift . initDb
 
-instance MonadDatabase IO where
+instance DatabaseOps IO where
   initDb = HroamerDb.initDb
 
 
-class (Monad m) => MonadExit m where
+class (Monad m) => SystemExit m where
   exitWith :: ExitCode -> m a
 
-  default exitWith :: (MonadTrans t, MonadExit m', m ~ t m') => ExitCode -> m a
+  default exitWith :: (MonadTrans t, SystemExit m', m ~ t m') => ExitCode -> m a
   exitWith = lift . exitWith
 
-instance MonadExit IO where
+instance SystemExit IO where
   exitWith = System.Exit.exitWith
 
 
-class (Monad m) => MonadSignal m where
+class (Monad m) => InstallSignalHandlers m where
   installSignalHandlers :: FilePath -> FilePath -> m ()
 
-  default installSignalHandlers :: (MonadTrans t, MonadSignal m', m ~ t m') =>
+  default installSignalHandlers :: (MonadTrans t, InstallSignalHandlers m', m ~ t m') =>
     FilePath -> FilePath -> m ()
 
   installSignalHandlers dirStateFilePath userDirStateFilePath = lift $
     installSignalHandlers dirStateFilePath userDirStateFilePath
 
-instance MonadSignal IO where
+instance InstallSignalHandlers IO where
   installSignalHandlers dirStateFilePath userDirStateFilePath =
     let signals_to_handle = [keyboardSignal, softwareStop, softwareTermination]
         handler = Catch $
@@ -111,33 +111,33 @@ instance MonadSignal IO where
     in mapM_ (\signal -> installHandler signal handler Nothing) signals_to_handle
 
 
-class (Monad m) => MonadScreenIO m where
+class (Monad m) => ScreenIO m where
   printToStdout :: Text -> m ()
 
-  default printToStdout :: (MonadTrans t, MonadScreenIO m', m ~ t m') => Text -> m ()
+  default printToStdout :: (MonadTrans t, ScreenIO m', m ~ t m') => Text -> m ()
 
   printToStdout = lift . printToStdout
 
-instance MonadScreenIO IO where
+instance ScreenIO IO where
   printToStdout = TIO.putStrLn
 
 
-class (Monad m) => MonadUserControl m where
+class (Monad m) => UserControl m where
   letUserEditFile :: FilePath -> m ()
   userMadeChanges :: FilePath -> FilePath -> m Bool
 
-  default letUserEditFile :: (MonadTrans t, MonadUserControl m', m ~ t m') =>
+  default letUserEditFile :: (MonadTrans t, UserControl m', m ~ t m') =>
     FilePath -> m ()
 
   letUserEditFile = lift . letUserEditFile
 
-  default userMadeChanges :: (MonadTrans t, MonadUserControl m', m ~ t m') =>
+  default userMadeChanges :: (MonadTrans t, UserControl m', m ~ t m') =>
     FilePath -> FilePath -> m Bool
 
   userMadeChanges dirStateFilePath userDirStateFilePath =
     lift $ userMadeChanges dirStateFilePath userDirStateFilePath
 
-instance MonadUserControl IO where
+instance UserControl IO where
   letUserEditFile userDirStateFilePath = do
     editorCreateProcess <- Utils.makeEditorCreateProcess userDirStateFilePath
     (_, _, _, editorProcess) <- createProcess editorCreateProcess

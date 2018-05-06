@@ -24,8 +24,8 @@ import Hroamer.DataStructures
 import Hroamer.Exception (ignoreIOException)
 import Hroamer.FileOps (doFileOp, generateFileOps)
 import Hroamer.Interfaces
-       (MonadDatabase(..), MonadExit(..), MonadFileSystem(..),
-        MonadScreenIO(..), MonadSignal(..), MonadUserControl(..))
+       (DatabaseOps(..), SystemExit(..), FileSystemOps(..),
+        ScreenIO(..), InstallSignalHandlers(..), UserControl(..))
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
@@ -44,8 +44,8 @@ checkIfCwdIsUnderHroamerDir appDataDir cwd =
       ]
 
 newtype AppM a = AppM { runAppM :: IO a }
-  deriving ( Functor, Applicative, Monad, MonadIO, MonadExit, MonadFileSystem
-           , MonadDatabase, MonadScreenIO, MonadSignal, MonadUserControl
+  deriving ( Functor, Applicative, Monad, MonadIO, SystemExit, FileSystemOps
+           , DatabaseOps, ScreenIO, InstallSignalHandlers, UserControl
            )
 
 mainIO :: IO ()
@@ -53,12 +53,12 @@ mainIO =  runAppM main
 
 
 main :: ( MonadIO m
-        , MonadFileSystem m
-        , MonadDatabase m
-        , MonadExit m
-        , MonadScreenIO m
-        , MonadSignal m
-        , MonadUserControl m
+        , DatabaseOps m
+        , FileSystemOps m
+        , InstallSignalHandlers m
+        , ScreenIO m
+        , SystemExit m
+        , UserControl m
         ) => m ()
 main = do
   app_data_dir <- getXdgDir
