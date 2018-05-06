@@ -215,8 +215,7 @@ spec = parallel $ do
   describe "resolvePath" $ beforeAll createTempDirs $ afterAll rmrf $ do
     it "will not modify an absolute path which is not a symlink" $ \_ ->
       let filePath = "/usr/bin/yes"
-      in runReaderT (resolvePath filePath) undefined `shouldReturn`
-           AbsFilePath filePath
+      in resolvePath undefined filePath `shouldReturn` AbsFilePath filePath
 
     it "will resolve an absolute path which is a symlink" $ \mapOfTempDirs -> do
       let tempDir = fromJust $
@@ -229,8 +228,7 @@ spec = parallel $ do
       (_, _, _, ph) <- createProcess (proc "ln" ["-s", actualFile, symlink])
       waitForProcess ph
       pathIsSymbolicLink symlink `shouldReturn` True
-      runReaderT (resolvePath symlink) undefined `shouldReturn`
-        AbsFilePath actualFile
+      resolvePath undefined symlink `shouldReturn` AbsFilePath actualFile
 
     it "will resolve a relative path which exists" $ \_ -> do
       cwd <- getCurrentDirectory
@@ -240,13 +238,12 @@ spec = parallel $ do
                else getLevelsToDirs (takeDirectory path) (n + 1)
           levels = 1 + getLevelsToDirs cwd 0
           filePath = (mconcat $ replicate levels "../") </> "/bin/rm"
-      runReaderT (resolvePath filePath) undefined `shouldReturn`
-         AbsFilePath "/bin/rm"
+      resolvePath undefined filePath `shouldReturn` AbsFilePath "/bin/rm"
 
     it "will only prepend the current directory to a relative path which does not exist" $ \_ -> do
       cwd <- getCurrentDirectory
       let filePath = "I/hope/that/this/does/not/exist/on/your/computer3Z"
-      runReaderT (resolvePath filePath) undefined `shouldReturn`
+      resolvePath undefined filePath `shouldReturn`
         (AbsFilePath $ cwd </> filePath)
 
     it "will not resolve a symlink in the current directory" $ \mapOfTempDirs -> do
@@ -261,8 +258,7 @@ spec = parallel $ do
       (_, _, _, ph) <- createProcess (proc "ln" ["-s", actualFile, symlinkPath])
       waitForProcess ph
       pathIsSymbolicLink symlinkPath `shouldReturn` True
-      runReaderT (resolvePath symlinkName) cwd `shouldReturn`
-        AbsFilePath symlinkPath
+      resolvePath cwd symlinkName `shouldReturn` AbsFilePath symlinkPath
 
     it "will resolve a path in the current directory by returning the same path" $
       \mapOfTempDirs -> do
@@ -272,5 +268,4 @@ spec = parallel $ do
             filePath = cwd </> "uno"
         createDirectory cwd
         writeFile filePath "numero"
-        runReaderT (resolvePath filePath) cwd `shouldReturn`
-          AbsFilePath filePath
+        resolvePath cwd filePath `shouldReturn` AbsFilePath filePath

@@ -76,18 +76,16 @@ createDirNoForce app_data_dir = do
 hasSpace :: FilePath -> Bool
 hasSpace filename = maybe False (const True) $ find isSpace filename
 
-resolvePath :: FilePath -> ReaderT FilePath IO AbsFilePath
-resolvePath filename
+resolvePath :: FilePath -> FilePath -> IO AbsFilePath
+resolvePath cwd filename
   | isAbsolute filename || filenameHasPathSeparator filename =
-      lift $ fmap AbsFilePath $ canonicalizePath filename
+      fmap AbsFilePath $ canonicalizePath filename
   | otherwise = do
-      cwd <- ask
       let filePath = cwd </> filename
-      isSymlink <- lift $ pathIsSymbolicLink filePath `catch`
-        excHandlerReturnFalse
+      isSymlink <- pathIsSymbolicLink filePath `catch` excHandlerReturnFalse
       if isSymlink
          then return $ AbsFilePath filePath
-         else lift $ fmap AbsFilePath $ canonicalizePath filePath
+         else fmap AbsFilePath $ canonicalizePath filePath
   where
     filenameHasPathSeparator :: FilePath -> Bool
     filenameHasPathSeparator filename =
