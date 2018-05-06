@@ -9,6 +9,7 @@ module Hroamer.Interfaces
 
 import Control.Exception (catch)
 import Control.Monad (mapM_, unless)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
@@ -37,6 +38,7 @@ class (Monad m) => FileSystemOps m where
   createHroamerDirs :: FilePath -> FilePath -> FilePath -> m ()
   getCwd :: m FilePath
   getXdgDir :: m FilePath
+  rmIgnoreIOException :: FilePath -> m ()
 
   default copyFile :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
     FilePath -> FilePath -> m ()
@@ -53,6 +55,10 @@ class (Monad m) => FileSystemOps m where
 
   default getXdgDir :: (MonadTrans t, FileSystemOps m', m ~ t m') => m FilePath
   getXdgDir = lift getXdgDir
+
+  default rmIgnoreIOException :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
+    FilePath -> m ()
+  rmIgnoreIOException = lift . rmIgnoreIOException
 
 instance FileSystemOps IO where
   copyFile = System.Directory.copyFile
@@ -71,6 +77,8 @@ instance FileSystemOps IO where
 
   getCwd = getCurrentDirectory
   getXdgDir = getXdgDirectory XdgData "hroamer"
+
+  rmIgnoreIOException file = liftIO $ removeFile file `catch` ignoreIOException
 
 
 class (Monad m) => DatabaseOps m where

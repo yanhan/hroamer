@@ -13,7 +13,6 @@ import Data.Text (Text, intercalate, pack)
 import qualified Data.Text.IO as TIO
 import Foundation hiding (intercalate)
 import Foundation.Collection (mapM_)
-import System.Directory (removeFile)
 import System.Exit (ExitCode(ExitFailure))
 import System.FilePath.Posix
        (FilePath, (</>), takeDirectory, takeBaseName)
@@ -21,7 +20,6 @@ import System.FilePath.Posix
 import Hroamer.Core (processCwd)
 import Hroamer.DataStructures
        (AbsFilePath(AbsFilePath), FileOpsReadState(FileOpsReadState))
-import Hroamer.Exception (ignoreIOException)
 import Hroamer.FileOps (doFileOp, generateFileOps)
 import Hroamer.Interfaces
        (DatabaseOps(..), FileSystemOps(..), InstallSignalHandlers(..),
@@ -119,5 +117,5 @@ main = do
         else mapM_ TIO.putStrLn $ Data.DList.toList unsupportedPathsDList
 
   -- cleanup
-  liftIO $ removeFile dirstate_filepath `catch` ignoreIOException
-  liftIO $ removeFile user_dirstate_filepath `catch` ignoreIOException
+  rmIgnoreIOException dirstate_filepath
+  rmIgnoreIOException user_dirstate_filepath
