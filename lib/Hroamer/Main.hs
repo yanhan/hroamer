@@ -24,8 +24,8 @@ import Hroamer.DataStructures
 import Hroamer.Exception (ignoreIOException)
 import Hroamer.FileOps (doFileOp, generateFileOps)
 import Hroamer.Interfaces
-       (DatabaseOps(..), SystemExit(..), FileSystemOps(..),
-        ScreenIO(..), InstallSignalHandlers(..), UserControl(..))
+       (DatabaseOps(..), FileSystemOps(..), InstallSignalHandlers(..),
+        ScreenIO(..), SystemExit(..), UserControl(..))
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
