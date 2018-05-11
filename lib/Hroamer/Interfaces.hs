@@ -43,6 +43,7 @@ class (Monad m) => FileSystemOps m where
   createHroamerDirs :: FilePath -> FilePath -> FilePath -> m ()
   getCwd :: m FilePath
   getXdgDir :: m FilePath
+  listDirectory :: FilePath -> m [FilePath]
   parseStateFile :: FilePath -> m [FilePathUUIDPair]
   rmIgnoreIOException :: FilePath -> m ()
 
@@ -61,6 +62,10 @@ class (Monad m) => FileSystemOps m where
 
   default getXdgDir :: (MonadTrans t, FileSystemOps m', m ~ t m') => m FilePath
   getXdgDir = lift getXdgDir
+
+  default listDirectory :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
+    FilePath -> m [FilePath]
+  listDirectory = lift . listDirectory
 
   default parseStateFile :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
     FilePath -> m [FilePathUUIDPair]
@@ -87,6 +92,8 @@ instance FileSystemOps IO where
 
   getCwd = getCurrentDirectory
   getXdgDir = getXdgDirectory XdgData "hroamer"
+
+  listDirectory = System.Directory.listDirectory
 
   parseStateFile = StateFile.read
 

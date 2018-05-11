@@ -81,7 +81,7 @@ main = do
     [] -> return ()
 
   (initial_fnames_and_uuids, dirstate_filepath) <-
-    liftIO $ processCwd cwd app_tmp_dir path_to_db
+    processCwd cwd app_tmp_dir path_to_db
   let user_dirstate_filepath =
         takeDirectory dirstate_filepath </>
         ("user-" <> takeBaseName dirstate_filepath)
