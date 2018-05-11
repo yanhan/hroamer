@@ -22,7 +22,8 @@ import Hroamer.DataStructures
 import Hroamer.FileOps (doFileOp, generateFileOps)
 import Hroamer.Interfaces
        (DatabaseOps(..), FileSystemOps(..), InstallSignalHandlers(..),
-        PathOps(..), ScreenIO(..), SystemExit(..), UserControl(..))
+        PathOps(..), ScreenIO(..), SystemExit(..), UserControl(..),
+        UuidOps(..))
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
@@ -42,7 +43,8 @@ checkIfCwdIsUnderHroamerDir appDataDir cwd =
 
 newtype AppM a = AppM { runAppM :: IO a }
   deriving ( Functor, Applicative, Monad, MonadIO, DatabaseOps, FileSystemOps
-           , InstallSignalHandlers, PathOps, ScreenIO, SystemExit, UserControl
+           , InstallSignalHandlers, PathOps, ScreenIO, SystemExit, UuidOps
+           , UserControl
            )
 
 mainIO :: IO ()
@@ -56,6 +58,7 @@ main :: ( MonadIO m
         , PathOps m
         , ScreenIO m
         , SystemExit m
+        , UuidOps m
         , UserControl m
         ) => m ()
 main = do

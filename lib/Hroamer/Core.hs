@@ -12,7 +12,8 @@ import Foundation
 import System.FilePath.Posix (FilePath)
 
 import Hroamer.DataStructures (FilePathUUIDPair)
-import Hroamer.Interfaces (DatabaseOps(..), FileSystemOps(..))
+import Hroamer.Interfaces
+       (DatabaseOps(..), FileSystemOps(..), UuidOps(..))
 import Hroamer.Path (hasSpace)
 
 import qualified Hroamer.Database as HroamerDb
@@ -21,6 +22,7 @@ import qualified Hroamer.StateFile as StateFile
 processCwd :: ( MonadIO m
               , DatabaseOps m
               , FileSystemOps m
+              , UuidOps m
               ) => FilePath
                 -> FilePath
                 -> FilePath
@@ -32,12 +34,11 @@ processCwd cwd appTmpDir pathToDb = do
   let (filesOnlyOnSystem, filesOnlyInDb) =
         separateFilesIntoCategories filesOnSystem filesInDb
   filesAndUuidsOnlyOnSystem <-
-    liftIO $
-      mapM
-        (\fname -> do
-           uuid <- fmap UUID.toText UUID4.nextRandom
-           return (fname, uuid))
-        (S.toList filesOnlyOnSystem)
+    mapM
+      (\fname -> do
+         uuid <- fmap UUID.toText nextRandomUuid
+         return (fname, uuid))
+      (S.toList filesOnlyOnSystem)
   liftIO $
     HroamerDb.updateDbToMatchDirState
       cwd

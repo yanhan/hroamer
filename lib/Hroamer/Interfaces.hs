@@ -5,6 +5,7 @@ module Hroamer.Interfaces
   , PathOps(..)
   , ScreenIO(..)
   , SystemExit(..)
+  , UuidOps(..)
   , UserControl(..)
   ) where
 
@@ -16,6 +17,8 @@ import Control.Monad.Writer.Strict (runWriterT)
 import qualified Data.DList
 import Data.Text (Text)
 import qualified Data.Text.IO as TIO
+import Data.UUID (UUID)
+import qualified Data.UUID.V4 as UUID4
 import Foundation
 import qualified System.Directory
 import System.Directory
@@ -171,6 +174,16 @@ class (Monad m) => ScreenIO m where
 
 instance ScreenIO IO where
   printToStdout = TIO.putStrLn
+
+
+class Monad m => UuidOps m where
+  nextRandomUuid :: m UUID
+
+  default nextRandomUuid :: (MonadTrans t, UuidOps m', m ~ t m') => m UUID
+  nextRandomUuid = lift nextRandomUuid
+
+instance UuidOps IO where
+  nextRandomUuid = UUID4.nextRandom
 
 
 class (Monad m) => UserControl m where
