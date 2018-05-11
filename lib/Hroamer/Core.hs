@@ -3,7 +3,7 @@ module Hroamer.Core
   ) where
 
 import Control.Monad (mapM)
-import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Class (MonadIO)
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.UUID as UUID
@@ -17,7 +17,6 @@ import Hroamer.Interfaces
 import Hroamer.Path (hasSpace)
 
 import qualified Hroamer.Database as HroamerDb
-import qualified Hroamer.StateFile as StateFile
 
 processCwd :: ( MonadIO m
               , DatabaseOps m
@@ -50,8 +49,7 @@ processCwd cwd appTmpDir pathToDb = do
           (\(fname, _) -> fname `S.notMember` filesOnlyInDb)
           filesAndUuidInDb <>
         filesAndUuidsOnlyOnSystem
-  dirStateFilePath <- liftIO $
-    StateFile.create cwd appTmpDir filesAndUuidsAccurate
+  dirStateFilePath <- createStateFile cwd appTmpDir filesAndUuidsAccurate
   return (filesAndUuidsAccurate, dirStateFilePath)
   where
     separateFilesIntoCategories :: [FilePath]

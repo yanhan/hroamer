@@ -44,6 +44,7 @@ import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 class (Monad m) => FileSystemOps m where
   copyFile :: FilePath -> FilePath -> m ()
   createHroamerDirs :: FilePath -> FilePath -> FilePath -> m ()
+  createStateFile :: FilePath -> FilePath -> [FilePathUUIDPair] -> m FilePath
   getCwd :: m FilePath
   getXdgDir :: m FilePath
   listDirectory :: FilePath -> m [FilePath]
@@ -59,6 +60,11 @@ class (Monad m) => FileSystemOps m where
     FilePath -> FilePath -> FilePath -> m ()
   createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir =
     lift $ createHroamerDirs appDataDir appTmpDir pathToTrashCopyDir
+
+  default createStateFile :: (MonadTrans t, FileSystemOps m', m ~ t m') =>
+    FilePath -> FilePath -> [FilePathUUIDPair] -> m FilePath
+  createStateFile cwd appTmpDir filesAndUuidsAccurate =
+    lift $ createStateFile cwd appTmpDir filesAndUuidsAccurate
 
   default getCwd :: (MonadTrans t, FileSystemOps m', m ~ t m') => m FilePath
   getCwd = lift getCwd
@@ -92,6 +98,8 @@ instance FileSystemOps IO where
       mapM_ TIO.putStrLn $ Data.DList.toList errorDList
       TIO.putStrLn "Exiting."
       System.Exit.exitWith $ ExitFailure 1
+
+  createStateFile = StateFile.create
 
   getCwd = getCurrentDirectory
   getXdgDir = getXdgDirectory XdgData "hroamer"
