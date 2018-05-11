@@ -39,12 +39,11 @@ processCwd cwd appTmpDir pathToDb = do
          uuid <- fmap UUID.toText nextRandomUuid
          return (fname, uuid))
       (S.toList filesOnlyOnSystem)
-  liftIO $
-    HroamerDb.updateDbToMatchDirState
-      cwd
-      pathToDb
-      filesAndUuidsOnlyOnSystem
-      (S.toList filesOnlyInDb)
+  updateDbToMatchDirState
+    cwd
+    pathToDb
+    filesAndUuidsOnlyOnSystem
+    (S.toList filesOnlyInDb)
 
   let filesAndUuidsAccurate =
         filter

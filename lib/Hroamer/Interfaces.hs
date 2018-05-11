@@ -124,6 +124,8 @@ instance PathOps IO where
 class (Monad m) => DatabaseOps m where
   getAllFilesInDir :: FilePath -> FilePath -> m [([Char], Text)]
   initDb :: FilePath -> m ()
+  updateDbToMatchDirState ::
+    FilePath -> FilePath -> [([Char], Text)] -> [[Char]] -> m ()
 
   default getAllFilesInDir :: (MonadTrans t, DatabaseOps m', m ~ t m') =>
     FilePath -> FilePath -> m [([Char], Text)]
@@ -132,9 +134,20 @@ class (Monad m) => DatabaseOps m where
   default initDb :: (MonadTrans t, DatabaseOps m', m ~ t m') => FilePath -> m ()
   initDb = lift . initDb
 
+  default updateDbToMatchDirState :: (MonadTrans t, DatabaseOps m', m ~ t m') =>
+    FilePath -> FilePath -> [([Char], Text)] -> [[Char]] -> m ()
+  updateDbToMatchDirState cwd pathToDb filesAndUuidOnlyOnSystem filesOnlyInDb =
+    lift $
+      updateDbToMatchDirState
+        cwd
+        pathToDb
+        filesAndUuidOnlyOnSystem
+        filesOnlyInDb
+
 instance DatabaseOps IO where
   getAllFilesInDir = HroamerDb.getAllFilesInDir
   initDb = HroamerDb.initDb
+  updateDbToMatchDirState = HroamerDb.updateDbToMatchDirState
 
 
 class (Monad m) => SystemExit m where
