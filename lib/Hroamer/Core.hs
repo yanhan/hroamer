@@ -12,13 +12,14 @@ import Foundation
 import System.FilePath.Posix (FilePath)
 
 import Hroamer.DataStructures (FilePathUUIDPair)
-import Hroamer.Interfaces (FileSystemOps(..))
+import Hroamer.Interfaces (DatabaseOps(..), FileSystemOps(..))
 import Hroamer.Path (hasSpace)
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.StateFile as StateFile
 
 processCwd :: ( MonadIO m
+              , DatabaseOps m
               , FileSystemOps m
               ) => FilePath
                 -> FilePath
@@ -26,7 +27,7 @@ processCwd :: ( MonadIO m
                 -> m ([FilePathUUIDPair], FilePath)
 processCwd cwd appTmpDir pathToDb = do
   filesOnSystem <- fmap (fmap (filter (not . hasSpace))) listDirectory cwd
-  filesAndUuidInDb <- liftIO $ HroamerDb.getAllFilesInDir pathToDb cwd
+  filesAndUuidInDb <- getAllFilesInDir pathToDb cwd
   let filesInDb = fmap fst filesAndUuidInDb
   let (filesOnlyOnSystem, filesOnlyInDb) =
         separateFilesIntoCategories filesOnSystem filesInDb

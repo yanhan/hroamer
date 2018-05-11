@@ -119,12 +119,18 @@ instance PathOps IO where
 
 
 class (Monad m) => DatabaseOps m where
+  getAllFilesInDir :: FilePath -> FilePath -> m [([Char], Text)]
   initDb :: FilePath -> m ()
+
+  default getAllFilesInDir :: (MonadTrans t, DatabaseOps m', m ~ t m') =>
+    FilePath -> FilePath -> m [([Char], Text)]
+  getAllFilesInDir pathToDb dirName = lift $ getAllFilesInDir pathToDb dirName
 
   default initDb :: (MonadTrans t, DatabaseOps m', m ~ t m') => FilePath -> m ()
   initDb = lift . initDb
 
 instance DatabaseOps IO where
+  getAllFilesInDir = HroamerDb.getAllFilesInDir
   initDb = HroamerDb.initDb
 
 
