@@ -7,7 +7,6 @@ import Control.Monad.IO.Class (MonadIO)
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.UUID as UUID
-import qualified Data.UUID.V4 as UUID4
 import Foundation
 import System.FilePath.Posix (FilePath)
 
@@ -15,8 +14,6 @@ import Hroamer.DataStructures (FilePathUUIDPair)
 import Hroamer.Interfaces
        (DatabaseOps(..), FileSystemOps(..), UuidOps(..))
 import Hroamer.Path (hasSpace)
-
-import qualified Hroamer.Database as HroamerDb
 
 processCwd :: ( MonadIO m
               , DatabaseOps m
