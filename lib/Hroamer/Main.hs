@@ -4,7 +4,7 @@ module Hroamer.Main
 
 import Control.Exception (catch)
 import Control.Monad (forM_, join, mapM, when)
-import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (runReaderT, runReader)
 import Control.Monad.Writer.Class (MonadWriter, tell)
 import Control.Monad.Writer.Strict (runWriterT)
@@ -110,7 +110,7 @@ main = do
                                list_of_paths_and_uuid
                                initialPathsAndUuids)
                              r
-        liftIO $ HroamerDb.wrapDbConn
+        wrapDbConn
           path_to_db
           (\f ->
             forM_ file_op_list (\fileop -> runReaderT (doFileOp f fileop) r))

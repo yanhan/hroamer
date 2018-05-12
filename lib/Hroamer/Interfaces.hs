@@ -19,6 +19,7 @@ import Data.Text (Text)
 import qualified Data.Text.IO as TIO
 import Data.UUID (UUID)
 import qualified Data.UUID.V4 as UUID4
+import Database.SQLite.Simple (Connection)
 import Foundation
 import qualified System.Directory
 import System.Directory
@@ -134,6 +135,7 @@ class (Monad m) => DatabaseOps m where
   initDb :: FilePath -> m ()
   updateDbToMatchDirState ::
     FilePath -> FilePath -> [([Char], Text)] -> [[Char]] -> m ()
+  wrapDbConn :: FilePath -> (a -> IO b) -> (Connection -> a) -> m b
 
   default getAllFilesInDir :: (MonadTrans t, DatabaseOps m', m ~ t m') =>
     FilePath -> FilePath -> m [([Char], Text)]
@@ -152,10 +154,16 @@ class (Monad m) => DatabaseOps m where
         filesAndUuidOnlyOnSystem
         filesOnlyInDb
 
+  default wrapDbConn :: (MonadTrans t, DatabaseOps m', m ~ t m') =>
+    FilePath -> (a -> IO b) -> (Connection -> a) -> m b
+  wrapDbConn pathToDb workFunction dbFunction = lift $
+    wrapDbConn pathToDb workFunction dbFunction
+
 instance DatabaseOps IO where
   getAllFilesInDir = HroamerDb.getAllFilesInDir
   initDb = HroamerDb.initDb
   updateDbToMatchDirState = HroamerDb.updateDbToMatchDirState
+  wrapDbConn = HroamerDb.wrapDbConn
 
 
 class (Monad m) => SystemExit m where
