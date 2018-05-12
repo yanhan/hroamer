@@ -2,7 +2,6 @@ module Hroamer.Main
   ( mainIO
   ) where
 
-import Control.Exception (catch)
 import Control.Monad (forM_, join, mapM, when)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (runReaderT, runReader)
