@@ -27,7 +27,6 @@ import Hroamer.Interfaces
 
 import qualified Hroamer.Database as HroamerDb
 import qualified Hroamer.Path as Path
-import qualified Hroamer.StateFile as StateFile
 import qualified Hroamer.UnsupportedPaths as UnsupportedPaths
 
 checkIfCwdIsUnderHroamerDir :: MonadWriter [Text] m => FilePath -> FilePath -> m ()
