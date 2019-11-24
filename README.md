@@ -181,4 +181,4 @@ Because this is the first non-trivial Haskell project I've worked on
 
 ## License
 
-[MIT License](/LICENSE), Copyright (c) 2017-2018 Pang Yan Han
+[3-Clause BSD License](/LICENSE), Copyright (c) 2019 Yan Han Pang
